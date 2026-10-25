@@ -2,6 +2,20 @@
 
 An incremental extension of the live-tested V1: the same Vite/JavaScript app, event log, scoreboard, clock, autosave, timeline, detailed editor, undo, half transitions, added time, and offline PWA. No account, cloud storage, paid service or AI interpretation is required. Teams and squads start blank.
 
+## Programme parser correction — build 0.3.3
+
+The programme parser now requires structural player evidence. It no longer accepts arbitrary multi-word OCR lines or arbitrary words merely because Formation mode was selected. OCR engine settings are unchanged.
+
+- Main-body candidates need an inline jersey/name pair, a one-to-one number/name association immediately below or beside the number, or membership in a complete six-row 1–3–3–2–3–3 formation. Numberless partial/ambiguous text is not automatically declared a team. A damaged name anchored within a strong numbered XV is retained as an explicitly blank/uncertain review row rather than filled from unrelated text.
+- Subs/Substitutes is a separate bounded section, including `Subs: 16 Name 17 Other Name` on one line. Management, Coaches, FLO, First Aid, Sponsors and related footer headings stop player extraction. Document headings, competition/venue/date/time and club/county metadata are excluded. Number/name association does not borrow names above a jersey or reuse the same name/number pair.
+- A conventional 1–15 formation uses the standard jersey-position suggestions. Observed formation placement handles non-standard numbers, such as 22 at Centre Half Back. Jersey and position are still independent editable fields. Unreadable or low-confidence jersey digits remain blank; no missing jersey numbers are generated from the expected XV.
+- `(C)` and `(VC)` are removed from the actual name, preserved as Captain/Vice-captain notes, and shown in review confidence text. These notes persist through confirmation and saved-squad operations. The same review columns remain Jersey | Player | Position | Starter/Sub | Confidence.
+- No match clock, event, scoring, voice, analysis, squad persistence or offline logic is changed by this parser correction.
+
+The actual `Naomh_Ciaran_U14_Shield_Final.jpg` was **not present** in this workspace. Regression data uses the expected XV supplied by the user, explicitly labelled as synthetic spatial data and a generated programme JPEG with headers, numbered formation, captains, Subs and staff/sponsor footers. Real OCR is run on that generated JPEG; this must not be mistaken for testing the original photograph. Names are fixture data only, never a runtime player dictionary or a seeded squad. Poor OCR can still require review, particularly ambiguous jersey digits and names.
+
+The corrected source is on `sideline-v3-real-match`. Use GitHub's Download ZIP for that branch after the correction is pushed, or `git switch sideline-v3-real-match` and pull it, then run `npm ci` and `npm run dev`. `/build-info.json` reports version **0.3.3** and `programmeParser: structured-number-name-and-sections`. `main` and `sideline-v2-test` are not changed.
+
 ## Import fix — build 0.3.1
 
 Confirm **V3 REAL MATCH TEST · IMPORT FIX** on Live Match or **Sideline V3.1 · Import Fix** in the browser title after deploying. The earlier V3 ZIP still had the V2 photo fallback; use the updated build, close old Sideline tabs/apps to activate its service worker, reopen and cache it online before testing offline. Do not clear existing match data to update.
@@ -29,7 +43,7 @@ The worker, three compatible LSTM WebAssembly builds and English fast language m
 
 ## V3 match-day changes
 
-Work is restricted to `sideline-v3-real-match`. `main` (V1) and `sideline-v2-test` are unchanged. This is a focused extension of V2, not a new app. Source changes remain local until a commit/push is explicitly requested; a remote clone of the branch may still contain V2. Use the current V3 source/site ZIPs to review or deploy this build without changing those branches.
+Work is restricted to `sideline-v3-real-match`. `main` (V1) and `sideline-v2-test` are unchanged. This is a focused extension of V2, not a new app. The branch now includes the OCR implementation and structured programme parser; use the current branch source. Other branches remain unchanged.
 
 - **Landscape iPad Live Match:** compact navigation, sticky scoreboard/clock, large score buttons, seven build-up/substitution controls, permanent Edit/Undo, visible V3 build label, and Saved on this device indicator. The normal 1024×768 landscape tap panel fits without scrolling; voice review or enrichment can scroll while the scoreboard and footer remain accessible.
 - **One-tap scores:** Goal/Point/2 Point/Wide-Miss are saved immediately with the original tap time. Nothing optional blocks the score. Use Add player / location to last shot afterwards to enrich the same record, or use Edit Last Event. Closing/cancelling enrichment keeps the basic event. The rapid-repeat guard ignores a second identical event/team tap within 650 ms; another deliberate same-event tap is allowed after that interval.
@@ -66,7 +80,7 @@ npm run dev -- --port 5173 --strictPort
 
 Open `http://localhost:5173` **on the machine running the server**. An address inside a Codex cloud container does not forward to your Mac; this onboarding environment has no public Web Preview facility. To test on your Mac, run the commands in a local copy of the project. The server binds to `0.0.0.0` for devices on the same LAN; Vite prints the LAN address.
 
-V3 changes are on the local `sideline-v3-real-match` branch. `main` contains V1 and `sideline-v2-test` contains V2. Use the V3 source ZIP for this uncommitted review build.
+V3 changes are on `sideline-v3-real-match`. `main` contains V1 and `sideline-v2-test` contains V2. Download or check out the V3 branch for this build.
 
 For the production PWA/offline build:
 
@@ -145,7 +159,7 @@ Import-fix modules: `import-parser.js` (table/text/spatial semantics), `ocr.js` 
 
 ## Download/package verification — V3-IMPORT-FIX-2
 
-The uniquely named source ZIP is **Sideline-V3-IMPORT-FIX-2-Source.zip**, extracting into **Sideline-V3-IMPORT-FIX-2-Source**. Use this source archive for `npm ci` / Vite on your Mac; do not substitute a GitHub “Download ZIP” of the branch, whose committed code has not been updated because these changes are uncommitted/unpushed. The deployable archive is **Sideline-V3-IMPORT-FIX-2-Site.zip** and is for HTTPS static hosting, not `npm run dev`.
+The uniquely named source ZIP is **Sideline-V3-IMPORT-FIX-2-Source.zip**, extracting into **Sideline-V3-IMPORT-FIX-2-Source**. Use this source archive for `npm ci` / Vite on your Mac; earlier GitHub branch ZIPs predated the OCR commit. The current `sideline-v3-real-match` branch now contains OCR and the programme parser correction. The deployable archive is **Sideline-V3-IMPORT-FIX-2-Site.zip** and is for HTTPS static hosting, not `npm run dev`.
 
 ```sh
 cd ~/Downloads/Sideline-V3-IMPORT-FIX-2-Source
@@ -155,4 +169,4 @@ npm run dev -- --port 5176 --strictPort
 
 The Vite terminal prints `[Sideline V3-IMPORT-FIX-2] Project root: ...`; verify it names this extracted folder. Open `http://localhost:5176` on that Mac. Both the browser title and the top bar must show **V3-IMPORT-FIX-2**, including on Match Setup. `http://localhost:5176/build-info.json` must show `"buildId": "V3-IMPORT-FIX-2"`. A different label or a missing/different metadata response means a different project is being served. Stop that server and run the command from the exact extracted source folder. No site-data clearing is required or recommended.
 
-This package includes the local OCR module, Tesseract dependencies/lockfile, Vite middleware for `/ocr/` in development, and the production worker/model copying and precache. `SOURCE-PACKAGE.json` in the archive records each source file's SHA-256. A fresh extraction is used for installation, tests, build and actual JPEG/PNG OCR verification before packaging the site. The older `Sideline-V3-Source.zip` and GitHub's current branch ZIP lack OCR; the subsequently generated `Sideline-V3-Import-Fix-Source.zip` did contain OCR and was packaged after those changes. These distinct filenames and visible identity remove that ambiguity.
+This package includes the local OCR module, Tesseract dependencies/lockfile, Vite middleware for `/ocr/` in development, and the production worker/model copying and precache. `SOURCE-PACKAGE.json` in the archive records each source file's SHA-256. A fresh extraction is used for installation, tests, build and actual JPEG/PNG OCR verification before packaging the site. The older `Sideline-V3-Source.zip` and historical branch ZIPs from before the OCR commit lack OCR; the subsequently generated `Sideline-V3-Import-Fix-Source.zip` did contain OCR and was packaged after those changes. These distinct filenames and visible identity remove that ambiguity.

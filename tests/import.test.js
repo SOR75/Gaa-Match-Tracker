@@ -137,13 +137,13 @@ test("ambiguous formation does not guess missing positions, numeric order is nev
     [word("Alpha Keeper", 100, 100), word("Bella Player", 400, 200)],
     { layout: "formation" },
   );
-  assert.equal(players.length, 2);
+  assert.equal(players.length, 0);
   assert.ok(
     players.every(
       (p) => p.number === "" && p.position === "" && p.role === "starter",
     ),
   );
-  assert.match(players[0].confidence, /incomplete/);
+  // Selecting formation mode alone is not evidence that arbitrary words are players.
   assert.deepEqual(
     parseTextPlayers("Registered panel\nAnna Byrne\nBella Murphy", {
       layout: "registered",
@@ -197,9 +197,7 @@ test("starting-list jersey 22 is a starter, and split names/registered columns a
     [word("Patrick", 170, 100, 60), word("Murphy", 165, 127, 70)],
     { layout: "formation" },
   );
-  assert.equal(multiline.length, 1);
-  assert.equal(multiline[0].name, "Patrick Murphy");
-  assert.equal(multiline[0].number, "");
+  assert.equal(multiline.length, 0); // no jersey or complete formation: no invented player row
   const panel = parseSpatialPlayers(
     [
       word("Forename", 120, 10, 100),

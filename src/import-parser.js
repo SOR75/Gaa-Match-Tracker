@@ -1,3 +1,11 @@
+import {
+  parseProgrammeSegments,
+  isMetadata,
+  isFooter,
+  stripCaptain,
+  plausibleName,
+  numberedEntries,
+} from "./programme-parser.js";
 export const POSITIONS = [
   "Goalkeeper",
   "Right Corner Back",
@@ -36,13 +44,14 @@ export function candidate(
   position = "",
   confidence = "Review required",
 ) {
+  const cleaned = stripCaptain(name);
   return {
     number: numberOrBlank(number),
-    name: String(name).trim(),
+    name: cleaned.name,
     role,
     position,
-    notes: "",
-    confidence,
+    notes: cleaned.notes,
+    confidence: confidence + (cleaned.notes ? ` · ${cleaned.notes}` : ""),
   };
 }
 export function parseTextPlayers(text, { layout = "auto" } = {}) {
@@ -53,11 +62,26 @@ export function parseTextPlayers(text, { layout = "auto" } = {}) {
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
-    if (/foireann|lgfa|registered panel|starting.*(?:sub|jersey)/i.test(line))
+    if (isFooter(line)) break;
+    if (/foireann|registered panel|starting.*(?:sub|jersey)/i.test(line))
       registered = true;
     if (/^(subs(?:titutes)?|replacements?|fir ionaid)\b/i.test(line)) {
       substitutes = true;
       explicitStarters = false;
+      const rest = line.replace(
+        /^(subs(?:titutes)?|replacements?|fir ionaid)\s*[:.\-]?\s*/i,
+        "",
+      );
+      for (const entry of numberedEntries(rest))
+        players.push(
+          candidate(
+            entry.number,
+            entry.name,
+            "substitute",
+            "",
+            "Number/name pair in Subs section — verify",
+          ),
+        );
       continue;
     }
     if (/^(starting\s*(?:xv|15)|starters)\s*:?$/i.test(line)) {
@@ -65,6 +89,7 @@ export function parseTextPlayers(text, { layout = "auto" } = {}) {
       explicitStarters = true;
       continue;
     }
+    if (isMetadata(line)) continue;
     // Pasted tabular data is handled by the table adapter; these are ordinary lines.
     const match = line.match(
       /^(?:#?\(?\s*(\d{1,2}|\?)\s*[.)\-:]?\s+)?(.+?)(?:\s+(✓|✔|☑|\[x\]|\[ \]))?$/u,
@@ -73,7 +98,10 @@ export function parseTextPlayers(text, { layout = "auto" } = {}) {
     let [, number, name, tick] = match;
     const suffix = name.match(/\s+\((starter|substitute|sub|panel)\)$/i);
     if (suffix) name = name.slice(0, suffix.index);
-    if (!nameLike(name) || (!number && layout !== "formation" && !registered))
+    if (
+      !plausibleName(name, { uncertain: Boolean(number) }) ||
+      (!number && !explicitStarters && !registered)
+    )
       continue;
     const jersey = numberOrBlank(number);
     const role = registered
@@ -254,146 +282,13 @@ export function parseSpatialPlayers(
       ))
   )
     return parseRegisteredSegments(segments, { ocr });
-  // Common programme cards put first and family name on consecutive centred lines.
-  const merged = new Set(),
-    combined = [];
-  for (const s of segments) {
-    if (merged.has(s)) continue;
-    const next = segments
-      .filter(
-        (n) =>
-          !merged.has(n) &&
-          n !== s &&
-          nameLike(n.text) &&
-          !/[\d\s]/.test(n.text) &&
-          n.y > s.y + s.h * 0.6 &&
-          n.y < s.y + s.h * 2.1 &&
-          Math.abs(n.x + n.w / 2 - s.x - s.w / 2) < s.h,
-      )
-      .sort((a, b) => a.y - b.y)[0];
-    if (next && nameLike(s.text) && !/[\d\s]/.test(s.text)) {
-      combined.push({
-        ...s,
-        text: s.text + " " + next.text,
-        w: Math.max(s.w, next.w),
-        confidence: Math.min(s.confidence, next.confidence),
-      });
-      merged.add(next);
-    } else combined.push(s);
-  }
-  segments = combined;
-  const startingY = Math.min(
-    ...segments
-      .filter((s) => /^starting\s*(?:xv|15|team)?$/i.test(s.text))
-      .map((s) => s.y),
-    Infinity,
-  );
-  const subsY = Math.min(
-    ...segments
-      .filter((s) =>
-        /^(subs(?:titutes)?|replacements?|fir ionaid)\b/i.test(s.text),
-      )
-      .map((s) => s.y),
-    Infinity,
-  );
-  const nameSegments = segments.filter(
-    (s) =>
-      nameLike(s.text.replace(/^\d{1,2}[.)]?\s+/, "")) &&
-      !/^\d+[.)]?$/.test(s.text),
-  );
-  const nodes = nameSegments.map((s) => {
-    const inline = s.text.match(/^(\d{1,2})[.)]?\s+(.+)$/u);
-    const nearNumber = segments
-      .filter(
-        (n) =>
-          /^\d{1,2}[.)]?$/.test(n.text) &&
-          Math.abs(n.x + n.w / 2 - (s.x + s.w / 2)) <
-            Math.max(s.w * 0.55, 35) &&
-          Math.abs(n.y - s.y) < s.h * 3.5,
-      )
-      .sort((a, b) => Math.abs(a.y - s.y) - Math.abs(b.y - s.y))[0];
-    const numberText =
-      inline?.[1] || nearNumber?.text.replace(/[.)]/g, "") || "";
-    const numberConfidence = inline ? s.confidence : nearNumber?.confidence;
-    const number = ocr && numberText && numberConfidence < 85 ? "" : numberText;
-    return {
-      ...candidate(
-        number,
-        inline?.[2] || s.text,
-        s.y >= subsY ? "substitute" : "starter",
-        "",
-        ocr
-          ? `OCR word score ${Math.round(s.confidence)}/100 — uncertain; verify name${numberText && !number ? " / uncertain jersey left blank" : ""}`
-          : "PDF text — review layout",
-      ),
-      x: s.x + s.w / 2,
-      y: s.y,
-      h: s.h,
-    };
+  return parseProgrammeSegments(segments, {
+    layout,
+    goal,
+    ocr,
+    positions: POSITIONS,
+    candidate,
   });
-  const field = nodes.filter((node) => node.y < subsY);
-  const groups = [];
-  for (const node of field.slice().sort((a, b) => a.y - b.y)) {
-    let row = groups.find(
-      (row) => Math.abs(row.y - node.y) < Math.max(node.h * 1.6, 15),
-    );
-    if (!row) {
-      row = { y: node.y, nodes: [] };
-      groups.push(row);
-    }
-    row.nodes.push(node);
-  }
-
-  const expected = [1, 3, 3, 2, 3, 3];
-  const ordered = goal === "bottom" ? groups.slice().reverse() : groups;
-  let formationRows = null;
-  for (let start = 0; start <= ordered.length - 6; start++) {
-    const rows = ordered.slice(start, start + 6);
-    if (rows.every((row, i) => row.nodes.length === expected[i])) {
-      formationRows = rows;
-      break;
-    }
-  }
-  const isFormation = layout === "formation" || Boolean(formationRows);
-  const placed = new Set();
-  if (isFormation) {
-    let slot = 0;
-    if (formationRows) {
-      for (const row of formationRows) {
-        const across = row.nodes
-          .slice()
-          .sort((a, b) => (goal === "bottom" ? b.x - a.x : a.x - b.x));
-        for (const node of across) {
-          placed.add(node);
-          node.position = POSITIONS[slot++];
-          node.role = "starter";
-          node.confidence +=
-            " · position inferred from formation, verify sides";
-        }
-      }
-    } else
-      for (const node of field) {
-        node.role = "starter";
-        node.confidence +=
-          " · formation incomplete/ambiguous: position needs review";
-      }
-  } else {
-    for (const node of nodes) {
-      if (node.number && +node.number <= 15 && node.role === "starter") {
-        node.position = POSITIONS[+node.number - 1];
-        node.confidence += " · default jersey position only, verify";
-      } else if (node.number && +node.number > 15)
-        node.role =
-          node.y > startingY && node.y < subsY ? "starter" : "substitute";
-    }
-  }
-  return nodes
-    .filter((node) =>
-      formationRows
-        ? placed.has(node) || node.number || node.y >= subsY
-        : node.number || isFormation || /\s/.test(node.name),
-    )
-    .map(({ x, y, h, ...player }) => player);
 }
 
 function parseRegisteredSegments(segments, { ocr }) {
