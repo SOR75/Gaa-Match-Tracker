@@ -11,8 +11,18 @@ async function live(page) {
 }
 async function recordScore(page, label, player = "") {
   await page.getByRole("button", { name: new RegExp(`^${label} \\+`) }).click();
-  if (player) await page.getByLabel("Player number").fill(player);
-  await page.getByRole("button", { name: "Record event", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Skip location → Choose player" })
+    .click();
+  if (player) {
+    await page.getByLabel("Other player number").fill(player);
+    await page
+      .getByRole("button", { name: "Save player", exact: true })
+      .click();
+  } else
+    await page
+      .getByRole("button", { name: "Skip player & save event" })
+      .click();
 }
 
 test("mobile match workflow: squad, scoring, edits, undo, timeline and refresh", async ({
@@ -40,12 +50,13 @@ test("mobile match workflow: squad, scoring, edits, undo, timeline and refresh",
     "1total pts",
   );
   await page.getByRole("button", { name: "Our Kickout", exact: true }).click();
+  await page.getByRole("button", { name: "WON", exact: true }).click();
   await page
     .getByRole("button", { name: "Edit last event", exact: true })
     .click();
   await page.getByLabel("Kickout length").selectOption("Long");
   await page.getByLabel("Outcome", { exact: true }).selectOption("won");
-  await page.getByLabel("Notes / dictation").fill("Clean catch");
+  await page.getByLabel("Typed notes").fill("Clean catch");
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText("Clean catch")).toBeVisible();
   await page

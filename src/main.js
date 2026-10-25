@@ -10,8 +10,21 @@ import {
   createEvent,
   saveEvent,
   undoEvent,
+  playersFor,
+  isShot,
+  isKickout,
 } from "./domain.js";
 import { loadMatch, persistMatch } from "./storage.js";
+import { openQuickCapture, openNoteCapture } from "./capture.js";
+import {
+  squadTools,
+  openSaveSquad,
+  openSquadLibrary,
+  openImportReview,
+} from "./squad-ui.js";
+import { analysisScreen } from "./analysis-ui.js";
+import { noteMarkup, bindSpeech } from "./speech.js";
+import { pitchMarkup } from "./pitch.js";
 
 const icons = {
   pitch:
@@ -30,6 +43,7 @@ const icons = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
   ball: '<circle cx="12" cy="12" r="9"/><path d="m9 8 6 1 1 6-6 2-4-5zM9 8l-1-4M15 9l5-2M16 15l3 3M10 17l-1 4M6 12l-3 1"/>',
+  mic: '<rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/>',
   miss: '<path d="M5 19 19 5M9 5h10v10"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
 };
@@ -56,6 +70,17 @@ let view =
     : "setup";
 let selectedTeam = "our";
 let playerEditing = null;
+let squadTeam = "our";
+let analysisFilters = {
+  team: "all",
+  half: "all",
+  player: "all",
+  result: "all",
+};
+let reportMode = false;
+const setPlayers = (players) => {
+  match[squadTeam === "our" ? "players" : "oppositionPlayers"] = players;
+};
 let toastTimer;
 let timelineTeam = "all";
 let timelineKind = "all";
@@ -107,6 +132,7 @@ function render() {
     ["squad", "squad", "Squad"],
     ["live", "pitch", "Live match"],
     ["timeline", "timeline", "Timeline"],
+    ["analysis", "setup", "Match analysis"],
   ];
   app.innerHTML = `
     <aside class="sidebar">
@@ -117,7 +143,7 @@ function render() {
     </aside>
     <div class="main-shell">
       <header class="topbar"><span class="breadcrumb">Match workspace <span>/</span> <strong>${tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
-      <main id="main"><p id="storage-warning" class="warning" role="alert" hidden></p>${view === "setup" ? setupScreen() : view === "squad" ? squadScreen() : view === "live" ? liveScreen() : timelineScreen()}</main>
+      <main id="main"><p id="storage-warning" class="warning" role="alert" hidden></p>${view === "setup" ? setupScreen() : view === "squad" ? squadScreen() : view === "live" ? liveScreen() : view === "timeline" ? timelineScreen() : analysisScreen(match, analysisFilters, reportMode)}</main>
       <footer class="actionbar"><div class="last-event">${lastEventSummary()}</div><div class="history-actions"><button class="button subtle" data-action="edit-last" aria-label="Edit last event" ${match.events.length ? "" : "disabled"}>${icon("edit")}<span>Edit last<span class="wide-label"> event</span></span></button><button class="button undo" data-action="undo" aria-label="Undo last event" ${match.events.length ? "" : "disabled"}>${icon("undo")}<span>Undo last<span class="wide-label"> event</span></span></button></div></footer>
     </div>
     <dialog id="event-dialog" aria-labelledby="event-dialog-title"></dialog>
@@ -143,15 +169,14 @@ function setupScreen() {
     <div class="quiet-note"><span class="section-icon">${icon("check")}</span><div><h3>Focus on the game.</h3><p>Your match and every event save automatically on this device. No account. No distractions.</p></div></div><p class="device-note">Keep this browser’s data to keep your match. Private browsing may not retain it.</p></aside></div>`;
 }
 function squadScreen() {
-  const player = match.players.find((item) => item.id === playerEditing);
-  const starters = match.players.filter(
-    (item) => item.role === "starter",
-  ).length;
+  const squad = playersFor(match, squadTeam);
+  const player = squad.find((item) => item.id === playerEditing);
+  const starters = squad.filter((item) => item.role === "starter").length;
   return `${heading("KNOW YOUR SQUAD", "Numbers. Names. Ready.", "Add your players, or head straight to the match. You can return at any time.", `<button class="button primary" data-action="go-live">Go to live match ${icon("arrow")}</button>`)}
-  <div class="squad-layout"><section class="card player-entry"><div class="card-heading"><div class="section-icon">${icon("squad")}</div><div><h2>${player ? "Edit player" : "Add a player"}</h2><p>Your squad starts with a blank sheet.</p></div></div><form id="player-form"><div class="form-grid">${input("Jersey number", "number", player?.number ?? "", 'required min="1" max="99" step="1" inputmode="numeric" placeholder="1–99"', "number")}${input("Player name", "name", player?.name ?? "", 'required maxlength="80" placeholder="Full name" autocomplete="off"')}</div><label class="field"><span>Match role</span><select name="role"><option value="starter" ${player?.role !== "substitute" ? "selected" : ""}>Starter</option><option value="substitute" ${player?.role === "substitute" ? "selected" : ""}>Substitute</option></select></label>${input("Position", "position", player?.position ?? "", 'placeholder="e.g. Full forward" maxlength="60"')}<label class="field"><span>Notes <small>Optional</small></span><textarea name="notes" rows="3" maxlength="2000" placeholder="Anything to keep in mind">${esc(player?.notes ?? "")}</textarea></label><div class="player-form-actions">${player ? '<button class="button subtle" type="button" data-action="cancel-player">Cancel</button>' : ""}<button class="button primary" type="submit">${icon(player ? "check" : "plus")}${player ? "Save player" : "Add player"}</button></div></form></section>
-  <section class="card squad-list"><div class="card-heading"><div><h2>Your squad <span class="count-badge">${match.players.length}</span></h2><p>${starters} starters · ${match.players.length - starters} substitutes</p></div></div>${
-    match.players.length
-      ? `<div class="player-rows">${[...match.players]
+  ${squadTools(match, squadTeam)}<div class="squad-layout"><section class="card player-entry"><div class="card-heading"><div class="section-icon">${icon("squad")}</div><div><h2>${player ? "Edit player" : "Add a player"}</h2><p>Your squad starts with a blank sheet.</p></div></div><form id="player-form"><div class="form-grid">${input("Jersey number", "number", player?.number ?? "", 'required min="1" max="99" step="1" inputmode="numeric" placeholder="1–99"', "number")}${input("Player name", "name", player?.name ?? "", 'required maxlength="80" placeholder="Full name" autocomplete="off"')}</div><label class="field"><span>Match role</span><select name="role"><option value="starter" ${player?.role !== "substitute" ? "selected" : ""}>Starter</option><option value="substitute" ${player?.role === "substitute" ? "selected" : ""}>Substitute</option></select></label>${input("Position", "position", player?.position ?? "", 'placeholder="e.g. Full forward" maxlength="60"')}<label class="field"><span>Notes <small>Optional</small></span><textarea name="notes" rows="3" maxlength="2000" placeholder="Anything to keep in mind">${esc(player?.notes ?? "")}</textarea></label><div class="player-form-actions">${player ? '<button class="button subtle" type="button" data-action="cancel-player">Cancel</button>' : ""}<button class="button primary" type="submit">${icon(player ? "check" : "plus")}${player ? "Save player" : "Add player"}</button></div></form></section>
+  <section class="card squad-list"><div class="card-heading"><div><h2>Your squad <span class="count-badge">${squad.length}</span></h2><p>${starters} starters · ${squad.length - starters} substitutes</p></div></div>${
+    squad.length
+      ? `<div class="player-rows">${[...squad]
           .sort((a, b) => a.number - b.number)
           .map(
             (item) =>
@@ -172,7 +197,7 @@ function liveScreen() {
   return `${heading("FROM THE SIDELINE", "Every moment counts.", "Tap an event. Keep your eyes on the game.", `<span class="match-status"><span class="local-dot"></span>${match.clock.startedAt === null ? "MATCH WORKSPACE" : "LIVE TRACKING"}</span>`)}
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
     ${scoreboard()}
-    <section class="event-controls"><div class="controls-heading"><div><h2>Record an event</h2><p>Scores ask for a player. Other events save in one tap.</p></div><div class="team-toggle" role="group" aria-label="Event team"><button data-team="our" aria-pressed="${selectedTeam === "our"}" class="${selectedTeam === "our" ? "selected" : ""}">${esc(teamName("our"))}</button><button data-team="opposition" aria-pressed="${selectedTeam === "opposition"}" class="${selectedTeam === "opposition" ? "selected" : ""}">${esc(teamName("opposition"))}</button></div></div>
+    <section class="event-controls"><div class="controls-heading"><div><h2>Record an event</h2><p>Shots → pitch → player. Kickouts → won / lost.</p></div><div class="team-toggle" role="group" aria-label="Event team"><button data-team="our" aria-pressed="${selectedTeam === "our"}" class="${selectedTeam === "our" ? "selected" : ""}">${esc(teamName("our"))}</button><button data-team="opposition" aria-pressed="${selectedTeam === "opposition"}" class="${selectedTeam === "opposition" ? "selected" : ""}">${esc(teamName("opposition"))}</button></div></div>
     <div class="scoring-grid">${EVENT_TYPES.slice(0, 4)
       .map(
         (type, index) =>
@@ -187,7 +212,7 @@ function liveScreen() {
           `<button class="event-button compact-event" data-event="${type.id}" ${ready() ? "" : "disabled"}>${icon(type.id.includes("kickout") ? "arrow" : type.id === "possession" ? "ball" : "pitch")}<strong>${type.label}</strong></button>`,
       )
       .join("")}</div></section>
-    <section class="card recent-card"><div class="recent-heading"><h2>Latest events <span class="count-badge">${match.events.length}</span></h2><button class="text-button" data-view="timeline">View timeline ${icon("arrow")}</button></div>${
+    <div class="live-note-bar"><button class="button microphone" data-action="live-note" ${match.events.length ? "" : "disabled"}>${icon("mic")} Add / dictate note to last event</button><span class="small-note">Optional · no detailed editor needed</span></div><section class="card recent-card"><div class="recent-heading"><h2>Latest events <span class="count-badge">${match.events.length}</span></h2><button class="text-button" data-view="timeline">View timeline ${icon("arrow")}</button></div>${
       match.events.length
         ? match.events
             .slice(-3)
@@ -199,12 +224,10 @@ function liveScreen() {
 }
 function eventRow(event) {
   const type = eventType(event.event);
-  const player =
-    event.team === "our" &&
-    match.players.find(
-      (item) => String(item.number) === String(event.playerNumber),
-    );
-  return `<button class="event-row" data-edit-event="${event.id}" aria-label="Edit ${esc(type.label)} at ${formatTime(event.timeMs)}"><span class="event-time">${formatTime(event.timeMs)}<small>H${event.half}</small></span><span class="timeline-dot ${event.team}">${icon(type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(type.label)} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team))}${player ? ` · ${esc(player.name)}` : ""}${!type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.notes ? `<small>${esc(event.notes)}</small>` : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}<span class="row-edit">${icon("edit")}</span></button>`;
+  const player = playersFor(match, event.team).find(
+    (item) => String(item.number) === String(event.playerNumber),
+  );
+  return `<button class="event-row" data-edit-event="${event.id}" aria-label="Edit ${esc(type.label)} at ${formatTime(event.timeMs)}"><span class="event-time">${formatTime(event.timeMs)}<small>H${event.half}</small></span><span class="timeline-dot ${event.team}">${icon(type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(type.label)} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team))}${player ? ` · ${esc(player.name)}` : ""}${!type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}<span class="row-edit">${icon("edit")}</span></button>`;
 }
 function timelineScreen() {
   const filtered = match.events
@@ -267,9 +290,9 @@ function openEvent(event, editing = false) {
     ${
       playerRelevant
         ? `<label class="field"><span>Player number <small>Optional</small></span><input name="playerNumber" type="number" min="1" max="99" step="1" inputmode="numeric" placeholder="Jersey number" value="${esc(event.playerNumber)}" autofocus></label>${
-            event.team === "our" && match.players.length
+            playersFor(match, event.team).length
               ? `<div class="player-picks" aria-label="Choose player">${[
-                  ...match.players,
+                  ...playersFor(match, event.team),
                 ]
                   .sort((a, b) => a.number - b.number)
                   .map(
@@ -281,11 +304,11 @@ function openEvent(event, editing = false) {
           }`
         : ""
     }
-    ${event.event === "miss" ? selectField("Outcome", "outcome", event.outcome, ["wide", "saved", "blocked", "short", "post"]) : ""}
+    ${event.event === "miss" ? selectField("Outcome", "outcome", event.outcome, ["missed", "wide", "saved", "blocked", "short", "post"]) : ""}
     <details class="event-details" ${editing ? "open" : ""}><summary>${editing ? "Event details" : "Add details"} <span>Optional</span></summary><div class="detail-fields">
     ${editing ? `<div class="form-grid"><label class="field"><span>Event</span><select name="event" aria-label="Event">${EVENT_TYPES.map((item) => `<option value="${item.id}" ${item.id === event.event ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><label class="field"><span>Team</span><select name="team" aria-label="Team" ${type.team ? "disabled" : ""}><option value="our" ${event.team === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${event.team === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select></label><label class="field"><span>Half</span><select name="half" aria-label="Half"><option value="1" ${event.half === 1 ? "selected" : ""}>First half</option><option value="2" ${event.half === 2 ? "selected" : ""}>Second half</option></select></label>${input("Half time (mm:ss)", "time", formatTime(event.timeMs), 'required pattern="[0-9]{1,3}:[0-5][0-9]" inputmode="text" title="Use minutes:seconds, for example 05:30"')}</div>` : ""}
     <div class="form-grid">${!scoring && event.event !== "miss" ? selectField("Outcome", "outcome", event.outcome, ["won", "lost", "retained", "completed", "incomplete"]) : ""}${selectField("Zone", "zone", event.zone, ["Defensive third", "Middle third", "Attacking third"])}${selectField("Side", "side", event.side, ["Left", "Centre", "Right"])}${kickout || editing ? selectField("Kickout length", "kickoutLength", event.kickoutLength, ["Short", "Medium", "Long"]) : ""}${scoring || editing ? selectField("Score origin", "scoreOrigin", event.scoreOrigin, ["Open play", "Free", "45", "Penalty", "Mark", "Sideline"]) : ""}${selectField("Possession result", "possessionResult", event.possessionResult, ["Retained", "Lost", "Shot", "Score"])}${input("Attack pattern", "attackPattern", event.attackPattern, 'maxlength="120" placeholder="Optional"')}</div>
-    <label class="field"><span>Notes / dictation</span><textarea name="notes" rows="2" maxlength="2000" placeholder="Type or use your keyboard’s microphone">${esc(event.notes)}</textarea></label>${input("Coach observation", "coachObservation", event.coachObservation, 'maxlength="500" placeholder="Optional"')}
+    ${noteMarkup(event)}${input("Coach observation", "coachObservation", event.coachObservation, 'maxlength="500" placeholder="Optional"')}
     <label class="field"><span>Direct score link</span><select name="directScoreLink"><option value="">No linked score</option>${match.events
       .filter(
         (item) =>
@@ -298,7 +321,10 @@ function openEvent(event, editing = false) {
           `<option value="${item.id}" ${event.directScoreLink === item.id ? "selected" : ""}>H${item.half} ${formatTime(item.timeMs)} · ${esc(teamName(item.team))} · ${esc(eventType(item.event).label)}</option>`,
       )
       .join("")}</select></label>
+    <div class="form-grid">${input("Shot X (0–1)", "shotX", event.shotX ?? "", 'min="0" max="1" step="any"', "number")}${input("Shot Y (0–1)", "shotY", event.shotY ?? "", 'min="0" max="1" step="any"', "number")}</div><p class="small-note">Coordinates are normalized; attacking goal at top. Leave both empty for no location.</p>
     </div></details><div class="dialog-actions"><button type="button" class="button subtle" data-action="close-dialog">Cancel</button><button class="button primary" type="submit">${icon("check")}${editing ? "Save changes" : "Record event"}</button></div><p class="dialog-hint">${editing ? "Changes update the scoreboard and timeline." : "The match time was captured when you tapped the event."}</p></form>`;
+  const stopDictation = bindSpeech(dialog);
+  dialog.addEventListener("close", stopDictation, { once: true });
   dialog.showModal();
   // Prevent the iPhone keyboard covering the quick-save controls on opening.
   dialog.querySelector("input")?.blur();
@@ -313,6 +339,13 @@ function openEvent(event, editing = false) {
       delete updated.time;
     }
     updated.half = Number(updated.half);
+    updated.shotX = data.shotX === "" ? null : Number(data.shotX);
+    updated.shotY = data.shotY === "" ? null : Number(data.shotY);
+    if ((updated.shotX === null) !== (updated.shotY === null)) {
+      toast("Enter both shot coordinates or leave both empty.");
+      return;
+    }
+    stopDictation();
     const nextType = eventType(updated.event);
     if (updated.event !== event.event) updated.outcome = nextType.outcome;
     if (nextType.value > 0) updated.outcome = "scored";
@@ -345,6 +378,31 @@ document.addEventListener("click", (event) => {
     render();
     window.scrollTo(0, 0);
   }
+  if (button.dataset.squadTeam) {
+    squadTeam = button.dataset.squadTeam;
+    playerEditing = null;
+    render();
+  }
+  if (button.hasAttribute("data-save-squad"))
+    openSaveSquad(
+      document.querySelector("#event-dialog"),
+      match,
+      squadTeam,
+      () => toast("Reusable squad saved on this device."),
+    );
+  if (button.hasAttribute("data-squad-library"))
+    openSquadLibrary(
+      document.querySelector("#event-dialog"),
+      match,
+      squadTeam,
+      (players) => {
+        playerEditing = null;
+        setPlayers(players);
+        persist();
+        render();
+        toast("Squad loaded as a separate match copy.");
+      },
+    );
   if (button.dataset.team) {
     selectedTeam = button.dataset.team;
     render();
@@ -356,7 +414,18 @@ document.addEventListener("click", (event) => {
       return;
     }
     const record = createEvent(match, button.dataset.event, selectedTeam);
-    if (eventType(record.event).player) openEvent(record);
+    if (isShot(record) || isKickout(record))
+      openQuickCapture(
+        document.querySelector("#event-dialog"),
+        record,
+        match,
+        (captured) => {
+          match.events = saveEvent(match.events, captured);
+          persist();
+          render();
+          toast(`${eventType(captured.event).label} recorded`);
+        },
+      );
     else {
       match.events = saveEvent(match.events, record);
       persist();
@@ -377,7 +446,7 @@ document.addEventListener("click", (event) => {
     document.querySelector("#player-form input").focus();
   }
   if (button.dataset.deletePlayer) {
-    const player = match.players.find(
+    const player = playersFor(match, squadTeam).find(
       (item) => item.id === button.dataset.deletePlayer,
     );
     if (
@@ -385,7 +454,9 @@ document.addEventListener("click", (event) => {
         `Remove #${player.number} ${player.name} from the squad? Recorded events will be kept.`,
       )
     ) {
-      match.players = match.players.filter((item) => item.id !== player.id);
+      setPlayers(
+        playersFor(match, squadTeam).filter((item) => item.id !== player.id),
+      );
       if (playerEditing === player.id) playerEditing = null;
       persist();
       render();
@@ -399,6 +470,30 @@ document.addEventListener("click", (event) => {
       .forEach((item) => item.classList.toggle("chosen", item === button));
   }
   switch (button.dataset.action) {
+    case "live-note":
+      if (match.events.length)
+        openNoteCapture(
+          document.querySelector("#event-dialog"),
+          match.events.at(-1),
+          (updated) => {
+            match.events = saveEvent(match.events, updated);
+            persist();
+            render();
+            toast("Note saved with the event.");
+          },
+        );
+      break;
+    case "match-report":
+      reportMode = true;
+      render();
+      break;
+    case "analysis-back":
+      reportMode = false;
+      render();
+      break;
+    case "print-report":
+      window.print();
+      break;
     case "go-live":
       view = ready() ? "live" : "setup";
       render();
@@ -478,7 +573,7 @@ document.addEventListener("submit", (event) => {
     const data = Object.fromEntries(new FormData(event.target));
     const number = Number(data.number);
     if (
-      match.players.some(
+      playersFor(match, squadTeam).some(
         (item) => item.number === number && item.id !== playerEditing,
       )
     ) {
@@ -495,9 +590,13 @@ document.addEventListener("submit", (event) => {
       number,
       id: playerEditing || uid(),
     };
-    match.players = playerEditing
-      ? match.players.map((item) => (item.id === playerEditing ? player : item))
-      : [...match.players, player];
+    setPlayers(
+      playerEditing
+        ? playersFor(match, squadTeam).map((item) =>
+            item.id === playerEditing ? player : item,
+          )
+        : [...playersFor(match, squadTeam), player],
+    );
     playerEditing = null;
     persist();
     render();
@@ -506,6 +605,30 @@ document.addEventListener("submit", (event) => {
   }
 });
 document.addEventListener("change", (event) => {
+  if (!match) return;
+  if (
+    ["team-sheet-file", "team-sheet-photo"].includes(event.target.id) &&
+    event.target.files[0]
+  ) {
+    const file = event.target.files[0];
+    openImportReview(
+      document.querySelector("#event-dialog"),
+      file,
+      playersFor(match, squadTeam),
+      (players) => {
+        setPlayers([...playersFor(match, squadTeam), ...players]);
+        persist();
+        render();
+        toast(`${players.length} reviewed players added.`);
+      },
+    );
+    event.target.value = "";
+  }
+  if (event.target.id.startsWith("shot-")) {
+    analysisFilters[event.target.id.slice(5)] = event.target.value;
+    render();
+  }
+
   if (event.target.id === "timeline-team") {
     timelineTeam = event.target.value;
     render();

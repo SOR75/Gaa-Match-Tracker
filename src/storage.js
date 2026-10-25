@@ -1,12 +1,11 @@
-import { blankMatch, validMatch } from "./domain.js";
+import { blankMatch, migrateMatch } from "./domain.js";
 const KEY = "sideline.match.v1";
 export function loadMatch() {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { match: blankMatch(), error: "" };
     const match = JSON.parse(raw);
-    if (!validMatch(match)) throw new Error("Invalid saved match");
-    return { match, error: "" };
+    return { match: migrateMatch(match), error: "" };
   } catch {
     return {
       match: null,
@@ -17,6 +16,14 @@ export function loadMatch() {
 }
 export function persistMatch(match) {
   try {
+    const previous = localStorage.getItem(KEY);
+    if (
+      previous &&
+      JSON.parse(previous).schemaVersion === 1 &&
+      !localStorage.getItem("sideline.match.v1.backup")
+    ) {
+      localStorage.setItem("sideline.match.v1.backup", previous);
+    }
     localStorage.setItem(KEY, JSON.stringify(match));
     return "";
   } catch {

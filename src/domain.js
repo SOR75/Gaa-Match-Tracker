@@ -8,7 +8,13 @@ export const EVENT_TYPES = [
     outcome: "scored",
     player: true,
   },
-  { id: "miss", label: "Wide / Miss", value: 0, outcome: "wide", player: true },
+  {
+    id: "miss",
+    label: "Wide / Miss",
+    value: 0,
+    outcome: "missed",
+    player: true,
+  },
   {
     id: "our-kickout",
     label: "Our Kickout",
@@ -28,23 +34,31 @@ export const EVENT_TYPES = [
     label: "Turnover Won",
     value: 0,
     outcome: "won",
-    team: "our",
   },
   {
     id: "turnover-lost",
     label: "Turnover Lost",
     value: 0,
     outcome: "lost",
-    team: "our",
   },
   { id: "interception", label: "Interception", value: 0, outcome: "won" },
   { id: "possession", label: "Possession", value: 0, outcome: "" },
 ];
 export const eventType = (id) => EVENT_TYPES.find((type) => type.id === id);
-export const uid = () => crypto.randomUUID();
+export function uid() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  // getRandomValues is also available on a plain HTTP LAN development origin.
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = [...bytes]
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 export function blankMatch() {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: uid(),
     setup: {
       ourTeam: "",
@@ -56,6 +70,7 @@ export function blankMatch() {
       coach: "",
     },
     players: [],
+    oppositionPlayers: [],
     events: [],
     clock: { half: 1, elapsedMs: 0, startedAt: null },
   };
@@ -117,14 +132,32 @@ export function createEvent(match, typeId, team, now = Date.now()) {
     attackPattern: "",
     coachObservation: "",
     directScoreLink: "",
+    shotX: null,
+    shotY: null,
+    dictatedNote: "",
     createdAt: new Date(now).toISOString(),
   };
 }
 export function normalizeEvent(event) {
   const type = eventType(event.event);
   if (!type) throw new Error("Unknown event type");
+  const shotX = event.shotX ?? null,
+    shotY = event.shotY ?? null;
+  if (!(
+    (shotX === null && shotY === null) ||
+    (Number.isFinite(shotX) &&
+      shotX >= 0 &&
+      shotX <= 1 &&
+      Number.isFinite(shotY) &&
+      shotY >= 0 &&
+      shotY <= 1)
+  ))
+    throw new Error("Shot coordinates must both be within 0–1 or both empty.");
   return {
     ...event,
+    shotX,
+    shotY,
+    dictatedNote: event.dictatedNote ?? "",
     team: type.team || event.team,
     scoreValue: event.outcome === "scored" ? type.value : 0,
   };
@@ -161,7 +194,7 @@ export function undoEvent(events) {
 }
 export function validMatch(value) {
   return (
-    value?.schemaVersion === 1 &&
+    [1, 2].includes(value?.schemaVersion) &&
     typeof value.id === "string" &&
     value.setup &&
     ["ourTeam", "opposition", "competition", "venue", "date", "coach"].every(
@@ -180,6 +213,9 @@ export function validMatch(value) {
         player.number <= 99 &&
         ["starter", "substitute"].includes(player.role),
     ) &&
+    (value.schemaVersion === 1 ||
+      (Array.isArray(value.oppositionPlayers) &&
+        value.oppositionPlayers.every(validPlayer))) &&
     Array.isArray(value.events) &&
     value.events.every(
       (event) =>
@@ -189,7 +225,16 @@ export function validMatch(value) {
         [1, 2].includes(event.half) &&
         Number.isFinite(event.timeMs) &&
         event.timeMs >= 0 &&
-        typeof event.outcome === "string",
+        typeof event.outcome === "string" &&
+        (value.schemaVersion === 1 ||
+          (typeof event.dictatedNote === "string" &&
+            ((event.shotX === null && event.shotY === null) ||
+              (Number.isFinite(event.shotX) &&
+                event.shotX >= 0 &&
+                event.shotX <= 1 &&
+                Number.isFinite(event.shotY) &&
+                event.shotY >= 0 &&
+                event.shotY <= 1)))),
     ) &&
     value.clock &&
     [1, 2].includes(value.clock.half) &&
@@ -197,4 +242,48 @@ export function validMatch(value) {
     value.clock.elapsedMs >= 0 &&
     (value.clock.startedAt === null || Number.isFinite(value.clock.startedAt))
   );
+}
+
+export function validPlayer(player) {
+  return (
+    player &&
+    typeof player.id === "string" &&
+    typeof player.name === "string" &&
+    Number.isInteger(player.number) &&
+    player.number >= 1 &&
+    player.number <= 99 &&
+    ["starter", "substitute"].includes(player.role)
+  );
+}
+export const playersFor = (match, team) =>
+  team === "our" ? match.players : match.oppositionPlayers;
+export const isShot = (event) =>
+  ["goal", "point", "two-point", "miss"].includes(event.event);
+export const isKickout = (event) =>
+  ["our-kickout", "opposition-kickout"].includes(event.event);
+// Only new capture uses inference; migration preserves recorded legacy outcomes exactly.
+export function inferredOutcome(typeId) {
+  return eventType(typeId)?.outcome ?? "";
+}
+export function migrateMatch(value) {
+  if (!validMatch(value)) throw new Error("Invalid saved match");
+  if (value.schemaVersion === 2) return structuredClone(value);
+  return {
+    ...structuredClone(value),
+    schemaVersion: 2,
+    oppositionPlayers: [],
+    events: value.events.map((event) => ({
+      ...event,
+      shotX: null,
+      shotY: null,
+      dictatedNote: "",
+    })),
+  };
+}
+export function normalizedLocation(clientX, clientY, rect) {
+  if (!rect.width || !rect.height) return null;
+  return {
+    shotX: Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)),
+    shotY: Math.max(0, Math.min(1, (clientY - rect.top) / rect.height)),
+  };
 }
