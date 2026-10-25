@@ -12,6 +12,12 @@ async function live(page) {
 async function recordScore(page, label, player = "") {
   await page.getByRole("button", { name: new RegExp(`^${label} \\+`) }).click();
   await page
+    .getByRole("button", {
+      name: "Add player / location to last shot (optional)",
+      exact: true,
+    })
+    .click();
+  await page
     .getByRole("button", { name: "Skip location → Choose player" })
     .click();
   if (player) {

@@ -30,3 +30,22 @@ export function persistMatch(match) {
     return "Autosave failed. Keep this tab open: recent changes are only in memory. Check that browser storage is available.";
   }
 }
+
+export function startBlankMatch(current) {
+  try {
+    // Preserve a recoverable snapshot before replacing the active match.
+    localStorage.setItem(
+      `sideline.match.archive.${current.id}`,
+      JSON.stringify(current),
+    );
+    const match = blankMatch();
+    const error = persistMatch(match);
+    return error ? { match: null, error } : { match, error: "" };
+  } catch {
+    return {
+      match: null,
+      error:
+        "Could not preserve the current match. No new match was started. Keep this tab open.",
+    };
+  }
+}

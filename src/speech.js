@@ -4,7 +4,7 @@ import { esc, micIcon } from "./ui.js";
 export function noteMarkup(event = {}) {
   return `<div class="note-capture"><label class="field"><span>Typed notes</span><textarea name="notes" rows="2" maxlength="4000" placeholder="Type or use keyboard dictation">${esc(event.notes)}</textarea></label><label class="field"><span>Dictated note</span><textarea name="dictatedNote" rows="2" maxlength="8000" placeholder="Your transcription appears here; you can correct it">${esc(event.dictatedNote)}</textarea></label><button class="button microphone" type="button" data-microphone aria-label="Dictate note">${micIcon} Dictate note</button><p class="speech-status" role="status" data-speech-status></p><p class="small-note">Browser dictation may need internet and may use your device/browser provider’s speech service. No AI interpretation. Typed notes and keyboard dictation always remain available.</p></div>`;
 }
-export function bindSpeech(root) {
+export function bindSpeech(root, { onTranscript } = {}) {
   const button = root.querySelector("[data-microphone]");
   if (!button) return () => {};
   const status = root.querySelector("[data-speech-status]");
@@ -53,7 +53,7 @@ export function bindSpeech(root) {
         let interim = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const result = event.results[i];
-          if (result.isFinal)
+          if (result.isFinal) {
             textarea.value = [
               textarea.value.trim(),
               result[0].transcript.trim(),
@@ -61,7 +61,11 @@ export function bindSpeech(root) {
               .filter(Boolean)
               .join(" ")
               .slice(0, 8000);
-          else interim += result[0].transcript;
+            onTranscript?.({
+              dictatedNote: textarea.value,
+              notes: root.querySelector('[name="notes"]')?.value || "",
+            });
+          } else interim += result[0].transcript;
         }
         status.textContent =
           interim || "Transcription captured. Finish or continue speaking.";
@@ -76,8 +80,9 @@ export function bindSpeech(root) {
         if (!destroyed) {
           setActive(false);
           if (!status.textContent.startsWith("Dictation unavailable"))
-            status.textContent =
-              "Dictation stopped. Review the transcription before saving.";
+            status.textContent = onTranscript
+              ? "Dictation stopped. Transcription is attached to this event; save any further corrections below."
+              : "Dictation stopped. Review the transcription before saving.";
         }
       };
       try {

@@ -32,31 +32,39 @@ export function persistSquads(squads) {
   localStorage.setItem(KEY, JSON.stringify({ version: 1, squads }));
 }
 export function validatePlayers(players, existing = []) {
-  const numbers = new Set(existing.map((player) => Number(player.number)));
+  const numbers = new Set(
+    existing
+      .filter((player) => Number.isInteger(player.number))
+      .map((player) => player.number),
+  );
   if (!players.length) throw new Error("Add at least one player.");
   return players.map((player, index) => {
-    const number = Number(player.number);
+    const number =
+      player.number === null || String(player.number ?? " ").trim() === ""
+        ? null
+        : Number(player.number);
     const name = String(player.name || "").trim();
     if (
-      !Number.isInteger(number) ||
-      number < 1 ||
-      number > 99 ||
+      (number !== null &&
+        (!Number.isInteger(number) || number < 1 || number > 99)) ||
       !name ||
       name.length > 80
     )
       throw new Error(
-        `Row ${index + 1}: enter a jersey number 1–99 and a name (up to 80 characters).`,
+        `Row ${index + 1}: enter a name and either a blank jersey or a number 1–99 (up to 80 characters).`,
       );
-    if (numbers.has(number))
+    if (number !== null && numbers.has(number))
       throw new Error(
         `Duplicate jersey #${number}. Edit or remove the duplicate row before confirming.`,
       );
-    numbers.add(number);
+    if (number !== null) numbers.add(number);
     return {
       id: uid(),
       number,
       name,
-      role: player.role === "substitute" ? "substitute" : "starter",
+      role: ["starter", "substitute", "panel"].includes(player.role)
+        ? player.role
+        : "starter",
       position: String(player.position || ""),
       notes: String(player.notes || ""),
     };

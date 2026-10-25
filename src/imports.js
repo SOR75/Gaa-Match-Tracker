@@ -32,81 +32,38 @@ export function parseDelimited(text) {
   }
   return rows.filter((row) => row.some(Boolean));
 }
-export function candidatesFromRows(rows) {
-  rows = rows.filter((row) => row.some((value) => String(value ?? "").trim()));
-  const header = (rows[0] || []).map((value) =>
-    String(value ?? "")
-      .trim()
-      .toLowerCase(),
-  );
-  const numberIndex = header.findIndex((value) =>
-    ["number", "jersey", "jersey number", "no", "no."].includes(value),
-  );
-  const nameIndex = header.findIndex((value) =>
-    ["name", "player", "player name"].includes(value),
-  );
-  const hasHeader = numberIndex >= 0 && nameIndex >= 0;
-  const roleIndex = header.findIndex((value) =>
-    ["role", "starter/substitute", "match role"].includes(value),
-  );
-  const data = hasHeader ? rows.slice(1) : rows;
-  if (data.length > 1000)
-    throw new Error(
-      "More than 1,000 rows. Choose a file containing only the team sheet.",
-    );
-  return data.map((row) => ({
-    number: String(row[hasHeader ? numberIndex : 0] ?? ""),
-    name: String(row[hasHeader ? nameIndex : 1] ?? "").trim(),
-    role:
-      String(row[hasHeader ? roleIndex : 2] ?? "").toLowerCase() ===
-      "substitute"
-        ? "substitute"
-        : "starter",
-    confidence: "Review required",
-    position: "",
-    notes: "",
-  }));
-}
-export function candidatesFromText(text) {
-  const players = text
-    .split(/\r?\n/)
-    .map((line) => line.trim().match(/^(\d{1,2})[\s.)\-:]+(.+)$/u))
-    .filter(Boolean)
-    .map(([, number, name]) => ({
-      number,
-      name: name.trim(),
-      role: "starter",
-      position: "",
-      notes: "",
-      confidence: "Uncertain — verify text extraction",
-    }));
-  if (players.length > 1000)
-    throw new Error(
-      "More than 1,000 candidates. Choose the team-sheet pages only.",
-    );
-  return players;
-}
-export async function extractCandidates(file) {
+
+export {
+  parseTablePlayers as candidatesFromRows,
+  parseTextPlayers as candidatesFromText,
+} from "./import-parser.js";
+import {
+  parseTablePlayers,
+  parseTextPlayers,
+  parseSpatialPlayers,
+} from "./import-parser.js";
+export async function extractCandidates(file, options = {}) {
+  const { signal, onProgress = () => {} } = options;
   if (file.size > 15 * 1024 * 1024)
     throw new Error("Choose a file smaller than 15 MB.");
   const extension = file.name.split(".").at(-1).toLowerCase();
   if (["csv", "tsv", "txt"].includes(extension)) {
     const text = await file.text();
+    const tabular = extension !== "txt" || /[,\t]/.test(text.split(/\r?\n/)[0]);
     return {
-      players:
-        extension === "txt"
-          ? candidatesFromText(text)
-          : candidatesFromRows(parseDelimited(text)),
+      players: tabular
+        ? parseTablePlayers(parseDelimited(text), options)
+        : parseTextPlayers(text, options),
       message:
-        "Local text extraction. Verify every number and name before confirming.",
+        "Local text extraction. Blank jerseys stay blank; all names, positions and selection status require review.",
     };
   }
   if (extension === "xlsx") {
     const { readSheet } = await import("read-excel-file/browser");
     return {
-      players: candidatesFromRows(await readSheet(file)),
+      players: parseTablePlayers(await readSheet(file), options),
       message:
-        "First worksheet imported locally. Verify every number and name.",
+        "First worksheet extracted locally. Review positions, blank jerseys and selection status.",
     };
   }
   if (extension === "pdf") {
@@ -119,52 +76,129 @@ export async function extractCandidates(file) {
       isEvalSupported: false,
       useSystemFonts: true,
     });
+    let scanned = 0;
+    const players = [],
+      warnings = [];
     try {
-      const document = await task.promise;
-      if (document.numPages > 20)
+      const pdfDocument = await task.promise;
+      if (pdfDocument.numPages > 20)
         throw new Error(
-          "PDF has more than 20 pages. Choose the team-sheet pages only.",
+          "PDF has more than 20 pages. Select the team-sheet pages only.",
         );
-      const lines = [];
-      for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber++) {
-        const page = await document.getPage(pageNumber);
+      for (let index = 1; index <= pdfDocument.numPages; index++) {
+        if (signal?.aborted) throw new Error("Import cancelled.");
+        onProgress(`Reading PDF page ${index}/${pdfDocument.numPages}`);
+        const page = await pdfDocument.getPage(index),
+          viewport = page.getViewport({ scale: 1 });
         const { items } = await page.getTextContent();
-        let line = "",
-          lastY = null;
-        for (const item of items) {
-          if (!("str" in item)) continue;
-          if (lastY !== null && Math.abs(item.transform[5] - lastY) > 4) {
-            lines.push(line);
-            line = "";
+        const words = items
+          .filter((item) => item.str?.trim())
+          .map((item) => {
+            const [x, y] = viewport.convertToViewportPoint(
+              item.transform[4],
+              item.transform[5],
+            );
+            const h = Math.abs(item.height) || 12;
+            return {
+              text: item.str.trim(),
+              x,
+              y: y - h,
+              w: item.width,
+              h,
+              confidence: 100,
+            };
+          });
+        const usable = words.filter((word) => /\p{L}/u.test(word.text)).length;
+        if (usable >= 2) {
+          // Use real PDF text, not OCR. Checked PDF form widgets supplement the text layer.
+          const annotations = await page.getAnnotations();
+          for (const mark of annotations.filter(
+            (mark) =>
+              mark.fieldType === "Btn" &&
+              mark.fieldValue &&
+              !["Off", "off", "false"].includes(String(mark.fieldValue)),
+          )) {
+            const [x1, y1] = viewport.convertToViewportPoint(
+              mark.rect[0],
+              mark.rect[1],
+            );
+            const [x2, y2] = viewport.convertToViewportPoint(
+              mark.rect[2],
+              mark.rect[3],
+            );
+            words.push({
+              text: "✓",
+              x: Math.min(x1, x2),
+              y: Math.min(y1, y2),
+              w: Math.abs(x2 - x1),
+              h: Math.abs(y2 - y1),
+              confidence: 100,
+            });
           }
-          line += (line ? " " : "") + item.str;
-          lastY = item.transform[5];
-          if (item.hasEOL) {
-            lines.push(line);
-            line = "";
-            lastY = null;
+          const parsed = parseSpatialPlayers(words, options);
+          players.push(...parsed);
+          if (options.layout === "registered")
+            warnings.push(
+              "Handwritten marks absent from the PDF text/form layer are not reliably recovered. Review jerseys and first Starting checkbox.",
+            );
+        } else {
+          scanned++;
+          if (scanned > 3) {
+            warnings.push(
+              `Page ${index} not OCR processed: device limit is 3 scanned pages per import. Split the remaining pages into another PDF.`,
+            );
+            continue;
+          }
+          const scale = Math.min(
+            2,
+            2200 / Math.max(viewport.width, viewport.height),
+          );
+          const rendering = page.getViewport({ scale });
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.ceil(rendering.width);
+          canvas.height = Math.ceil(rendering.height);
+          try {
+            await page.render({
+              canvas,
+              canvasContext: canvas.getContext("2d"),
+              viewport: rendering,
+            }).promise;
+            const { recognizeImage } = await import("./ocr.js");
+            const result = await recognizeImage(canvas, { signal, onProgress });
+            players.push(
+              ...parseSpatialPlayers(result.words, { ...options, ocr: true }),
+            );
+          } finally {
+            canvas.width = canvas.height = 0;
           }
         }
-        if (line) lines.push(line);
       }
-      const players = candidatesFromText(lines.join("\n"));
       return {
         players,
-        message: players.length
-          ? "PDF text candidates only — layout can mix columns. Verify all rows."
-          : "No usable text found. Scanned PDF OCR is not available; enter the players in the review table.",
+        message: `PDF extraction: text layers read directly; ${scanned ? Math.min(scanned, 3) + " scanned page(s) OCR processed locally" : "no OCR needed for printed text"}. All candidates require review. ${warnings.join(" ")}`,
       };
     } finally {
       await task.destroy();
     }
   }
-  if (file.type.startsWith("image/"))
-    return {
-      players: [],
-      message:
-        "Photo OCR is not available in this build. Use the photo below as a reference and transcribe players into the review table. Nothing is guessed or imported automatically.",
-    };
+  if (
+    file.type.startsWith("image/") ||
+    /^(png|jpe?g|webp|heic|heif)$/.test(extension)
+  ) {
+    const { imageCanvas, recognizeImage } = await import("./ocr.js");
+    const canvas = await imageCanvas(file);
+    try {
+      const result = await recognizeImage(canvas, { signal, onProgress });
+      return {
+        players: parseSpatialPlayers(result.words, { ...options, ocr: true }),
+        message:
+          "On-device printed-text OCR completed. Review every candidate: handwriting and flattened Starting checkboxes are not reliably recognised; uncertain jerseys stay blank. Formation positions are provisional and require verification.",
+      };
+    } finally {
+      canvas.width = canvas.height = 0;
+    }
+  }
   throw new Error(
-    "Supported: CSV, TSV, TXT, XLSX, PDF, and images. Convert legacy .xls files to .xlsx or CSV first.",
+    "Supported: JPEG/PNG/WebP, PDF, CSV/TSV/TXT and XLSX. Export HEIC as JPEG/PNG; convert legacy .xls to .xlsx.",
   );
 }

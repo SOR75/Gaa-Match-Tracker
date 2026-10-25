@@ -3,6 +3,7 @@ const SHELL = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
+  "/build-info.json",
   "/icon.svg",
   "/icon-192.png",
   "/icon-512.png",
@@ -35,7 +36,13 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE);
-      const cached = await cache.match(event.request);
+      // Static modules can carry an Origin header that the install-time request
+      // did not. Vite/static hosts may return Vary: Origin. These versioned local
+      // assets have identical bytes for every Origin, so match their cache entry.
+      const path = new URL(event.request.url).pathname;
+      const cached = await cache.match(event.request, {
+        ignoreVary: path.startsWith("/assets/") || path.startsWith("/ocr/"),
+      });
       if (cached) return cached;
       try {
         const response = await fetch(event.request);

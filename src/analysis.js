@@ -66,7 +66,9 @@ export function summarize(events, team) {
 export function playerStatistics(match, team) {
   const squad = team === "our" ? match.players : match.oppositionPlayers;
   const numbers = new Set([
-    ...squad.map((player) => String(player.number)),
+    ...squad
+      .filter((player) => Number.isInteger(player.number))
+      .map((player) => String(player.number)),
     ...match.events
       .filter((event) => event.team === team && event.playerNumber !== "")
       .map((event) => String(event.playerNumber)),

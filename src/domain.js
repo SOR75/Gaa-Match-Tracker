@@ -1,3 +1,4 @@
+import { validSubstitution } from "./matchday.js";
 export const EVENT_TYPES = [
   { id: "goal", label: "Goal", value: 3, outcome: "scored", player: true },
   { id: "point", label: "Point", value: 1, outcome: "scored", player: true },
@@ -43,6 +44,7 @@ export const EVENT_TYPES = [
   },
   { id: "interception", label: "Interception", value: 0, outcome: "won" },
   { id: "possession", label: "Possession", value: 0, outcome: "" },
+  { id: "substitution", label: "Substitution", value: 0, outcome: "completed" },
 ];
 export const eventType = (id) => EVENT_TYPES.find((type) => type.id === id);
 export function uid() {
@@ -132,6 +134,8 @@ export function createEvent(match, typeId, team, now = Date.now()) {
     attackPattern: "",
     coachObservation: "",
     directScoreLink: "",
+    playerOn: "",
+    playerOff: "",
     shotX: null,
     shotY: null,
     dictatedNote: "",
@@ -141,6 +145,11 @@ export function createEvent(match, typeId, team, now = Date.now()) {
 export function normalizeEvent(event) {
   const type = eventType(event.event);
   if (!type) throw new Error("Unknown event type");
+  if (
+    event.event === "substitution" &&
+    !validSubstitution(event.playerOn, event.playerOff)
+  )
+    throw new Error("Choose different on/off jerseys, 1–99.");
   const shotX = event.shotX ?? null,
     shotY = event.shotY ?? null;
   if (!(
@@ -155,6 +164,12 @@ export function normalizeEvent(event) {
     throw new Error("Shot coordinates must both be within 0–1 or both empty.");
   return {
     ...event,
+    ...(event.event === "substitution"
+      ? {
+          playerOn: String(Number(event.playerOn)),
+          playerOff: String(Number(event.playerOff)),
+        }
+      : {}),
     shotX,
     shotY,
     dictatedNote: event.dictatedNote ?? "",
@@ -204,15 +219,7 @@ export function validMatch(value) {
     value.setup.halfLength >= 1 &&
     value.setup.halfLength <= 90 &&
     Array.isArray(value.players) &&
-    value.players.every(
-      (player) =>
-        typeof player.id === "string" &&
-        typeof player.name === "string" &&
-        Number.isInteger(player.number) &&
-        player.number >= 1 &&
-        player.number <= 99 &&
-        ["starter", "substitute"].includes(player.role),
-    ) &&
+    value.players.every(validPlayer) &&
     (value.schemaVersion === 1 ||
       (Array.isArray(value.oppositionPlayers) &&
         value.oppositionPlayers.every(validPlayer))) &&
@@ -226,6 +233,8 @@ export function validMatch(value) {
         Number.isFinite(event.timeMs) &&
         event.timeMs >= 0 &&
         typeof event.outcome === "string" &&
+        (event.event !== "substitution" ||
+          validSubstitution(event.playerOn, event.playerOff)) &&
         (value.schemaVersion === 1 ||
           (typeof event.dictatedNote === "string" &&
             ((event.shotX === null && event.shotY === null) ||
@@ -249,10 +258,11 @@ export function validPlayer(player) {
     player &&
     typeof player.id === "string" &&
     typeof player.name === "string" &&
-    Number.isInteger(player.number) &&
-    player.number >= 1 &&
-    player.number <= 99 &&
-    ["starter", "substitute"].includes(player.role)
+    (player.number === null ||
+      (Number.isInteger(player.number) &&
+        player.number >= 1 &&
+        player.number <= 99)) &&
+    ["starter", "substitute", "panel"].includes(player.role)
   );
 }
 export const playersFor = (match, team) =>

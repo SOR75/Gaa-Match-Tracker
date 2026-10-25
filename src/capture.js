@@ -1,3 +1,4 @@
+import { attackingDirection, transformLocation } from "./matchday.js";
 import {
   eventType,
   isShot,
@@ -10,7 +11,11 @@ import { noteMarkup, bindSpeech } from "./speech.js";
 import { esc } from "./ui.js";
 
 // The draft is created by the original live tap. None of these steps retime it.
-export function openQuickCapture(dialog, draft, match, onSaved) {
+export function openQuickCapture(dialog, draft, match, onSaved, onNoteSaved) {
+  const direction = attackingDirection(match, draft.team, draft.half);
+  const name =
+    draft.team === "our" ? match.setup.ourTeam : match.setup.opposition;
+  let finished = false;
   let step = isShot(draft) ? "location" : "kickout";
   let stopSpeech = () => {};
   const getNotes = () => {
@@ -20,6 +25,8 @@ export function openQuickCapture(dialog, draft, match, onSaved) {
     }
   };
   const save = (number) => {
+    if (finished) return;
+    finished = true;
     getNotes();
     stopSpeech();
     draft.playerNumber = number;
@@ -28,12 +35,14 @@ export function openQuickCapture(dialog, draft, match, onSaved) {
   };
   function paint() {
     stopSpeech();
-    const players = playersFor(match, draft.team);
+    const players = playersFor(match, draft.team).filter(
+      (player) => Number.isInteger(player.number) && player.role !== "panel",
+    );
     const header = `<div class="dialog-heading"><div><p class="eyebrow">QUICK CAPTURE · H${draft.half} · ${Math.floor(draft.timeMs / 60000)}:${String(Math.floor(draft.timeMs / 1000) % 60).padStart(2, "0")}</p><h2 id="event-dialog-title">${esc(eventType(draft.event).label)}</h2></div><button type="button" class="icon-button" data-cancel-capture aria-label="Cancel event">×</button></div>`;
     dialog.innerHTML =
       header +
       (step === "location"
-        ? `<p class="capture-instruction">Tap where the shot was taken.</p><p class="small-note">Attacking goal at top, for both teams and halves.</p><div class="capture-pitch">${pitchMarkup([], true)}</div><p class="small-note">Keyboard: arrow keys position the shot; Enter selects.</p><button class="button subtle full-width" data-skip-location>Skip location → Choose player</button>`
+        ? `<p class="capture-instruction">Tap where the shot was taken.</p><p class="small-note">${esc(name)} attacks the ${direction.toUpperCase()} goal this half. Stored coordinates stay attack-normalized.</p><div class="capture-pitch">${pitchMarkup([], true, { direction, teamName: name })}</div><p class="small-note">Keyboard: arrow keys position the shot; Enter selects.</p><button class="button subtle full-width" data-skip-location>Skip location → Choose player</button>`
         : step === "kickout"
           ? `<p class="capture-instruction">Did the kicking team retain the ball?</p><p class="small-note">${esc(draft.team === "our" ? match.setup.ourTeam : match.setup.opposition)} kickout · outcome is from their perspective.</p><div class="quick-length" role="group" aria-label="Optional kickout length"><span>Length · optional</span><button class="button subtle" data-length="Short" aria-pressed="false">SHORT</button><button class="button subtle" data-length="Long" aria-pressed="false">LONG</button></div><div class="quick-outcomes"><button class="button primary" data-outcome="won">WON</button><button class="button lost-button" data-outcome="lost">LOST</button></div>`
           : `<p class="capture-instruction">Who took the shot?</p><div class="quick-player-grid">${players
@@ -54,7 +63,7 @@ export function openQuickCapture(dialog, draft, match, onSaved) {
     if (step === "location") {
       const pitch = dialog.querySelector(".gaelic-pitch");
       const choose = (location) => {
-        Object.assign(draft, location);
+        Object.assign(draft, transformLocation(location, direction));
         step = "player";
         paint();
       };
@@ -109,15 +118,18 @@ export function openQuickCapture(dialog, draft, match, onSaved) {
                   : 0),
           ),
         );
-        pitch.innerHTML = pitchMarkup([
-          {
-            id: "cursor",
-            event: draft.event,
-            shotX: x,
-            shotY: y,
-            half: draft.half,
-          },
-        ]).match(/<svg[^>]*>([\s\S]*)<\/svg>/)[1];
+        pitch.innerHTML = pitchMarkup(
+          [
+            {
+              id: "cursor",
+              event: draft.event,
+              ...transformLocation({ shotX: x, shotY: y }, direction),
+              half: draft.half,
+            },
+          ],
+          false,
+          { direction, teamName: name },
+        ).match(/<svg[^>]*>([\s\S]*)<\/svg>/)[1];
       };
       dialog.querySelector("[data-skip-location]").onclick = () => {
         step = "player";
@@ -162,16 +174,23 @@ export function openQuickCapture(dialog, draft, match, onSaved) {
         event.preventDefault();
         save(new FormData(event.target).get("playerNumber"));
       });
-    stopSpeech = bindSpeech(dialog);
+    stopSpeech = bindSpeech(dialog, {
+      onTranscript: (fields) => {
+        Object.assign(draft, fields);
+        onNoteSaved?.(draft);
+      },
+    });
   }
   paint();
   dialog.addEventListener("close", () => stopSpeech(), { once: true });
   dialog.showModal();
   dialog.querySelector("[data-cancel-capture]").focus();
 }
-export function openNoteCapture(dialog, event, onSaved) {
+export function openNoteCapture(dialog, event, onSaved, onNoteSaved) {
   dialog.innerHTML = `<form id="live-note-form"><div class="dialog-heading"><h2 id="event-dialog-title">Note · ${esc(eventType(event.event).label)}</h2><button type="button" class="icon-button" data-cancel-note aria-label="Cancel note">×</button></div>${noteMarkup(event)}<div class="dialog-actions"><button type="submit" class="button primary">Save note</button></div></form>`;
-  const stop = bindSpeech(dialog);
+  const stop = bindSpeech(dialog, {
+    onTranscript: (fields) => onNoteSaved?.({ ...event, ...fields }),
+  });
   dialog.querySelector("[data-cancel-note]").onclick = () => dialog.close();
   dialog.querySelector("form").onsubmit = (submit) => {
     submit.preventDefault();

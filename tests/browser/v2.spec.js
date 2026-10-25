@@ -21,6 +21,12 @@ async function nav(page, name) {
 async function shot(page, type = "Point", player = "") {
   await page.getByRole("button", { name: new RegExp(`^${type} \\+`) }).click();
   await page
+    .getByRole("button", {
+      name: "Add player / location to last shot (optional)",
+      exact: true,
+    })
+    .click();
+  await page
     .getByRole("button", { name: "Shot location pitch" })
     .click({ position: { x: 80, y: 110 } });
   if (player) await page.locator(`[data-quick-player="${player}"]`).click();
@@ -73,7 +79,7 @@ test("quick kickouts capture known outcome and optional length at initial tap ti
   });
 });
 
-test("shots save raw normalized location and player in three taps; edit/undo updates analysis", async ({
+test("shots save immediately and optional enrichment retains normalized location and player; edit/undo updates analysis", async ({
   page,
 }, testInfo) => {
   const errors = [];
@@ -96,6 +102,12 @@ test("shots save raw normalized location and player in three taps; edit/undo upd
   await shot(page, "2 Point");
   await nav(page, "Home");
   await page.getByRole("button", { name: /Wide \/ Miss/ }).click();
+  await page
+    .getByRole("button", {
+      name: "Add player / location to last shot (optional)",
+      exact: true,
+    })
+    .click();
   await nav(page, "Skip location → Choose player");
   await nav(page, "Skip player & save event");
   expect((await state(page)).events[2]).toMatchObject({
@@ -179,15 +191,13 @@ test("CSV review is editable and rejects existing or within-file duplicate jerse
 }) => {
   await start(page);
   await addPlayer(page, 7, "Existing Player");
-  await page
-    .locator("#team-sheet-file")
-    .setInputFiles({
-      name: "squad.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(
-        "Jersey Number,Player Name\n7,Imported Player\n8,Second Player",
-      ),
-    });
+  await page.locator("#team-sheet-file").setInputFiles({
+    name: "squad.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      "Jersey Number,Player Name\n7,Imported Player\n8,Second Player",
+    ),
+  });
   await expect(
     page.getByRole("heading", { name: "Review & confirm" }),
   ).toBeVisible();
@@ -230,9 +240,10 @@ function pdfBuffer() {
     .join("")}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
   return Buffer.from(pdf);
 }
-test("XLSX and text PDF extract locally; photos clearly use manual review without invented names", async ({
+test("XLSX, text PDF and photo OCR extract locally with mandatory review", async ({
   page,
 }) => {
+  test.setTimeout(90000);
   await start(page);
   await page
     .locator("#team-sheet-file")
@@ -241,15 +252,13 @@ test("XLSX and text PDF extract locally; photos clearly use manual review withou
     page.getByLabel("Player name row 1", { exact: true }),
   ).toHaveValue("Excel Player");
   await nav(page, "Confirm & add to squad");
-  await page
-    .locator("#team-sheet-file")
-    .setInputFiles({
-      name: "sheet.pdf",
-      mimeType: "application/pdf",
-      buffer: pdfBuffer(),
-    });
+  await page.locator("#team-sheet-file").setInputFiles({
+    name: "sheet.pdf",
+    mimeType: "application/pdf",
+    buffer: pdfBuffer(),
+  });
   await expect(page.locator("dialog .inline-notice")).toContainText(
-    "PDF text candidates",
+    "text layers read directly",
   );
   await expect(
     page.getByLabel("Player name row 1", { exact: true }),
@@ -257,23 +266,16 @@ test("XLSX and text PDF extract locally; photos clearly use manual review withou
   await nav(page, "Cancel import");
   await page
     .locator("#team-sheet-photo")
-    .setInputFiles({
-      name: "sheet.png",
-      mimeType: "image/png",
-      buffer: readFileSync("public/icon-192.png"),
-    });
-  await expect(page.getByText(/Photo OCR is not available/)).toBeVisible();
+    .setInputFiles("tests/fixtures/programme.jpg");
   await expect(
     page.getByLabel("Player name row 1", { exact: true }),
-  ).toHaveValue("");
-  await page.getByLabel("Jersey number row 1", { exact: true }).fill("12");
-  await page
-    .getByLabel("Player name row 1", { exact: true })
-    .fill("Transcribed Player");
-  await nav(page, "Confirm & add to squad");
+  ).toHaveValue("Patrick Murphy", { timeout: 60000 });
+  await expect(
+    page.getByRole("columnheader", { name: "Position", exact: true }),
+  ).toBeVisible();
+  await nav(page, "Cancel import");
   expect((await state(page)).players.map((player) => player.name)).toEqual([
     "Excel Player",
-    "Transcribed Player",
   ]);
 });
 

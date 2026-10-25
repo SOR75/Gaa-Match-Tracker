@@ -1,0 +1,10 @@
+{
+  "buildId": "V3-IMPORT-FIX-2",
+  "version": "0.3.2",
+  "photoOcr": "bundled-local-tesseract",
+  "jpegPng": true,
+  "heic": false,
+  "runtimeSource": "src/imports.js -> src/ocr.js",
+  "branch": "sideline-v3-real-match",
+  "publication": "local-uncommitted-review-build"
+}
