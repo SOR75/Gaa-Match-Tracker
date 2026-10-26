@@ -285,13 +285,24 @@ function scoreboard() {
   };
   return `<section class="scoreboard" aria-label="Live scoreboard">${score("our")}<div class="score-clock"><span class="half-label">${match.clock.half === 1 ? "FIRST" : "SECOND"} HALF</span><div class="clock-digits" data-clock>${formatTime(elapsedMs(match.clock))}</div><span class="clock-status" data-clock-status></span><button class="clock-button" data-action="clock" aria-label="${match.clock.startedAt === null ? "Start clock" : "Pause clock"}">${match.clock.startedAt === null ? `${icon("live")} Start clock` : '<span class="pause-icon">Ⅱ</span> Pause clock'}</button><button class="half-button" data-action="half">${match.clock.half === 1 ? "Start second half" : "Return to first half"}</button></div>${score("opposition")}<span class="score-save-status" data-save-status></span></section>`;
 }
+function liveTeamControls() {
+  return `<div class="event-team-picker"><div class="recording-team" role="status" aria-live="polite" aria-atomic="true"><span class="recording-team-label">Recording for:</span> <strong>${esc(teamName(selectedTeam))}</strong></div><div class="team-toggle live-team-toggle" role="group" aria-label="Event team">${[
+    "our",
+    "opposition",
+  ]
+    .map((team) => {
+      const active = selectedTeam === team;
+      return `<button data-team="${team}" aria-pressed="${active}" class="${active ? "selected" : ""}"><span class="live-team-state" aria-hidden="true">${active ? "✓ Active team" : "Select team"}</span><span class="live-team-name">${esc(teamName(team))}</span></button>`;
+    })
+    .join("")}</div></div>`;
+}
 function liveScreen() {
   return `${heading("FROM THE SIDELINE", "Every moment counts.", "Tap an event. Keep your eyes on the game.", `<span class="match-status"><span class="local-dot"></span>${match.clock.startedAt === null ? "MATCH WORKSPACE" : "LIVE TRACKING"}</span>`)}
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
     <div class="matchday-toolbar"><span class="build-tag">V0.3.5-dev</span><button class="button microphone" data-action="voice-mode" aria-pressed="${voiceMode}">${icon("mic")} Voice Match Mode ${voiceMode ? "ON" : "OFF"}</button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
     ${scoreboard()}
     ${voiceMode ? '<section class="card voice-match-panel" id="voice-match-panel"></section>' : ""}
-    <section class="event-controls recording-${selectedTeam}"><div class="recording-team" role="status">Recording for: <strong>${esc(teamName(selectedTeam))}</strong></div><div class="controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div><div class="team-toggle" role="group" aria-label="Event team"><button data-team="our" aria-pressed="${selectedTeam === "our"}" class="${selectedTeam === "our" ? "selected" : ""}">${esc(teamName("our"))}</button><button data-team="opposition" aria-pressed="${selectedTeam === "opposition"}" class="${selectedTeam === "opposition" ? "selected" : ""}">${esc(teamName("opposition"))}</button></div></div>
+    <section class="event-controls recording-${selectedTeam}">${liveTeamControls()}<div class="controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div></div>
     <div class="scoring-grid">${EVENT_TYPES.slice(0, 4)
       .map(
         (type, index) =>
