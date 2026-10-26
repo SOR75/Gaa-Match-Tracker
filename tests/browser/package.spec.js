@@ -1,21 +1,22 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const legacyMessage = "Photo OCR is not available " + "in this build";
-test("FIX-2 identity and JPEG/PNG runtime path are in this exact package", async ({
+test("V0.3.4 identity and JPEG/PNG runtime path are in this exact package", async ({
   page,
   request,
 }) => {
   test.setTimeout(90000);
   const metadata = await (await request.get("/build-info.json")).json();
-  expect(metadata.buildId).toBe("V3-IMPORT-FIX-2");
+  expect(metadata.buildId).toBe("0.3.4");
+  expect(metadata.version).toBe("0.3.4");
   const source = readFileSync("src/imports.js", "utf8");
   expect(source).not.toContain(legacyMessage);
   expect(source).toContain("recognizeImage");
   expect(readFileSync("src/ocr.js", "utf8")).toContain("createWorker");
   await page.goto("/");
-  await expect(page).toHaveTitle("Sideline V3-IMPORT-FIX-2");
+  await expect(page).toHaveTitle("Sideline V0.3.4");
   await expect(page.locator(".topbar .build-tag")).toHaveText(
-    "V3-IMPORT-FIX-2",
+    "V0.3.4",
   );
   await page.getByRole("button", { name: "Squad", exact: true }).click();
   for (const file of [

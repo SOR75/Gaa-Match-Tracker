@@ -233,8 +233,15 @@ export function spatialSegments(words) {
   const height = heights[Math.floor(heights.length / 2)] || 12;
   const rows = [];
   for (const word of cleaned.slice().sort((a, b) => a.y - b.y || a.x - b.x)) {
-    let row = rows.find(
-      (row) => Math.abs(row.y - word.y) < Math.max(height * 0.65, 4),
+    let row = rows.find((row) =>
+      row.words.some(
+        (other) =>
+          Math.abs(other.y + other.h - word.y - word.h) <
+            Math.max(height * 0.45, 4) &&
+          Math.min(other.y + other.h, word.y + word.h) -
+            Math.max(other.y, word.y) >
+            Math.min(other.h, word.h) * 0.45,
+      ),
     );
     if (!row) {
       row = { y: word.y, words: [] };

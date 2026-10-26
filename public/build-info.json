@@ -1,6 +1,6 @@
 {
-  "buildId": "V3-IMPORT-FIX-2",
-  "version": "0.3.3",
+  "buildId": "0.3.4",
+  "version": "0.3.4",
   "photoOcr": "bundled-local-tesseract",
   "jpegPng": true,
   "heic": false,

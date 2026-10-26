@@ -166,7 +166,8 @@ export async function extractCandidates(file, options = {}) {
             const { recognizeImage } = await import("./ocr.js");
             const result = await recognizeImage(canvas, { signal, onProgress });
             players.push(
-              ...parseSpatialPlayers(result.words, { ...options, ocr: true }),
+              ...(result.players ??
+                parseSpatialPlayers(result.words, { ...options, ocr: true })),
             );
           } finally {
             canvas.width = canvas.height = 0;
@@ -190,7 +191,9 @@ export async function extractCandidates(file, options = {}) {
     try {
       const result = await recognizeImage(canvas, { signal, onProgress });
       return {
-        players: parseSpatialPlayers(result.words, { ...options, ocr: true }),
+        players:
+          result.players ??
+          parseSpatialPlayers(result.words, { ...options, ocr: true }),
         message:
           "On-device printed-text OCR completed. Review every candidate: handwriting and flattened Starting checkboxes are not reliably recognised; uncertain jerseys stay blank. Formation positions are provisional and require verification.",
       };

@@ -179,7 +179,7 @@ function render() {
       <div class="sidebar-bottom"><span class="local-dot"></span><div>Made for the sideline<small>Your match stays on this device.</small></div></div>
     </aside>
     <div class="main-shell">
-      <header class="topbar"><span class="build-tag">V3-IMPORT-FIX-2</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
+      <header class="topbar"><span class="build-tag">V0.3.4</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
       <main id="main"><p id="storage-warning" class="warning" role="alert" hidden></p>${view === "setup" ? setupScreen() : view === "squad" ? squadScreen() : view === "live" ? liveScreen() : view === "timeline" ? timelineScreen() : analysisScreen(match, analysisFilters, reportMode)}</main>
       <footer class="actionbar"><div class="last-event">${lastEventSummary()}</div><div class="history-actions"><button class="button subtle" data-action="edit-last" aria-label="Edit last event" ${match.events.length ? "" : "disabled"}>${icon("edit")}<span>Edit last<span class="wide-label"> event</span></span></button><button class="button undo" data-action="undo" aria-label="Undo last event" ${match.events.length ? "" : "disabled"}>${icon("undo")}<span>Undo last<span class="wide-label"> event</span></span></button></div></footer>
     </div>
@@ -236,7 +236,7 @@ function scoreboard() {
 function liveScreen() {
   return `${heading("FROM THE SIDELINE", "Every moment counts.", "Tap an event. Keep your eyes on the game.", `<span class="match-status"><span class="local-dot"></span>${match.clock.startedAt === null ? "MATCH WORKSPACE" : "LIVE TRACKING"}</span>`)}
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
-    <div class="matchday-toolbar"><span class="build-tag">V3-IMPORT-FIX-2</span><button class="button microphone" data-action="voice-mode" aria-pressed="${voiceMode}">${icon("mic")} Voice Match Mode ${voiceMode ? "ON" : "OFF"}</button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
+    <div class="matchday-toolbar"><span class="build-tag">V0.3.4</span><button class="button microphone" data-action="voice-mode" aria-pressed="${voiceMode}">${icon("mic")} Voice Match Mode ${voiceMode ? "ON" : "OFF"}</button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
     ${scoreboard()}
     ${voiceMode ? '<section class="card voice-match-panel" id="voice-match-panel"></section>' : ""}
     <section class="event-controls"><div class="controls-heading"><div><h2>Record an event</h2><p>Scores save on one tap. Add player / pitch afterwards if time allows.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div><div class="team-toggle" role="group" aria-label="Event team"><button data-team="our" aria-pressed="${selectedTeam === "our"}" class="${selectedTeam === "our" ? "selected" : ""}">${esc(teamName("our"))}</button><button data-team="opposition" aria-pressed="${selectedTeam === "opposition"}" class="${selectedTeam === "opposition" ? "selected" : ""}">${esc(teamName("opposition"))}</button></div></div>

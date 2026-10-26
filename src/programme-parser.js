@@ -31,6 +31,7 @@ export function isMetadata(text) {
 export function stripCaptain(text) {
   const markers = [];
   const name = String(text)
+    .replace(/\s*[=~|]+\s*$/g, "")
     .replace(/\(\s*(VC|C)\s*\)/gi, (_, marker) => {
       markers.push(marker.toUpperCase());
       return "";
@@ -45,7 +46,7 @@ export function stripCaptain(text) {
   };
 }
 export function plausibleName(text, { uncertain = false } = {}) {
-  const { name } = stripCaptain(text);
+  const { name } = stripCaptain(text.replace(/\s*[=~|]+\s*$/g, ""));
   if (!name || isMetadata(name) || isSubs(name) || name.length > 100)
     return false;
   if (!/\p{L}{2}/u.test(name) || /[=:;\/\\]|\d{3,}/.test(name)) return false;
@@ -163,7 +164,7 @@ export function parseProgrammeSegments(
             Math.abs(label.y - s.y) < Math.max(s.h, label.h) * 0.7,
         ),
     )
-    .filter((s) => /^#?\(?\d{1,2}[.)]?$/.test(s.text.trim()))
+    .filter((s) => /^#?\(?\d{1,2}[.)]*$/.test(s.text.trim()))
     .map((s) => ({ ...s, number: s.text.replace(/\D/g, "") }))
     .filter((s) => +s.number > 0 && +s.number <= 99);
   const names = usable.filter(
@@ -181,8 +182,8 @@ export function parseProgrammeSegments(
         dy = name.y - anchor.y;
       const dx = Math.abs(anchor.x + anchor.w / 2 - name.x - name.w / 2);
       const below =
-        dy >= h * 0.35 &&
-        dy <= h * 4.5 &&
+        dy >= Math.max(anchor.h, 8) * 0.35 &&
+        dy <= Math.max(anchor.h, 8) * 3.5 &&
         dx <= Math.max(name.w * 0.6, h * 1.5);
       const beside =
         Math.abs(dy) < h * 0.65 &&
