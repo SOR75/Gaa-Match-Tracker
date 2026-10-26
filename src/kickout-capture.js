@@ -1,27 +1,12 @@
+import {
+  ourCreditRoster,
+  emptyCreditRosterMarkup,
+  playerCreditPicker,
+} from "./player-credit.js";
 import { kickoutChoices, kickoutDetails } from "./kickouts.js";
-import { eventType, formatTime, playersFor } from "./domain.js";
+import { eventType, formatTime } from "./domain.js";
 import { esc } from "./ui.js";
 import { noteMarkup, bindSpeech } from "./speech.js";
-
-// Both capture and editing read the same active our-team roster as Live Match.
-function markRoster(match) {
-  const roster = playersFor(match, "our");
-  const players = roster
-    .filter((p) => Number.isInteger(p.number))
-    .slice()
-    .sort((a, b) => a.number - b.number);
-  const guidance = !roster.length
-    ? "No players loaded"
-    : !players.length
-      ? "No numbered players available"
-      : "";
-  return { players, guidance };
-}
-function emptyRosterMarkup(guidance) {
-  return guidance
-    ? `<p class="small-note" role="status">${guidance}</p><p class="small-note">Load our players and add jersey numbers in Squad, or skip player credit.</p>`
-    : "";
-}
 
 export function kickoutFieldsMarkup(event, match) {
   const data = kickoutDetails(event);
@@ -30,7 +15,7 @@ export function kickoutFieldsMarkup(event, match) {
     kickoutChoices(event.event).find(
       (c) => c.outcome === data.outcome && c.mark === data.mark,
     )?.id || "unknown";
-  const { players, guidance } = markRoster(match);
+  const { players, guidance } = ourCreditRoster(match);
   const retained =
     data.markPlayerNumber &&
     !players.some((p) => String(p.number) === data.markPlayerNumber)
@@ -45,7 +30,7 @@ export function kickoutFieldsMarkup(event, match) {
     )
     .join(
       "",
-    )}</select></label><label class="field" ${!data.mark || data.outcome !== "won" ? "hidden" : ""}><span>Mark catcher · our player · optional</span><select name="markPlayerNumber" aria-label="Mark catcher"><option value="">No player selected</option>${retained}${players.map((p) => `<option value="${p.number}" ${data.markPlayerNumber === String(p.number) ? "selected" : ""}>#${p.number} ${esc(p.name)}</option>`).join("")}</select>${emptyRosterMarkup(guidance)}</label></div>`;
+    )}</select></label><label class="field" ${!data.mark || data.outcome !== "won" ? "hidden" : ""}><span>Mark catcher · our player · optional</span><select name="markPlayerNumber" aria-label="Mark catcher"><option value="">No player selected</option>${retained}${players.map((p) => `<option value="${p.number}" ${data.markPlayerNumber === String(p.number) ? "selected" : ""}>#${p.number} ${esc(p.name)}</option>`).join("")}</select>${emptyCreditRosterMarkup(guidance)}</label></div>`;
 }
 export function kickoutFormFields(data, event) {
   const choice = kickoutChoices(event.event).find(
@@ -69,7 +54,7 @@ export function openKickoutCapture(dialog, event, match, onSave, onClose) {
   let draft = { ...event },
     recorded = false,
     finished = false;
-  const { players, guidance } = markRoster(match);
+  const { players, guidance } = ourCreditRoster(match);
   dialog.innerHTML = `<div class="dialog-heading"><div><p class="eyebrow">KICKOUT · H${event.half} · ${formatTime(event.timeMs)}</p><h2 id="event-dialog-title">${esc(eventType(event.event).label)}</h2></div><button type="button" class="icon-button" data-kickout-close aria-label="Close kickout">×</button></div><p class="capture-instruction">Who secured possession?</p><p class="small-note">WON means our team secured possession. LOST means opposition secured possession.</p><div class="quick-length" role="group" aria-label="Optional kickout length"><span>Length · optional</span><button type="button" class="button subtle" data-ko-length="Short" aria-pressed="false">SHORT</button><button type="button" class="button subtle" data-ko-length="Long" aria-pressed="false">LONG</button></div><div class="kickout-outcomes">${kickoutChoices(
     event.event,
   )
@@ -79,7 +64,7 @@ export function openKickoutCapture(dialog, event, match, onSave, onClose) {
     )
     .join(
       "",
-    )}</div><p data-ko-saved role="status" hidden>Mark recorded. Player credit is optional; close to continue.</p><div data-ko-credit hidden><p class="small-note">Who caught our Mark? · optional</p>${players.length ? `<div class="quick-player-grid" role="group" aria-label="Our Mark winner">${players.map((p) => `<button type="button" class="player-pick" data-mark-player="${p.number}" aria-label="Credit Mark to #${p.number} ${esc(p.name)}">${p.number}<span>${esc(p.name)}</span></button>`).join("")}</div>` : emptyRosterMarkup(guidance)}<button type="button" class="button subtle full-width" data-kickout-close>Skip player / Close</button></div><details class="optional-note"><summary>● Add typed / dictated note <span>Optional</span></summary>${noteMarkup(draft)}</details>`;
+    )}</div><p data-ko-saved role="status" hidden>Mark recorded. Player credit is optional; close to continue.</p><div data-ko-credit hidden><p class="small-note">Who caught our Mark? · optional</p>${playerCreditPicker({ players, guidance }, { groupLabel: "Our Mark winner", attribute: "data-mark-player", actionLabel: "Credit Mark to" })}<button type="button" class="button subtle full-width" data-kickout-close>Skip player / Close</button></div><details class="optional-note"><summary>● Add typed / dictated note <span>Optional</span></summary>${noteMarkup(draft)}</details>`;
   const collectNotes = () => {
     for (const key of ["notes", "dictatedNote"])
       draft[key] = dialog.querySelector(`[name="${key}"]`)?.value || "";

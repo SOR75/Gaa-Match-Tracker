@@ -71,3 +71,6 @@ export function shotFields(event) {
 }
 export const gaelicScore = (tally) =>
   `${tally.goals}-${tally.points + 2 * tally.twoPointers}`;
+
+export const isBlockedShot = (event) =>
+  shotDetails(event)?.missReason === "blocked";

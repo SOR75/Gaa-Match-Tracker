@@ -46,6 +46,15 @@ export const EVENT_TYPES = [
   },
   { id: "interception", label: "Interception", value: 0, outcome: "won" },
   { id: "possession", label: "Possession", value: 0, outcome: "" },
+  {
+    id: "defensive-block",
+    label: "Defensive Block",
+    quickLabel: "Blocked",
+    value: 0,
+    outcome: "blocked",
+    team: "our",
+    player: true,
+  },
   { id: "substitution", label: "Substitution", value: 0, outcome: "completed" },
 ];
 export const eventType = (id) => EVENT_TYPES.find((type) => type.id === id);
@@ -178,6 +187,7 @@ export function normalizeEvent(event) {
   return {
     ...event,
     ...shotFields(event),
+    ...(event.event === "defensive-block" ? { outcome: "blocked" } : {}),
     ...(kickoutDetails(event) || {}),
     ...(event.event === "substitution"
       ? {

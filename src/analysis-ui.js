@@ -1,3 +1,4 @@
+import { isDefensiveBlockEvent } from "./defensive-blocks.js";
 import { SHOT_SOURCES, gaelicScore } from "./shots.js";
 import {
   summarize,
@@ -34,10 +35,11 @@ export function analysisScreen(match, filters = {}, report = false) {
     ["Total points", "total"],
     ["Scoring attempts", "attempts"],
     ["Successful attempts", "successful"],
-    ["Wides / misses", "misses"],
+    ["Unsuccessful shots", "misses"],
+    ["Wides", "wides"],
     ["Conversion %", "conversion"],
     ["Blocked attempts", "blockedAttempts"],
-    ["Defensive blocks credited", "defensiveBlocks"],
+    ["Defensive blocks", "defensiveBlocks"],
     ["Turnovers won", "turnoversWon"],
     ["Turnovers lost", "turnoversLost"],
     ["Interceptions", "interceptions"],
@@ -51,6 +53,7 @@ export function analysisScreen(match, filters = {}, report = false) {
       player.twoPointers,
       player.total,
       player.attempts,
+      player.wides,
       player.misses,
       pct(player.conversion),
       player.turnoversWon,
@@ -136,7 +139,7 @@ export function analysisScreen(match, filters = {}, report = false) {
         ]),
       ],
     ) +
-      '<p class="small-note">Conversion = successful attempts ÷ recorded attempts. Possession events are counts only; no possession percentage is inferred.</p>',
+      '<p class="small-note">Conversion = successful attempts ÷ recorded attempts. Wides count only shots explicitly marked Wide; blocked attempts remain unsuccessful shots but are not wides. Possession events are counts only; no possession percentage is inferred.</p>',
   )}
   ${section(
     "Shot map",
@@ -165,8 +168,9 @@ export function analysisScreen(match, filters = {}, report = false) {
             filters.result,
           )}</select></label></div>`
         : ""
-    }<div class="analysis-map-layout"><div class="analysis-pitch">${pitchMarkup(shots)}</div><div><div class="shot-legend"><span><i class="legend-goal">●</i> Goal</span><span><i class="legend-point">●</i> Point</span><span><i class="legend-two">◎</i> 2 Point</span><span><i class="legend-miss">×</i> Wide / Miss</span></div><p class="small-note" data-map-count>${mapped.length} plotted / ${shots.length} attempts in this selection.</p><p class="small-note">${shots.length - mapped.length} attempts have no recorded location. Legacy events remain in all statistics; no location is invented. Attacking goal is at top for both halves.</p><p class="small-note">Filters affect the shot map only. Overlapping marks may hide shots taken at the same location.</p></div></div>`,
+    }<div class="analysis-map-layout"><div class="analysis-pitch">${pitchMarkup(shots)}</div><div><div class="shot-legend"><span><i class="legend-goal">●</i> Goal</span><span><i class="legend-point">●</i> Point</span><span><i class="legend-two">◎</i> 2 Point</span><span><i class="legend-miss">×</i> Wide / Miss</span><span><i class="legend-blocked">▣</i> Blocked shot</span></div><p class="small-note" data-map-count>${mapped.length} plotted / ${shots.length} attempts in this selection.</p><p class="small-note">${shots.length - mapped.length} attempts have no recorded location. Legacy events remain in all statistics; no location is invented. Attacking goal is at top for both halves.</p><p class="small-note">Filters affect the shot map only. Overlapping marks may hide shots taken at the same location.</p></div></div>`,
   )}
+  ${section("Defensive block locations", `<details class="defensive-map"><summary>Show recorded defensive blocks · ${match.events.filter(isDefensiveBlockEvent).length}</summary><div class="analysis-pitch">${pitchMarkup(match.events.filter(isDefensiveBlockEvent), false, { mapLabel: "Defensive block map", teamName: name("opposition") })}</div><p class="small-note">Purple D = Defensive Block. Locations are normalized toward the opposition attacking goal. These actions are not shot attempts or possession changes. Legacy defensive credits on opposition shots remain in the shooting map and analysis.</p></details>`)}
   ${section(
     "Kickout analysis",
     table(
@@ -208,7 +212,7 @@ export function analysisScreen(match, filters = {}, report = false) {
     ) +
       '<p class="small-note">Won/lost is always from our team’s perspective. Retention is the percentage retained by the kicking team (our wins on our kickouts, opposition wins on their kickouts), using known outcomes only. Older kicking-team results are translated on read. Marks are attributes of these kickouts, never additional events. Unrecorded or legacy Medium lengths are counted in total kickouts, not short/long. Player involvement below reflects attribution, not an inferred receiver.</p>',
   )}
-  ${section("Player shooting & event analysis", playerRows.length ? table(["Player", "Goals", "Points", "2P", "Total pts", "Attempts", "Misses", "Conv.", "TO won", "TO lost", "Intercept.", "Kickouts", "Blocked attempts", "Defensive blocks", "Kickout Marks"], playerRows) : '<p class="small-note">Add players or record attributed events to populate this table.</p>')}
+  ${section("Player shooting & event analysis", playerRows.length ? table(["Player", "Goals", "Points", "2P", "Total pts", "Attempts", "Wides", "Misses", "Conv.", "TO won", "TO lost", "Intercept.", "Kickouts", "Blocked attempts", "Defensive blocks", "Kickout Marks"], playerRows) : '<p class="small-note">Add players or record attributed events to populate this table.</p>')}
   ${section(
     "Half comparison",
     table(

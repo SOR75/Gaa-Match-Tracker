@@ -3595,3 +3595,24 @@ dialog::backdrop {
   max-height: 190px;
   overflow: auto;
 }
+
+/* Separate attacking blocked shots from our defensive actions. */
+.timeline-dot.defensive-block {
+  background: #e6ddfb;
+  color: #60458e;
+}
+.timeline-dot.blocked-shot {
+  background: #fff0cd;
+  color: #8b5e09;
+}
+.legend-blocked {
+  color: #9c6400;
+}
+.optional-defensive-location .capture-pitch {
+  max-width: 240px;
+  margin: 12px auto;
+}
+.defensive-map .analysis-pitch {
+  max-width: 340px;
+  margin: 14px auto;
+}

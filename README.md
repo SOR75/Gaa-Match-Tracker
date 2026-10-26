@@ -1,5 +1,8 @@
 # Sideline V0.3.5-dev — development review
 
+**Known manual-test issue remains OPEN:** attacking Blocked shots have still displayed the red X in the user's Chrome live-capture modal despite passing automated amber-B checks. See [KNOWN-ISSUES.md](KNOWN-ISSUES.md). This checkpoint preserves the working data/analysis and does not claim the visible-marker defect is resolved.
+
+
 ## V0.3.5-dev kickout workflow and LGFA Marks
 
 Both kickout types now use **our team's perspective**: Won by us = `won`; Won/retained by opposition = `lost`; Unknown = `unknown`. Five result buttons cover ordinary wins/losses, Marks won by either side and unknown possession. One result tap records the event. A Mark won by us offers optional player credit inline on that same dialog; closing or skipping preserves the kickout, and choosing a player updates the original ID. Opposition Marks require no player identity. Length, notes and the original tap timestamp remain supported.
@@ -11,6 +14,20 @@ Older events without the perspective marker used the kicking team's convention. 
 Analysis shows won/lost from our perspective, Marks won by each side and per-player Kickout Marks across both kickout types. Retention retains its original kicking-team meaning: our wins on our kickouts, opposition wins on their kickouts, excluding unknown outcomes. Short/long retention follows the same rule; short/long won counts are labeled as our wins. A Mark is never an extra kickout.
 
 Shot Source now offers only Open Play, Free, Penalty and 45. Open Play remains the new-shot default. Historical shot-source Mark values remain readable and are never converted into kickout Marks. Existing voice kickout wording/metadata uses the same our-team convention; no new voice grammar or OCR work is introduced.
+
+## Standalone defensive blocks and attacking blocked attempts — V0.3.5-dev
+
+The Live Match **Blocked** button records a `defensive-block` event for our team immediately, then offers the shared optional player picker. It creates no missed shot, turnover, possession, interception or kickout. A player tap updates that same record and returns to the match; Skip / Close leaves it valid without a player. Optional block location can be saved before selecting a player or added/changed/cleared later in Edit Event. Locations use `shotX`/`shotY` for compatibility, normalized toward the opposition attacking goal. Player credit uses this action's ordinary `playerNumber`.
+
+Attacking Wide / Miss → Blocked remains a shot with the shooter in `playerNumber`; amber **B** squares identify it on pitch maps. It counts as an unsuccessful attempt and a blocked attempt, never as an explicit Wide. Purple **D** diamonds identify standalone Defensive Blocks on a separate defensive-location map, which never contributes to shooting totals. The timeline and event labels distinguish “Shot · Blocked” and “Defensive Block”. Only shots explicitly marked Wide (including legacy wide outcomes) count in the Wides metric; unspecified misses remain unspecified.
+
+Existing opposition-shot blocker metadata remains readable and contributes to defensive statistics. Each recorded event counts once. Do not log a standalone block and a credited opposition blocked shot for the same incident unless intending two recorded actions: events are not automatically linked or deduplicated. No opposition shooting attempt is fabricated by the standalone defensive button. Changing shooter miss reasons or defensive player attribution recalculates analysis from the log. Match schema, version and storage keys are unchanged, and existing events load without rewriting them. The frozen V0.3.4 branch is untouched.
+
+## Blocked shots — V0.3.5-dev
+
+The shot still saves on the first tap, before optional details. On an opposition miss, choosing Blocked immediately shows “Who made the block? · optional” with our player buttons. One tap saves `blockedByNumber` on that same event, independently of the attacker's `playerNumber`. Source, pitch and shooter details remain available. Skip / Close never removes the saved shot; quick blocker credit can also be cleared without confirmation. Own-team blocked attempts need no opposition identity and never automatically generate defensive credit.
+
+Mark and block credit share `player-credit.js`, reading the active our-team roster through `playersFor`. This includes numbered starters, substitutes and panel players rather than guessing who made a block from lineup state. Empty rosters explicitly show “No players loaded”; numberless rosters retain the existing guidance to assign jerseys. No separate squad store or new event schema is introduced. The event editor retains optional add/change/remove credit, including historical credit for a player no longer in the current roster. Changing the reason away from Blocked clears defensive credit. Analysis counts blocked attempts for the shooter and defensive blocks for the credited our-team player. Existing Mark, offline, scoring and legacy-data regressions continue to run.
 
 ## V0.3.5-dev shot workflow (unreleased)
 

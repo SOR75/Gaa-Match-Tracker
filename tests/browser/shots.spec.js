@@ -104,7 +104,7 @@ test("free and penalty enrich the existing shot, persist immediately, and appear
   }
 });
 
-test("blocked opposition shot credits only our on-field defender; own blocked shot needs no opponent", async ({
+test("blocked opposition shot offers our shared roster; own blocked shot needs no opponent", async ({
   page,
 }) => {
   await setup(page);
@@ -124,10 +124,11 @@ test("blocked opposition shot credits only our on-field defender; own blocked sh
   await nav(page, "Away");
   await page.locator("[data-event=miss]").click();
   await page.getByLabel("Miss reason", { exact: true }).selectOption("blocked");
-  await expect(
-    page.getByLabel("Block by", { exact: true }).locator("option"),
-  ).toHaveCount(2);
-  await page.getByLabel("Block by", { exact: true }).selectOption("3");
+  const blockers = page.getByRole("group", { name: "Our blocker" });
+  await expect(blockers.getByRole("button")).toHaveCount(2);
+  await blockers
+    .getByRole("button", { name: "Credit block to #3 Defender", exact: true })
+    .click();
   await close(page);
   expect((await state(page)).events).toHaveLength(1);
   expect((await state(page)).events[0]).toMatchObject({
@@ -144,7 +145,7 @@ test("blocked opposition shot credits only our on-field defender; own blocked sh
       exact: true,
     }),
   });
-  await expect(row.getByRole("cell").nth(12)).toHaveText("1");
+  await expect(row.getByRole("cell").nth(13)).toHaveText("1");
   await nav(page, "Live match");
   await nav(page, "Home");
   await page.locator("[data-event=miss]").click();

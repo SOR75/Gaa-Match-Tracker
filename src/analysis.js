@@ -1,3 +1,4 @@
+import { isDefensiveBlock, defensiveBlockPlayer } from "./defensive-blocks.js";
 import { kickoutDetails } from "./kickouts.js";
 import { shotDetails, SHOT_SOURCES } from "./shots.js";
 import { totals, isShot, isKickout } from "./domain.js";
@@ -54,6 +55,11 @@ export function summarize(events, team) {
     attempts: shots.length,
     successful,
     misses: shots.length - successful,
+    wides: shots.filter(
+      (e) =>
+        shotDetails(e).shotOutcome === "miss" &&
+        shotDetails(e).missReason === "wide",
+    ).length,
     conversion: percentage(successful, shots.length),
     scoresBySource: Object.fromEntries(
       SHOT_SOURCES.map(([source]) => [
@@ -67,11 +73,7 @@ export function summarize(events, team) {
       (e) => shotDetails(e).missReason === "blocked",
     ).length,
     defensiveBlocks:
-      team === "our"
-        ? events.filter(
-            (e) => e.team === "opposition" && shotDetails(e)?.blockedByNumber,
-          ).length
-        : 0,
+      team === "our" ? events.filter(isDefensiveBlock).length : 0,
     kickouts: {
       total: kickouts.length,
       won,
@@ -104,7 +106,7 @@ export function playerStatistics(match, team) {
       .filter((player) => Number.isInteger(player.number))
       .map((player) => String(player.number)),
     ...(team === "our"
-      ? match.events.map((e) => shotDetails(e)?.blockedByNumber).filter(Boolean)
+      ? match.events.map(defensiveBlockPlayer).filter(Boolean)
       : []),
     ...(team === "our"
       ? match.events
@@ -130,9 +132,8 @@ export function playerStatistics(match, team) {
         ...summary,
         defensiveBlocks:
           team === "our"
-            ? match.events.filter(
-                (e) => shotDetails(e)?.blockedByNumber === number,
-              ).length
+            ? match.events.filter((e) => defensiveBlockPlayer(e) === number)
+                .length
             : 0,
         kickoutInvolvement: events.filter(isKickout).length,
         kickoutMarks:

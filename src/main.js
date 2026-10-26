@@ -1,3 +1,5 @@
+import { openDefensiveBlockDetails } from "./defensive-block-capture.js";
+import { isDefensiveBlockEvent } from "./defensive-blocks.js";
 import {
   openKickoutCapture,
   kickoutFieldsMarkup,
@@ -5,7 +7,7 @@ import {
 } from "./kickout-capture.js";
 import { kickoutDetails, kickoutLabel } from "./kickouts.js";
 import { openShotDetails, shotFieldsMarkup } from "./shot-capture.js";
-import { gaelicScore } from "./shots.js";
+import { gaelicScore, isBlockedShot } from "./shots.js";
 import "./style.css";
 import {
   EVENT_TYPES,
@@ -33,7 +35,7 @@ import {
 } from "./squad-ui.js";
 import { analysisScreen } from "./analysis-ui.js";
 import { noteMarkup, bindSpeech } from "./speech.js";
-import { pitchMarkup } from "./pitch.js";
+import { hasLocation } from "./pitch.js";
 import {
   createTapGuard,
   onFieldNumbers,
@@ -60,6 +62,7 @@ const icons = {
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
   ball: '<circle cx="12" cy="12" r="9"/><path d="m9 8 6 1 1 6-6 2-4-5zM9 8l-1-4M15 9l5-2M16 15l3 3M10 17l-1 4M6 12l-3 1"/>',
   mic: '<rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/>',
+  block: '<path d="M12 2 3 6v6c0 5 9 10 9 10s9-5 9-10V6zM7 12h10"/',
   miss: '<path d="M5 19 19 5M9 5h10v10"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
 };
@@ -127,6 +130,25 @@ function enrichShot(event) {
         shotSource: details.shotSource,
         missReason: details.missReason,
         blockedByNumber: details.blockedByNumber,
+      });
+      persist();
+    },
+    () => render(),
+  );
+}
+function enrichDefensiveBlock(event) {
+  openDefensiveBlockDetails(
+    document.querySelector("#event-dialog"),
+    structuredClone(event),
+    match,
+    (details) => {
+      const current = match.events.find((e) => e.id === details.id);
+      if (!current) return;
+      match.events = saveEvent(match.events, {
+        ...current,
+        playerNumber: details.playerNumber,
+        shotX: details.shotX,
+        shotY: details.shotY,
       });
       persist();
     },
@@ -281,7 +303,7 @@ function liveScreen() {
     )
       .map(
         (type) =>
-          `<button class="event-button compact-event" data-event="${type.id}" ${ready() ? "" : "disabled"}>${icon(type.id.includes("kickout") ? "arrow" : type.id === "possession" ? "ball" : "pitch")}<strong>${type.label}</strong></button>`,
+          `<button class="event-button compact-event" data-event="${type.id}" ${ready() ? "" : "disabled"}>${icon(type.id === "defensive-block" ? "block" : type.id.includes("kickout") ? "arrow" : type.id === "possession" ? "ball" : "pitch")}<strong>${type.quickLabel || type.label}</strong></button>`,
       )
       .join("")}</div></section>
     ${match.events.length && isShot(match.events.at(-1)) ? '<button class="button subtle shot-enrich" data-action="enrich-shot">Add player / location to last shot (optional)</button>' : ""}
@@ -297,10 +319,11 @@ function liveScreen() {
 }
 function eventRow(event) {
   const type = eventType(event.event);
+  const label = isBlockedShot(event) ? "Shot · Blocked" : type.label;
   const player = playersFor(match, event.team).find(
     (item) => String(item.number) === String(event.playerNumber),
   );
-  return `<button class="event-row" data-edit-event="${event.id}" aria-label="Edit ${esc(type.label)} at ${formatTime(event.timeMs)}"><span class="event-time">${formatTime(event.timeMs)}<small>H${event.half}</small></span><span class="timeline-dot ${event.team}">${icon(type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(type.label)} ${event.event === "substitution" ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team))}${player ? ` · ${esc(player.name)}` : ""}${isKickout(event) ? ` · ${esc(kickoutLabel(event))}${kickoutDetails(event).markPlayerNumber ? ` · Mark #${kickoutDetails(event).markPlayerNumber}` : ""}` : !type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}<span class="row-edit">${icon("edit")}</span></button>`;
+  return `<button class="event-row" data-edit-event="${event.id}" aria-label="Edit ${esc(label)} at ${formatTime(event.timeMs)}"><span class="event-time">${formatTime(event.timeMs)}<small>H${event.half}</small></span><span class="timeline-dot ${event.team} ${isDefensiveBlockEvent(event) ? "defensive-block" : isBlockedShot(event) ? "blocked-shot" : ""}">${icon(isDefensiveBlockEvent(event) ? "block" : type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(label)} ${event.event === "substitution" ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team))}${player ? ` · ${esc(player.name)}` : ""}${isKickout(event) ? ` · ${esc(kickoutLabel(event))}${kickoutDetails(event).markPlayerNumber ? ` · Mark #${kickoutDetails(event).markPlayerNumber}` : ""}` : !type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}${(isBlockedShot(event) || isDefensiveBlockEvent(event)) && hasLocation(event) ? "<small>Pitch location recorded</small>" : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}<span class="row-edit">${icon("edit")}</span></button>`;
 }
 function timelineScreen() {
   const filtered = match.events
@@ -331,7 +354,7 @@ function timelineScreen() {
 function lastEventSummary() {
   const last = match.events.at(-1);
   return last
-    ? `<span class="footer-dot"></span><div><span class="last-label">LAST RECORDED</span><strong>${esc(eventType(last.event).label)} <span>· ${formatTime(last.timeMs)} · H${last.half}</span></strong></div>`
+    ? `<span class="footer-dot"></span><div><span class="last-label">LAST RECORDED</span><strong>${esc(isBlockedShot(last) ? "Shot · Blocked" : eventType(last.event).label)} <span>· ${formatTime(last.timeMs)} · H${last.half}</span></strong></div>`
     : `<span class="footer-dot muted"></span><div><span class="last-label">READY WHEN YOU ARE</span><strong>No events recorded yet</strong></div>`;
 }
 function updateClock() {
@@ -356,10 +379,11 @@ function selectField(label, name, value, options) {
 function openEvent(event, editing = false) {
   const dialog = document.querySelector("#event-dialog");
   const type = eventType(event.event);
+  const displayLabel = isBlockedShot(event) ? "Shot · Blocked" : type.label;
   const kickout = event.event.includes("kickout");
   const scoring = type.value > 0;
   const playerRelevant = type.player || editing;
-  dialog.innerHTML = `<form id="event-form"><div class="dialog-heading"><div><p class="eyebrow">${editing ? "EDIT EVENT" : "RECORD EVENT"} · H${event.half} · ${formatTime(event.timeMs)}</p><h2 id="event-dialog-title">${esc(type.label)}</h2></div><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cancel event">${icon("close")}</button></div><p class="dialog-team"><span class="local-dot"></span>${esc(teamName(event.team))}${scoring ? ` <span>+${type.value} ${type.value === 1 ? "point" : "points"}</span>` : ""}</p>
+  dialog.innerHTML = `<form id="event-form"><div class="dialog-heading"><div><p class="eyebrow">${editing ? "EDIT EVENT" : "RECORD EVENT"} · H${event.half} · ${formatTime(event.timeMs)}</p><h2 id="event-dialog-title">${esc(displayLabel)}</h2></div><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cancel event">${icon("close")}</button></div><p class="dialog-team"><span class="local-dot"></span>${esc(teamName(event.team))}${scoring ? ` <span>+${type.value} ${type.value === 1 ? "point" : "points"}</span>` : ""}</p>
     ${
       playerRelevant
         ? `<label class="field"><span>Player number <small>Optional</small></span><input name="playerNumber" type="number" min="1" max="99" step="1" inputmode="numeric" placeholder="Jersey number" value="${esc(event.playerNumber)}"></label>${
@@ -382,7 +406,7 @@ function openEvent(event, editing = false) {
     <div data-edit-shot-fields>${shotFieldsMarkup(event, match, { editing: true })}</div><div data-edit-kickout-fields>${kickoutFieldsMarkup(event, match)}</div>
     <details class="event-details" ${editing ? "open" : ""}><summary>${editing ? "Event details" : "Add details"} <span>Optional</span></summary><div class="detail-fields">
     ${editing ? `<div class="form-grid"><label class="field"><span>Event</span><select name="event" aria-label="Event">${EVENT_TYPES.map((item) => `<option value="${item.id}" ${item.id === event.event ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><label class="field"><span>Team</span><select name="team" aria-label="Team" ${type.team ? "disabled" : ""}><option value="our" ${event.team === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${event.team === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select></label><label class="field"><span>Half</span><select name="half" aria-label="Half"><option value="1" ${event.half === 1 ? "selected" : ""}>First half</option><option value="2" ${event.half === 2 ? "selected" : ""}>Second half</option></select></label>${input("Half time (mm:ss)", "time", formatTime(event.timeMs), 'required pattern="[0-9]{1,3}:[0-5][0-9]" inputmode="text" title="Use minutes:seconds, for example 05:30"')}</div>` : ""}
-    <div class="form-grid">${!scoring && event.event !== "miss" && !kickout ? selectField("Outcome", "outcome", event.outcome, ["won", "lost", "retained", "completed", "incomplete"]) : ""}${selectField("Zone", "zone", event.zone, ["Defensive third", "Middle third", "Attacking third"])}${selectField("Side", "side", event.side, ["Left", "Centre", "Right"])}${kickout || editing ? selectField("Kickout length", "kickoutLength", event.kickoutLength, ["Short", "Medium", "Long"]) : ""}${!isShot(event) && editing ? selectField("Score origin", "scoreOrigin", event.scoreOrigin, ["Open play", "Free", "45", "Penalty", "Sideline"]) : ""}${selectField("Possession result", "possessionResult", event.possessionResult, ["Retained", "Lost", "Shot", "Score"])}${input("Attack pattern", "attackPattern", event.attackPattern, 'maxlength="120" placeholder="Optional"')}</div>
+    <div class="form-grid">${!scoring && event.event !== "miss" && !kickout && !isDefensiveBlockEvent(event) ? selectField("Outcome", "outcome", event.outcome, ["won", "lost", "retained", "completed", "incomplete"]) : ""}${selectField("Zone", "zone", event.zone, ["Defensive third", "Middle third", "Attacking third"])}${selectField("Side", "side", event.side, ["Left", "Centre", "Right"])}${kickout || editing ? selectField("Kickout length", "kickoutLength", event.kickoutLength, ["Short", "Medium", "Long"]) : ""}${!isShot(event) && editing ? selectField("Score origin", "scoreOrigin", event.scoreOrigin, ["Open play", "Free", "45", "Penalty", "Sideline"]) : ""}${selectField("Possession result", "possessionResult", event.possessionResult, ["Retained", "Lost", "Shot", "Score"])}${input("Attack pattern", "attackPattern", event.attackPattern, 'maxlength="120" placeholder="Optional"')}</div>
     ${noteMarkup(event)}${input("Coach observation", "coachObservation", event.coachObservation, 'maxlength="500" placeholder="Optional"')}
     <label class="field"><span>Direct score link</span><select name="directScoreLink"><option value="">No linked score</option>${match.events
       .filter(
@@ -397,7 +421,7 @@ function openEvent(event, editing = false) {
       )
       .join("")}</select></label>
     <div class="form-grid">${input("Player on (substitution)", "playerOn", event.playerOn || "", 'min="1" max="99" inputmode="numeric"', "number")}${input("Player off (substitution)", "playerOff", event.playerOff || "", 'min="1" max="99" inputmode="numeric"', "number")}</div>
-    <div class="form-grid">${input("Shot X (0–1)", "shotX", event.shotX ?? "", 'min="0" max="1" step="any"', "number")}${input("Shot Y (0–1)", "shotY", event.shotY ?? "", 'min="0" max="1" step="any"', "number")}</div><p class="small-note">Coordinates are normalized; attacking goal at top. Leave both empty for no location.</p>
+    <div class="form-grid">${input(isDefensiveBlockEvent(event) ? "Block X (0–1)" : "Shot X (0–1)", "shotX", event.shotX ?? "", 'min="0" max="1" step="any"', "number")}${input(isDefensiveBlockEvent(event) ? "Block Y (0–1)" : "Shot Y (0–1)", "shotY", event.shotY ?? "", 'min="0" max="1" step="any"', "number")}</div><p class="small-note">Coordinates are normalized; attacking goal at top. Leave both empty for no location.</p>
     </div></details><div class="dialog-actions"><button type="button" class="button subtle" data-action="close-dialog">Cancel</button><button class="button primary" type="submit">${icon("check")}${editing ? "Save changes" : "Record event"}</button></div><p class="dialog-hint">${editing ? "Changes update the scoreboard and timeline." : "The match time was captured when you tapped the event."}</p></form>`;
   const stopDictation = bindSpeech(dialog, {
     onTranscript: (fields) => saveEventNote({ ...event, ...fields }),
@@ -459,6 +483,11 @@ function openEvent(event, editing = false) {
         : {}),
       ...kickoutFormFields(data, { event: next.id }),
     };
+    dialog.querySelector("#event-dialog-title").textContent = isBlockedShot(
+      draft,
+    )
+      ? "Shot · Blocked"
+      : next.label;
     dialog.querySelector("[data-edit-shot-fields]").innerHTML =
       shotFieldsMarkup(draft, match, { editing: true });
     dialog.querySelector("[data-edit-kickout-fields]").innerHTML =
@@ -568,6 +597,8 @@ document.addEventListener("click", (event) => {
       recordEvent(record);
       if (isShot(record))
         enrichShot(match.events.find((e) => e.id === record.id));
+      else if (isDefensiveBlockEvent(record))
+        enrichDefensiveBlock(match.events.find((e) => e.id === record.id));
     }
   }
 
