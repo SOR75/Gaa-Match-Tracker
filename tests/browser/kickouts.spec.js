@@ -252,3 +252,169 @@ test("shot source excludes Mark in quick capture and editor while keeping Open P
       .locator('option[value="mark"]'),
   ).toHaveCount(0);
 });
+
+test("Our Kickout Mark visibly offers our populated squad and credits one event; editor can change, remove and add credit", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await setup(page);
+  await add(page, 8, "Our Eight");
+  await page.locator('#player-form [name="role"]').selectOption("panel");
+  await add(page, 9, "Our Nine");
+  await nav(page, "Live match");
+  await page.locator('.event-controls [data-event="our-kickout"]').click();
+  await nav(page, "Mark won by us");
+  const modal = page.getByRole("dialog");
+  const picker = modal.getByRole("group", { name: "Our Mark winner" });
+  await expect(picker).toBeVisible();
+  await expect(picker.getByRole("button")).toHaveCount(2);
+  for (const name of [
+    "Credit Mark to #8 Our Eight",
+    "Credit Mark to #9 Our Nine",
+  ]) {
+    await expect(
+      picker.getByRole("button", { name, exact: true }),
+    ).toBeVisible();
+    await expect(
+      picker.getByRole("button", { name, exact: true }),
+    ).toBeInViewport();
+  }
+  let match = await state(page);
+  expect(match.players).toHaveLength(2);
+  expect(match.players.find((p) => p.number === 9).role).toBe("panel");
+  expect(match.events).toHaveLength(1);
+  const id = match.events[0].id;
+  expect(match.events[0].markPlayerNumber).toBe(""); // Saved before optional player selection.
+  await picker
+    .getByRole("button", { name: "Credit Mark to #8 Our Eight", exact: true })
+    .click();
+  await expect(modal).not.toBeVisible();
+  match = await state(page);
+  expect(match.events).toHaveLength(1);
+  expect(match.events[0]).toMatchObject({
+    id,
+    event: "our-kickout",
+    team: "our",
+    outcome: "won",
+    mark: true,
+    markPlayerNumber: "8",
+  });
+  await nav(page, "Match analysis");
+  const row8 = page.getByRole("row").filter({
+    has: page.getByRole("rowheader", {
+      name: "Home · #8 Our Eight",
+      exact: true,
+    }),
+  });
+  const row9 = page.getByRole("row").filter({
+    has: page.getByRole("rowheader", {
+      name: "Home · #9 Our Nine",
+      exact: true,
+    }),
+  });
+  await expect(row8.getByRole("cell").last()).toHaveText("1");
+  await expect(row9.getByRole("cell").last()).toHaveText("0");
+  for (const [number, eight, nine] of [
+    ["9", "0", "1"],
+    ["", "0", "0"],
+    ["8", "1", "0"],
+  ]) {
+    await nav(page, "Edit last event");
+    await page.getByLabel("Mark catcher", { exact: true }).selectOption(number);
+    await nav(page, "Save changes");
+    expect((await state(page)).events).toHaveLength(1);
+    expect((await state(page)).events[0]).toMatchObject({
+      id,
+      mark: true,
+      markPlayerNumber: number,
+    });
+    await expect(row8.getByRole("cell").last()).toHaveText(eight);
+    await expect(row9.getByRole("cell").last()).toHaveText(nine);
+  }
+  await page.reload();
+  expect((await state(page)).events).toHaveLength(1);
+  expect((await state(page)).events[0].markPlayerNumber).toBe("8");
+});
+
+test("empty OUR squad explicitly says No players loaded, allows skipping and never offers opposition players", async ({
+  page,
+}) => {
+  await setup(page);
+  await page.evaluate(() => {
+    const match = JSON.parse(localStorage.getItem("sideline.match.v1"));
+    match.oppositionPlayers = [
+      {
+        id: "opp8",
+        number: 8,
+        name: "Opposition Eight",
+        role: "starter",
+        position: "",
+        notes: "",
+      },
+    ];
+    localStorage.setItem("sideline.match.v1", JSON.stringify(match));
+  });
+  await page.reload();
+  await nav(page, "Live match");
+  await nav(page, "Our Kickout");
+  await nav(page, "Mark won by us");
+  const modal = page.getByRole("dialog");
+  await expect(
+    modal.getByText("No players loaded", { exact: true }),
+  ).toBeVisible();
+  await expect(modal.locator("[data-mark-player]")).toHaveCount(0);
+  await expect(modal).not.toContainText("Opposition Eight");
+  await expect(
+    modal.getByRole("button", { name: "Skip player / Close", exact: true }),
+  ).toBeVisible();
+  expect((await state(page)).events).toHaveLength(1);
+  await nav(page, "Skip player / Close");
+  expect((await state(page)).events[0]).toMatchObject({
+    mark: true,
+    markPlayerNumber: "",
+  });
+  await nav(page, "Opposition Kickout");
+  await nav(page, "Mark won by opposition");
+  await expect(modal).not.toBeVisible();
+  expect((await state(page)).events).toHaveLength(2);
+  expect((await state(page)).events[1]).toMatchObject({
+    mark: true,
+    outcome: "lost",
+    markPlayerNumber: "",
+  });
+});
+
+test("numberless loaded squad is explained rather than rendered as a blank Mark picker", async ({
+  page,
+}) => {
+  await setup(page);
+  await page.evaluate(() => {
+    const match = JSON.parse(localStorage.getItem("sideline.match.v1"));
+    match.players = [
+      {
+        id: "unnumbered",
+        number: null,
+        name: "Unnumbered Player",
+        role: "starter",
+        position: "",
+        notes: "",
+      },
+    ];
+    localStorage.setItem("sideline.match.v1", JSON.stringify(match));
+  });
+  await page.reload();
+  await nav(page, "Live match");
+  await nav(page, "Our Kickout");
+  await nav(page, "Mark won by us");
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByText("No numbered players available", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("dialog")).toContainText(
+    "add jersey numbers in Squad",
+  );
+  await nav(page, "Skip player / Close");
+  expect((await state(page)).events).toHaveLength(1);
+  expect((await state(page)).events[0].markPlayerNumber).toBe("");
+});

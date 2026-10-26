@@ -1,7 +1,7 @@
 {
   "buildId": "0.3.5-dev",
   "version": "0.3.5-dev",
-  "revision": "v0.3.5-dev-kickout-live-ui-regression",
+  "revision": "v0.3.5-dev-kickout-mark-player-picker",
   "files": {
     ".gitignore": "82eaa5e04de9523c94aae899334adce703f6197be8ad21f9eb6ae074582e231e",
     "README.md": "2e729fb584ea84e76288edabf0812d0634597754059a0647165f744dff0daacf",
@@ -22,7 +22,7 @@
     "src/domain.js": "64218fd7e9712315ca64578f31b54b0725ddedb77e9479ce760aec6a7fdb06f8",
     "src/import-parser.js": "3098df07b69033d9b3619e77b2ba54218bec7828f232e22115796afed6725e98",
     "src/imports.js": "1aaa1acfa74bf46e7f473fb9523cc8d27491365d5d54cc8448dc1c86651f24b6",
-    "src/kickout-capture.js": "8010db0a9b84e438c101fc2b3507bb1c01071b4bcf50d9d4f0bbc09b03313b93",
+    "src/kickout-capture.js": "75278e37ada17884ea084bba99de958dc5b210689e25887fa447de2ebaebc7e7",
     "src/kickouts.js": "8d08c38b049aac180edd6ff078e2301bcdca9c6a9181ffea73d41f19027510ab",
     "src/main.js": "7c2939f7f97a0d37f6ef2fbad0ae92c18cb083dbed8d2e6077c5395aa5fbec00",
     "src/matchday.js": "b047cf400921c996852ce581e301f7a9065dde274e45d0b503c9f354cd5ac76a",
@@ -42,7 +42,7 @@
     "src/voice-match.js": "8e3eb52c33185b040bd3bf2596155ecbf04134ba9e2147a87698dbdfadc74c74",
     "src/voice-parser.js": "5881c8c384f9fff54f923cb4d94b7476fb50252267aed8d4387a1b27f615e295",
     "tests/browser/import.spec.js": "95459f2bcfd6c6b880525b9ccb1da4228aa5d56e3902a3299d456a74ff8f0872",
-    "tests/browser/kickouts.spec.js": "af2a5846fee1a356e9a42e7c03444c4dc10f46c4f3036ef2485be2a6a7881ded",
+    "tests/browser/kickouts.spec.js": "5d77b4e9727c5574d65fcfc234cdaa8decf6875ac418561b99930affe83c3ac2",
     "tests/browser/match.spec.js": "4d8644128444d00827a4d38e39a978553a97cee362d3f7059456293282170729",
     "tests/browser/package.spec.js": "6c9942f231651b720fde8d33d7add501ec68104ef96238dc3c8ee7a504e2c26b",
     "tests/browser/programme.spec.js": "6c5175c58fbe31cc57c0854620f8a3bc6a99ea35c8ef198bf0f4f822cdd01554",
