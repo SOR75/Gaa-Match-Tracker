@@ -1,5 +1,14 @@
+import {
+  detectReferenceRoster,
+  readReferenceFormation,
+} from "./roster-formation.js";
 import { isMetadata, isFooter } from "./programme-parser.js";
-import { fitFormation, slots, cleanPlayerText } from "./programme-geometry.js";
+import {
+  fitFormation,
+  slots,
+  cleanPlayerText,
+  substituteReadQuality,
+} from "./programme-geometry.js";
 import { candidate, POSITIONS, parseSpatialPlayers } from "./import-parser.js";
 import { createWorker } from "tesseract.js";
 export async function recognizeImage(
@@ -72,6 +81,20 @@ export async function recognizeImage(
         .drawImage(canvas, x, y, w, h, 0, 0, result.width, result.height);
       return result;
     }
+    const reference = detectReferenceRoster(scan.words, grid);
+    if (reference)
+      return await readReferenceFormation({
+        reference,
+        scan,
+        grid,
+        slots,
+        source,
+        normalized,
+        crop,
+        read,
+        worker,
+        onProgress,
+      });
     for (let i = 0; i < slots.length; i++) {
       onProgress(`Reading formation player ${i + 1}/15`);
       const [tx, ty] = slots[i],
@@ -140,17 +163,22 @@ export async function recognizeImage(
           "10",
         ),
       ];
+      const clearNumber = (r) =>
+        r.words.length &&
+        r.words.every(
+          (w) =>
+            w.confidence >=
+            (+r.text.trim().replace(/\D/g, "") === i + 1 ? 65 : 85),
+        );
       const numberRead =
         numberReads.find(
-          (r) =>
-            /^[1-9]\d?[.)]*$/.test(r.text.trim()) &&
-            r.words.every((w) => w.confidence >= 65),
+          (r) => /^[1-9]\d?[.)]*$/.test(r.text.trim()) && clearNumber(r),
         ) || numberReads[0];
       await worker.setParameters({ tessedit_char_whitelist: "" });
       const digits = numberRead.text.trim().match(/^([1-9]\d?)[.)]*$/);
       let number = anchor
         ? String(anchor.n)
-        : digits && numberRead.words.every((w) => w.confidence >= 65)
+        : digits && clearNumber(numberRead)
           ? digits[1]
           : "";
       if (!anchor && number && grid.anchors.some((a) => a.n === +number))
@@ -309,32 +337,24 @@ export async function recognizeImage(
           }
           line.words.push(w);
         }
-        const quality = (r) =>
-          /\d/.test(r.text) ||
-          r.words.filter((w) => /\p{L}{2}/u.test(w.text)).length > 4
-            ? -1
-            : r.words
-                .filter((w) => /\p{L}{2}/u.test(w.text))
-                .reduce((a, w) => a + w.confidence * w.text.length, 0) /
-              Math.max(
-                1,
-                r.words
-                  .filter((w) => /\p{L}{2}/u.test(w.text))
-                  .reduce((a, w) => a + w.text.length, 0),
-              );
+        const quality = (r) => substituteReadQuality(r, height, n.x + n.w);
         const line = lines
           .filter((l) => l.words.length >= 2)
           .sort((a, b) =>
             n.uncertain && next
               ? Math.abs(a.bottom - next.y - next.h) -
                 Math.abs(b.bottom - next.y - next.h)
-              : quality({ text: "", words: b.words }) -
-                quality({ text: "", words: a.words }),
+              : quality({ text: "", words: b.words, spatial: true }) -
+                quality({ text: "", words: a.words, spatial: true }),
           )[0];
         if (line) {
           if (n.uncertain) reads.length = 0;
           const ws = line.words.sort((a, b) => a.x - b.x);
-          reads.push({ text: ws.map((w) => w.text).join(" "), words: ws });
+          reads.push({
+            text: ws.map((w) => w.text).join(" "),
+            words: ws,
+            spatial: true,
+          });
           const y1 = Math.min(...ws.map((w) => w.y)) - height * 0.2,
             y2 = Math.max(...ws.map((w) => w.y + w.h)) + height * 0.2;
           const x2 = Math.max(...ws.map((w) => w.x + w.w)) + height * 0.2;
@@ -352,11 +372,10 @@ export async function recognizeImage(
           );
         }
         reads.sort((a, b) => quality(b) - quality(a));
-        let name = cleanPlayerText(reads[0].text).replace(
-          /\s+[A-Za-z][.,]?$/u,
-          "",
-        );
-        if (n === ordered.at(-1)) {
+        let name = (
+          quality(reads[0]) < 0 ? "" : cleanPlayerText(reads[0].text)
+        ).replace(/\s+[A-Za-z][.,]?$/u, "");
+        if (name && n === ordered.at(-1)) {
           const wrap = lower.filter(
             (w) =>
               w.y > bottom &&
@@ -378,7 +397,7 @@ export async function recognizeImage(
             name,
             "substitute",
             "",
-            `Review required · Name uncertain: verify transcription · OCR word score ${Math.round(quality(reads[0]))}/100${n.uncertain ? " · jersey unreadable; left blank" : ""}`,
+            `Review required · Name uncertain: verify transcription · OCR word score ${Math.max(0, Math.round(quality(reads[0])))}/100${!name ? " · name unresolved: crop may cross another row; left blank" : ""}${n.uncertain ? " · jersey unreadable; left blank" : ""}`,
           ),
         );
         details.push({ number: n.text, reads, slope });

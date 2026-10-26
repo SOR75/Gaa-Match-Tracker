@@ -94,13 +94,42 @@ export function fitFormation(words) {
   }
   return best;
 }
+// Strip punctuation at token edges, never alphabetic suffixes: a final v may
+// be a tick, but can also be part of a real surname. Preserve initials/Irish
+// apostrophes/hyphenated names and handle captain markers before token cleanup.
+export function cleanOcrToken(text) {
+  return /^[\p{L}]\.$/u.test(text)
+    ? text
+    : text.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "");
+}
 export function cleanPlayerText(text) {
   return text
     .replace(/\(\s*©\s*\)/g, "(C)")
     .replace(/\s+©\s*$/g, " (C)")
+    .replace(/\(\s*(VC|C)\s*\)/gi, (_, marker) => `(${marker.toUpperCase()})`)
     .replace(/^[^\p{L}(]+/u, "")
     .replace(/[=|~_<>]+/g, " ")
     .replace(/^(?:[a-z]\.\s+)+/i, "")
-    .replace(/\s+/g, " ")
+    .split(/\s+/)
+    .map((token) =>
+      /^\((?:C|VC)\)$/i.test(token) ? token : cleanOcrToken(token),
+    )
+    .filter(Boolean)
+    .join(" ")
     .trim();
+}
+
+// Dense substitute blocks can sit immediately above a sloping staff footer.
+// A high word score alone cannot justify reaching far away from the jersey or
+// trusting oversized glyphs clipped against the edge of a regional crop.
+export function substituteReadQuality(read, height, anchorEnd) {
+  const words = read.words.filter((w) => /\p{L}{2}/u.test(w.text));
+  if (!words.length || /\d/.test(read.text) || words.length > 4) return -1;
+  if (read.spatial && words[0].x - anchorEnd > height * 3) return -1;
+  if (!read.spatial && words.some((w) => w.y <= 1 && w.h > height * 2.6))
+    return -1;
+  return (
+    words.reduce((sum, w) => sum + w.confidence * w.text.length, 0) /
+    words.reduce((sum, w) => sum + w.text.length, 0)
+  );
 }

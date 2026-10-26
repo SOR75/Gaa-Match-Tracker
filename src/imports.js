@@ -68,8 +68,9 @@ export async function extractCandidates(file, options = {}) {
   }
   if (extension === "pdf") {
     const pdfjs = await import("pdfjs-dist/build/pdf.mjs");
-    const { default: workerUrl } =
-      await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
+    const { default: workerUrl } = await import(
+      "pdfjs-dist/build/pdf.worker.min.mjs?url"
+    );
     pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
     const task = pdfjs.getDocument({
       data: new Uint8Array(await file.arrayBuffer()),
@@ -195,7 +196,9 @@ export async function extractCandidates(file, options = {}) {
           result.players ??
           parseSpatialPlayers(result.words, { ...options, ocr: true }),
         message:
-          "On-device printed-text OCR completed. Review every candidate: handwriting and flattened Starting checkboxes are not reliably recognised; uncertain jerseys stay blank. Formation positions are provisional and require verification.",
+          result.diagnostics?.layout === "reference-roster-with-formation"
+            ? `Printed reference roster and bottom formation detected separately. ${result.players.filter((p) => p.role === "starter").length} formation slots; ${result.players.filter((p) => p.role === "starter" && !p.name).length} names unresolved. Handwriting matches are provisional: review against the original. Remaining roster entries are panel candidates with blank jerseys, not confirmed substitutes. Complete or remove blank-name rows before confirming.`
+            : "On-device printed-text OCR completed. Review every candidate: handwriting and flattened Starting checkboxes are not reliably recognised; uncertain jerseys stay blank. Formation positions are provisional and require verification.",
       };
     } finally {
       canvas.width = canvas.height = 0;
