@@ -116,13 +116,14 @@ export function interpretCommentary(transcript, selectedTeam = "our") {
       lost = /\blost\b/.test(text);
     if (won === lost)
       return reject(
-        "Specify kickout won or lost, from the kicking team’s perspective.",
+        "Specify kickout won or lost, from our team’s perspective.",
       );
     if (/\blong\b/.test(text) && /\bshort\b/.test(text))
       return reject("Both kickout lengths mentioned.");
     return {
       candidate: {
         event: team === "our" ? "our-kickout" : "opposition-kickout",
+        kickoutPerspective: "our",
         team,
         playerNumber,
         outcome: won ? "won" : "lost",
@@ -133,7 +134,7 @@ export function interpretCommentary(transcript, selectedTeam = "our") {
             : "",
       },
       confidence: "matched",
-      reason: "Kickout outcome is for the kicking team.",
+      reason: "Kickout outcome is from our team’s perspective.",
     };
   }
   return {

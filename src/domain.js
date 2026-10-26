@@ -1,3 +1,4 @@
+import { kickoutDetails, isKickoutEvent } from "./kickouts.js";
 import { shotFields, shotAttempt } from "./shots.js";
 import { validSubstitution } from "./matchday.js";
 export const EVENT_TYPES = [
@@ -131,6 +132,9 @@ export function createEvent(match, typeId, team, now = Date.now()) {
           blockedByNumber: "",
         }
       : {}),
+    ...(isKickoutEvent({ event: typeId })
+      ? { kickoutPerspective: "our", mark: false, markPlayerNumber: "" }
+      : {}),
     event: typeId,
     outcome: type.outcome,
     scoreValue: type.value,
@@ -174,6 +178,7 @@ export function normalizeEvent(event) {
   return {
     ...event,
     ...shotFields(event),
+    ...(kickoutDetails(event) || {}),
     ...(event.event === "substitution"
       ? {
           playerOn: String(Number(event.playerOn)),

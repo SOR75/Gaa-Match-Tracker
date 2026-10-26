@@ -1,12 +1,24 @@
 # Sideline V0.3.5-dev — development review
 
+## V0.3.5-dev kickout workflow and LGFA Marks
+
+Both kickout types now use **our team's perspective**: Won by us = `won`; Won/retained by opposition = `lost`; Unknown = `unknown`. Five result buttons cover ordinary wins/losses, Marks won by either side and unknown possession. One result tap records the event. A Mark won by us offers optional player credit inline on that same dialog; closing or skipping preserves the kickout, and choosing a player updates the original ID. Opposition Marks require no player identity. Length, notes and the original tap timestamp remain supported.
+
+New/edited kickouts have `kickoutPerspective: "our"`, boolean `mark`, and optional `markPlayerNumber` (our squad). Mark credit is independent of the kicking team's generic `playerNumber`, so our player can receive credit on an opposition kickout. The editable result selector corrects outcome and Mark status together; player credit is cleared if the result is no longer a Mark won by us. No extra kickout event is created.
+
+Older events without the perspective marker used the kicking team's convention. They load unchanged; selectors invert known opposition results on read. Editing an old kickout saves the translated result with the explicit marker, preventing repeated inversion. Unknown results remain unknown and missing Mark fields mean no Mark. Match schema/storage keys and version **0.3.5-dev** are unchanged.
+
+Analysis shows won/lost from our perspective, Marks won by each side and per-player Kickout Marks across both kickout types. Retention retains its original kicking-team meaning: our wins on our kickouts, opposition wins on their kickouts, excluding unknown outcomes. Short/long retention follows the same rule; short/long won counts are labeled as our wins. A Mark is never an extra kickout.
+
+Shot Source now offers only Open Play, Free, Penalty and 45. Open Play remains the new-shot default. Historical shot-source Mark values remain readable and are never converted into kickout Marks. Existing voice kickout wording/metadata uses the same our-team convention; no new voice grammar or OCR work is introduced.
+
 ## V0.3.5-dev shot workflow (unreleased)
 
 Development branch: `sideline-v0.3.5`, based on frozen commit `49ce88bd26a911cd51a6abb7248522525a6998bb`. No release or merge is implied.
 
 Goal, Point, 2 Point and Wide / Miss save on the first tap. The optional pitch/player/source screen then opens automatically. Location, player, source and miss-reason changes autosave against the same event ID; Skip / Close or Escape cannot discard the original shot. Existing Edit last event, Undo and later shot enrichment remain available.
 
-Shot fields are additive: `shotOutcome` (derived from the legacy event/outcome), `shotSource` (`open-play`, `free`, `penalty`, `45`, `mark`), optional `missReason`, and optional `blockedByNumber`. The block credit belongs to our defender on an opposition blocked miss; it does not create another event. New shots default to Open Play. Known legacy `scoreOrigin` values and miss outcomes are interpreted on read, while unrecorded sources remain unknown. Existing schema version 1/2 records and the local-storage key remain supported; loading a schema-2 record does not rewrite its events. Normalized saves mirror known sources into legacy `scoreOrigin`.
+Shot fields are additive: `shotOutcome` (derived from the legacy event/outcome), `shotSource` (`open-play`, `free`, `penalty`, `45`), optional `missReason`, and optional `blockedByNumber`. The block credit belongs to our defender on an opposition blocked miss; it does not create another event. New shots default to Open Play. Known legacy `scoreOrigin` values and miss outcomes are interpreted on read, while unrecorded sources remain unknown. Existing schema version 1/2 records and the local-storage key remain supported; loading a schema-2 record does not rewrite its events. Normalized saves mirror known sources into legacy `scoreOrigin`.
 
 The primary scoreboard is goals–points, counting each two-pointer as two points in the right-hand value, with the calculated total underneath. The event log remains the only scoring source. The recording-team choice is saved on the match as optional `recordingTeam` and remains selected across reloads until deliberately changed. Analysis adds shot source counts, blocked attempts and player defensive-block credits without a new screen layout. Source counts are successful shot counts, not total point values.
 

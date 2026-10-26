@@ -1,3 +1,4 @@
+import { kickoutDetails } from "./kickouts.js";
 import { shotDetails, SHOT_SOURCES } from "./shots.js";
 import { totals, isShot, isKickout } from "./domain.js";
 export const percentage = (part, whole) =>
@@ -23,21 +24,29 @@ export function summarize(events, team) {
   const shots = selected.filter(isShot);
   const successful = shots.filter((event) => event.outcome === "scored").length;
   const kickouts = selected.filter(isKickout);
-  const won = kickouts.filter((event) => event.outcome === "won").length;
-  const lost = kickouts.filter((event) => event.outcome === "lost").length;
+  const won = kickouts.filter(
+    (event) => kickoutDetails(event).outcome === "won",
+  ).length;
+  const lost = kickouts.filter(
+    (event) => kickoutDetails(event).outcome === "lost",
+  ).length;
   const lengths = {};
   for (const length of ["Short", "Long"]) {
     const group = kickouts.filter(
       (event) => event.kickoutLength?.toLowerCase() === length.toLowerCase(),
     );
-    const wins = group.filter((event) => event.outcome === "won").length;
-    const losses = group.filter((event) => event.outcome === "lost").length;
+    const wins = group.filter(
+      (event) => kickoutDetails(event).outcome === "won",
+    ).length;
+    const losses = group.filter(
+      (event) => kickoutDetails(event).outcome === "lost",
+    ).length;
     lengths[length.toLowerCase()] = {
       total: group.length,
       won: wins,
       lost: losses,
       unknown: group.length - wins - losses,
-      success: percentage(wins, wins + losses),
+      success: percentage(team === "our" ? wins : losses, wins + losses),
     };
   }
   return {
@@ -68,7 +77,14 @@ export function summarize(events, team) {
       won,
       lost,
       unknown: kickouts.length - won - lost,
-      retention: percentage(won, won + lost),
+      retention: percentage(team === "our" ? won : lost, won + lost),
+      possessionWinRate: percentage(won, won + lost),
+      marksWon: kickouts.filter(
+        (e) => kickoutDetails(e).mark && kickoutDetails(e).outcome === "won",
+      ).length,
+      marksLost: kickouts.filter(
+        (e) => kickoutDetails(e).mark && kickoutDetails(e).outcome === "lost",
+      ).length,
       ...lengths,
     },
     turnoversWon: selected.filter((event) => event.event === "turnover-won")
@@ -89,6 +105,11 @@ export function playerStatistics(match, team) {
       .map((player) => String(player.number)),
     ...(team === "our"
       ? match.events.map((e) => shotDetails(e)?.blockedByNumber).filter(Boolean)
+      : []),
+    ...(team === "our"
+      ? match.events
+          .map((e) => kickoutDetails(e)?.markPlayerNumber)
+          .filter(Boolean)
       : []),
     ...match.events
       .filter((event) => event.team === team && event.playerNumber !== "")
@@ -114,6 +135,12 @@ export function playerStatistics(match, team) {
               ).length
             : 0,
         kickoutInvolvement: events.filter(isKickout).length,
+        kickoutMarks:
+          team === "our"
+            ? match.events.filter(
+                (e) => kickoutDetails(e)?.markPlayerNumber === number,
+              ).length
+            : 0,
       };
     });
 }

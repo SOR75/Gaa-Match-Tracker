@@ -40,12 +40,12 @@ test("mobile match workflow: squad, scoring, edits, undo, timeline and refresh",
     page.locator(".score-team.opposition .score-calculated"),
   ).toHaveText("(1)");
   await page.getByRole("button", { name: "Our Kickout", exact: true }).click();
-  await page.getByRole("button", { name: "WON", exact: true }).click();
+  await page.getByRole("button", { name: "Won by us", exact: true }).click();
   await page
     .getByRole("button", { name: "Edit last event", exact: true })
     .click();
   await page.getByLabel("Kickout length").selectOption("Long");
-  await page.getByLabel("Outcome", { exact: true }).selectOption("won");
+  await page.getByLabel("Kickout result", { exact: true }).selectOption("won");
   await page.getByLabel("Typed notes").fill("Clean catch");
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText("Clean catch")).toBeVisible();

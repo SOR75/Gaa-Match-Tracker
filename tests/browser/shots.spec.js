@@ -86,22 +86,20 @@ test("free and penalty enrich the existing shot, persist immediately, and appear
     "(4)",
   );
   await nav(page, "Edit last event");
-  await page.getByLabel("Shot source", { exact: true }).selectOption("mark");
+  await page.getByLabel("Shot source", { exact: true }).selectOption("45");
   await nav(page, "Save changes");
-  expect((await state(page)).events[1].shotSource).toBe("mark");
+  expect((await state(page)).events[1].shotSource).toBe("45");
   await page.locator("[data-event=two-point]").click();
   await close(page);
   await nav(page, "Match analysis");
   for (const label of [
     "Scores from free",
-    "Scores from mark",
+    "Scores from 45",
     "Scores from open play",
   ]) {
-    const row = page
-      .getByRole("row")
-      .filter({
-        has: page.getByRole("rowheader", { name: label, exact: true }),
-      });
+    const row = page.getByRole("row").filter({
+      has: page.getByRole("rowheader", { name: label, exact: true }),
+    });
     await expect(row.getByRole("cell").first()).toHaveText("1");
   }
 });
@@ -140,15 +138,13 @@ test("blocked opposition shot credits only our on-field defender; own blocked sh
     scoreValue: 0,
   });
   await nav(page, "Match analysis");
-  const row = page
-    .getByRole("row")
-    .filter({
-      has: page.getByRole("rowheader", {
-        name: "Home · #3 Defender",
-        exact: true,
-      }),
-    });
-  await expect(row.getByRole("cell").last()).toHaveText("1");
+  const row = page.getByRole("row").filter({
+    has: page.getByRole("rowheader", {
+      name: "Home · #3 Defender",
+      exact: true,
+    }),
+  });
+  await expect(row.getByRole("cell").nth(12)).toHaveText("1");
   await nav(page, "Live match");
   await nav(page, "Home");
   await page.locator("[data-event=miss]").click();

@@ -4,7 +4,6 @@ export const SHOT_SOURCES = [
   ["free", "Free"],
   ["penalty", "Penalty"],
   ["45", "45"],
-  ["mark", "Mark"],
 ];
 export const MISS_REASONS = [
   "wide",
@@ -22,8 +21,10 @@ export function shotDetails(event) {
     SHOT_SOURCES.find(
       ([, label]) =>
         label.toLowerCase() === String(event.scoreOrigin || "").toLowerCase(),
-    )?.[0] || "";
+    )?.[0] ||
+    (String(event.scoreOrigin || "").toLowerCase() === "mark" ? "mark" : "");
   const source =
+    event.shotSource === "mark" ||
     event.shotSource === "" ||
     SHOT_SOURCES.some(([id]) => id === event.shotSource)
       ? event.shotSource

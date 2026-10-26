@@ -59,6 +59,7 @@ export function analysisScreen(match, filters = {}, report = false) {
       player.kickoutInvolvement,
       player.blockedAttempts,
       player.defensiveBlocks,
+      player.kickoutMarks,
     ]),
   );
   const options = (values, current) =>
@@ -172,26 +173,30 @@ export function analysisScreen(match, filters = {}, report = false) {
       [
         "Kicking team",
         "Total",
-        "Won",
-        "Lost",
+        "Won by us",
+        "Won / retained by opposition",
         "Unknown",
-        "Retention",
+        "Kicking-team retention",
+        "Marks won by us",
+        "Marks won by opposition",
         "Short",
-        "Short won / known",
-        "Short success",
+        "Short won by us / known",
+        "Short retention",
         "Long",
-        "Long won / known",
-        "Long success",
+        "Long won by us / known",
+        "Long retention",
       ],
       teams.map((team) => {
         const k = stats[team].kickouts;
         return [
-          name(team),
+          `${team === "our" ? "Our Kickouts" : "Opposition Kickouts"} · ${name(team)}`,
           k.total,
           k.won,
           k.lost,
           k.unknown,
           pct(k.retention),
+          k.marksWon,
+          k.marksLost,
           k.short.total,
           `${k.short.won} / ${k.short.won + k.short.lost}`,
           pct(k.short.success),
@@ -201,9 +206,9 @@ export function analysisScreen(match, filters = {}, report = false) {
         ];
       }),
     ) +
-      '<p class="small-note">Won/lost is from the kicking team’s perspective. Retention and length success use known won/lost outcomes only; unrecorded outcomes are shown as unknown. Unrecorded or legacy Medium lengths are counted in total kickouts, not short/long. Player involvement below reflects attribution, not an inferred receiver.</p>',
+      '<p class="small-note">Won/lost is always from our team’s perspective. Retention is the percentage retained by the kicking team (our wins on our kickouts, opposition wins on their kickouts), using known outcomes only. Older kicking-team results are translated on read. Marks are attributes of these kickouts, never additional events. Unrecorded or legacy Medium lengths are counted in total kickouts, not short/long. Player involvement below reflects attribution, not an inferred receiver.</p>',
   )}
-  ${section("Player shooting & event analysis", playerRows.length ? table(["Player", "Goals", "Points", "2P", "Total pts", "Attempts", "Misses", "Conv.", "TO won", "TO lost", "Intercept.", "Kickouts", "Blocked attempts", "Defensive blocks"], playerRows) : '<p class="small-note">Add players or record attributed events to populate this table.</p>')}
+  ${section("Player shooting & event analysis", playerRows.length ? table(["Player", "Goals", "Points", "2P", "Total pts", "Attempts", "Misses", "Conv.", "TO won", "TO lost", "Intercept.", "Kickouts", "Blocked attempts", "Defensive blocks", "Kickout Marks"], playerRows) : '<p class="small-note">Add players or record attributed events to populate this table.</p>')}
   ${section(
     "Half comparison",
     table(

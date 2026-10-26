@@ -37,7 +37,6 @@ test("source categorizes scores independently of goal outcome and edit/undo reco
     ["point", "free"],
     ["two-point", "open-play"],
     ["point", "45"],
-    ["point", "mark"],
   ])
     events = saveEvent(events, shot(type, "our", { shotSource: source }));
   assert.deepEqual(summarize(events, "our").scoresBySource, {
@@ -45,16 +44,15 @@ test("source categorizes scores independently of goal outcome and edit/undo reco
     free: 1,
     penalty: 1,
     45: 1,
-    mark: 1,
   });
-  assert.equal(totals(events, "our").total, 8);
+  assert.equal(totals(events, "our").total, 7);
   events = saveEvent(events, { ...events[0], team: "opposition" });
-  assert.equal(totals(events, "our").total, 5);
+  assert.equal(totals(events, "our").total, 4);
   assert.equal(totals(events, "opposition").total, 3);
   assert.equal(events[0].shotOutcome, "goal");
   assert.equal(events[0].scoreOrigin, "Penalty");
   events = undoEvent(events);
-  assert.equal(totals(events, "our").total, 4);
+  assert.equal(totals(events, "our").total, 3);
 });
 test("a blocked opposition attempt credits our defender in the SAME shot and clears stale credit on edits", () => {
   const match = blankMatch();

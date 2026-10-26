@@ -1,3 +1,9 @@
+import {
+  openKickoutCapture,
+  kickoutFieldsMarkup,
+  kickoutFormFields,
+} from "./kickout-capture.js";
+import { kickoutDetails, kickoutLabel } from "./kickouts.js";
 import { openShotDetails, shotFieldsMarkup } from "./shot-capture.js";
 import { gaelicScore } from "./shots.js";
 import "./style.css";
@@ -17,7 +23,7 @@ import {
   isKickout,
 } from "./domain.js";
 import { loadMatch, persistMatch, startBlankMatch } from "./storage.js";
-import { openQuickCapture, openNoteCapture } from "./capture.js";
+import { openNoteCapture } from "./capture.js";
 import {
   squadTools,
   openSaveSquad,
@@ -294,7 +300,7 @@ function eventRow(event) {
   const player = playersFor(match, event.team).find(
     (item) => String(item.number) === String(event.playerNumber),
   );
-  return `<button class="event-row" data-edit-event="${event.id}" aria-label="Edit ${esc(type.label)} at ${formatTime(event.timeMs)}"><span class="event-time">${formatTime(event.timeMs)}<small>H${event.half}</small></span><span class="timeline-dot ${event.team}">${icon(type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(type.label)} ${event.event === "substitution" ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team))}${player ? ` · ${esc(player.name)}` : ""}${!type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}<span class="row-edit">${icon("edit")}</span></button>`;
+  return `<button class="event-row" data-edit-event="${event.id}" aria-label="Edit ${esc(type.label)} at ${formatTime(event.timeMs)}"><span class="event-time">${formatTime(event.timeMs)}<small>H${event.half}</small></span><span class="timeline-dot ${event.team}">${icon(type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(type.label)} ${event.event === "substitution" ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team))}${player ? ` · ${esc(player.name)}` : ""}${isKickout(event) ? ` · ${esc(kickoutLabel(event))}${kickoutDetails(event).markPlayerNumber ? ` · Mark #${kickoutDetails(event).markPlayerNumber}` : ""}` : !type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}<span class="row-edit">${icon("edit")}</span></button>`;
 }
 function timelineScreen() {
   const filtered = match.events
@@ -373,10 +379,10 @@ function openEvent(event, editing = false) {
           }`
         : ""
     }
-    <div data-edit-shot-fields>${shotFieldsMarkup(event, match, { editing: true })}</div>
+    <div data-edit-shot-fields>${shotFieldsMarkup(event, match, { editing: true })}</div><div data-edit-kickout-fields>${kickoutFieldsMarkup(event, match)}</div>
     <details class="event-details" ${editing ? "open" : ""}><summary>${editing ? "Event details" : "Add details"} <span>Optional</span></summary><div class="detail-fields">
     ${editing ? `<div class="form-grid"><label class="field"><span>Event</span><select name="event" aria-label="Event">${EVENT_TYPES.map((item) => `<option value="${item.id}" ${item.id === event.event ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><label class="field"><span>Team</span><select name="team" aria-label="Team" ${type.team ? "disabled" : ""}><option value="our" ${event.team === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${event.team === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select></label><label class="field"><span>Half</span><select name="half" aria-label="Half"><option value="1" ${event.half === 1 ? "selected" : ""}>First half</option><option value="2" ${event.half === 2 ? "selected" : ""}>Second half</option></select></label>${input("Half time (mm:ss)", "time", formatTime(event.timeMs), 'required pattern="[0-9]{1,3}:[0-5][0-9]" inputmode="text" title="Use minutes:seconds, for example 05:30"')}</div>` : ""}
-    <div class="form-grid">${!scoring && event.event !== "miss" ? selectField("Outcome", "outcome", event.outcome, ["won", "lost", "retained", "completed", "incomplete"]) : ""}${selectField("Zone", "zone", event.zone, ["Defensive third", "Middle third", "Attacking third"])}${selectField("Side", "side", event.side, ["Left", "Centre", "Right"])}${kickout || editing ? selectField("Kickout length", "kickoutLength", event.kickoutLength, ["Short", "Medium", "Long"]) : ""}${!isShot(event) && editing ? selectField("Score origin", "scoreOrigin", event.scoreOrigin, ["Open play", "Free", "45", "Penalty", "Mark", "Sideline"]) : ""}${selectField("Possession result", "possessionResult", event.possessionResult, ["Retained", "Lost", "Shot", "Score"])}${input("Attack pattern", "attackPattern", event.attackPattern, 'maxlength="120" placeholder="Optional"')}</div>
+    <div class="form-grid">${!scoring && event.event !== "miss" && !kickout ? selectField("Outcome", "outcome", event.outcome, ["won", "lost", "retained", "completed", "incomplete"]) : ""}${selectField("Zone", "zone", event.zone, ["Defensive third", "Middle third", "Attacking third"])}${selectField("Side", "side", event.side, ["Left", "Centre", "Right"])}${kickout || editing ? selectField("Kickout length", "kickoutLength", event.kickoutLength, ["Short", "Medium", "Long"]) : ""}${!isShot(event) && editing ? selectField("Score origin", "scoreOrigin", event.scoreOrigin, ["Open play", "Free", "45", "Penalty", "Sideline"]) : ""}${selectField("Possession result", "possessionResult", event.possessionResult, ["Retained", "Lost", "Shot", "Score"])}${input("Attack pattern", "attackPattern", event.attackPattern, 'maxlength="120" placeholder="Optional"')}</div>
     ${noteMarkup(event)}${input("Coach observation", "coachObservation", event.coachObservation, 'maxlength="500" placeholder="Optional"')}
     <label class="field"><span>Direct score link</span><select name="directScoreLink"><option value="">No linked score</option>${match.events
       .filter(
@@ -421,6 +427,9 @@ function openEvent(event, editing = false) {
     const nextType = eventType(updated.event);
     if (updated.event !== event.event) updated.outcome = nextType.outcome;
     if (nextType.value > 0) updated.outcome = "scored";
+    if (isKickout(updated))
+      Object.assign(updated, kickoutFormFields(data, updated));
+    delete updated.kickoutResult;
     try {
       match.events = saveEvent(match.events, updated);
     } catch (error) {
@@ -445,15 +454,24 @@ function openEvent(event, editing = false) {
       ...data,
       event: next.id,
       outcome: next.id === event.event ? event.outcome : next.outcome,
+      ...(next.id === event.event && isKickout(event)
+        ? kickoutDetails(event)
+        : {}),
+      ...kickoutFormFields(data, { event: next.id }),
     };
     dialog.querySelector("[data-edit-shot-fields]").innerHTML =
       shotFieldsMarkup(draft, match, { editing: true });
+    dialog.querySelector("[data-edit-kickout-fields]").innerHTML =
+      kickoutFieldsMarkup(draft, match);
   };
   dialog
     .querySelector('[name="team"]')
     ?.addEventListener("change", refreshShotFields);
   dialog
     .querySelector("[data-edit-shot-fields]")
+    .addEventListener("change", refreshShotFields);
+  dialog
+    .querySelector("[data-edit-kickout-fields]")
     .addEventListener("change", refreshShotFields);
   dialog
     .querySelector('[name="event"]')
@@ -536,12 +554,15 @@ document.addEventListener("click", (event) => {
         recordEvent,
       );
     else if (isKickout(record))
-      openQuickCapture(
+      openKickoutCapture(
         document.querySelector("#event-dialog"),
         record,
         match,
-        recordEvent,
-        saveEventNote,
+        (updated) => {
+          match.events = saveEvent(match.events, updated);
+          persist();
+        },
+        () => render(),
       );
     else {
       recordEvent(record);
