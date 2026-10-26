@@ -1,4 +1,17 @@
-# Sideline V0.3.4 — V3 REAL MATCH TEST
+# Sideline V0.3.5-dev — development review
+
+## V0.3.5-dev shot workflow (unreleased)
+
+Development branch: `sideline-v0.3.5`, based on frozen commit `49ce88bd26a911cd51a6abb7248522525a6998bb`. No release or merge is implied.
+
+Goal, Point, 2 Point and Wide / Miss save on the first tap. The optional pitch/player/source screen then opens automatically. Location, player, source and miss-reason changes autosave against the same event ID; Skip / Close or Escape cannot discard the original shot. Existing Edit last event, Undo and later shot enrichment remain available.
+
+Shot fields are additive: `shotOutcome` (derived from the legacy event/outcome), `shotSource` (`open-play`, `free`, `penalty`, `45`, `mark`), optional `missReason`, and optional `blockedByNumber`. The block credit belongs to our defender on an opposition blocked miss; it does not create another event. New shots default to Open Play. Known legacy `scoreOrigin` values and miss outcomes are interpreted on read, while unrecorded sources remain unknown. Existing schema version 1/2 records and the local-storage key remain supported; loading a schema-2 record does not rewrite its events. Normalized saves mirror known sources into legacy `scoreOrigin`.
+
+The primary scoreboard is goals–points, counting each two-pointer as two points in the right-hand value, with the calculated total underneath. The event log remains the only scoring source. The recording-team choice is saved on the match as optional `recordingTeam` and remains selected across reloads until deliberately changed. Analysis adds shot source counts, blocked attempts and player defensive-block credits without a new screen layout. Source counts are successful shot counts, not total point values.
+
+OCR/import and voice modules are unchanged. Earlier build notes below describe the frozen V0.3.4 baseline.
+
 
 An incremental extension of the live-tested V1: the same Vite/JavaScript app, event log, scoreboard, clock, autosave, timeline, detailed editor, undo, half transitions, added time, and offline PWA. No account, cloud storage, paid service or AI interpretation is required. Teams and squads start blank.
 

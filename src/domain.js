@@ -1,3 +1,4 @@
+import { shotFields, shotAttempt } from "./shots.js";
 import { validSubstitution } from "./matchday.js";
 export const EVENT_TYPES = [
   { id: "goal", label: "Goal", value: 3, outcome: "scored", player: true },
@@ -122,6 +123,14 @@ export function createEvent(match, typeId, team, now = Date.now()) {
     timeMs: Math.floor(elapsedMs(match.clock, now) / 1000) * 1000,
     team: type.team || team,
     playerNumber: "",
+    ...(shotAttempt({ event: typeId })
+      ? {
+          shotOutcome: typeId,
+          shotSource: "open-play",
+          missReason: "",
+          blockedByNumber: "",
+        }
+      : {}),
     event: typeId,
     outcome: type.outcome,
     scoreValue: type.value,
@@ -164,6 +173,7 @@ export function normalizeEvent(event) {
     throw new Error("Shot coordinates must both be within 0–1 or both empty.");
   return {
     ...event,
+    ...shotFields(event),
     ...(event.event === "substitution"
       ? {
           playerOn: String(Number(event.playerOn)),

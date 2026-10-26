@@ -35,19 +35,21 @@ test("iPad landscape tap panel fits, scores save immediately, rapid double taps 
     expect((await button.boundingBox()).height).toBeGreaterThanOrEqual(48);
   }
   await page.locator("[data-event=point]").dblclick({ delay: 40 });
-  await expect(page.locator("dialog")).not.toBeVisible();
+  await expect(page.locator("dialog")).toBeVisible();
+  await nav(page, "Close shot details");
   expect((await state(page)).events).toHaveLength(1);
   await page.locator("[data-event=two-point]").dblclick({ delay: 40 });
   expect((await state(page)).events).toHaveLength(2);
-  await expect(page.locator(".score-team.our .score-total")).toHaveText(
-    "3total pts",
+  await nav(page, "Close shot details");
+  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
+    "(3)",
   );
   await expect(page.locator(".score-save-status")).toContainText(
     "Saved on this device",
   );
   await nav(page, "Undo last event");
-  await expect(page.locator(".score-team.our .score-total")).toHaveText(
-    "1total pts",
+  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
+    "(1)",
   );
   await page.reload();
   expect((await state(page)).events).toHaveLength(1);
@@ -117,13 +119,13 @@ test("voice proposes but never silently scores; uncertain/multiple events are re
   await page.locator("[data-action=voice-mode]").click();
   await nav(page, "Start voice capture");
   await expect(page.locator(".voice-preview")).toContainText("Goal");
-  await expect(page.locator(".score-team.our .score-total")).toHaveText(
-    "0total pts",
+  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
+    "(0)",
   );
   await nav(page, "Confirm & record event");
   expect((await state(page)).events).toHaveLength(1);
-  await expect(page.locator(".score-team.our .score-total")).toHaveText(
-    "3total pts",
+  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
+    "(3)",
   );
   await page.getByText("Type / review commentary", { exact: true }).click();
   await page.getByLabel("Commentary", { exact: true }).fill("maybe a point");
@@ -139,8 +141,8 @@ test("voice proposes but never silently scores; uncertain/multiple events are re
     playerOff: "6",
   });
   await nav(page, "Point +1 point");
-  await expect(page.locator(".score-team.our .score-total")).toHaveText(
-    "4total pts",
+  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
+    "(4)",
   );
 });
 
@@ -152,25 +154,23 @@ test("first-half direction and half/team reversals transform display without mut
   await page.getByLabel("Our first-half attacking goal").selectOption("bottom");
   await nav(page, "Live match");
   await nav(page, "Point +1 point");
-  await nav(page, "Add player / location to last shot (optional)");
   await expect(page.locator("dialog")).toContainText(
     "Home attacks the BOTTOM goal",
   );
   const pitch = page.getByRole("button", { name: "Shot location pitch" });
   const box = await pitch.boundingBox();
   await pitch.click({ position: { x: box.width * 0.25, y: box.height * 0.3 } });
-  await nav(page, "Skip player & save event");
+  await nav(page, "Done");
   const old = (await state(page)).events[0];
   expect(old.shotX).toBeCloseTo(0.75, 2);
   expect(old.shotY).toBeCloseTo(0.7, 2);
   page.once("dialog", (dialog) => dialog.accept());
   await nav(page, "Start second half");
   await nav(page, "2 Point +2 points");
-  await nav(page, "Add player / location to last shot (optional)");
   await expect(page.locator("dialog")).toContainText(
     "Home attacks the TOP goal",
   );
-  await nav(page, "Cancel event");
+  await nav(page, "Close shot details");
   expect((await state(page)).events[0].shotX).toBe(old.shotX);
   expect((await state(page)).events[0].shotY).toBe(old.shotY);
   expect((await state(page)).events).toHaveLength(2);
@@ -201,6 +201,7 @@ test("dictated notes autosave to the event being edited even if editor is closed
   await setup(page);
   await nav(page, "Live match");
   await nav(page, "Goal +3 points");
+  await nav(page, "Close shot details");
   await nav(page, "Edit last event");
   await nav(page, "Dictate note");
   expect((await state(page)).events[0].dictatedNote).toBe(
@@ -244,8 +245,8 @@ test("offline tap mode survives speech network failure and new blank match prese
   );
   await nav(page, "2 Point +2 points");
   await page.reload();
-  await expect(page.locator(".score-team.our .score-total")).toHaveText(
-    "2total pts",
+  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
+    "(2)",
   );
   const old = await state(page);
   await nav(page, "Match setup");
@@ -293,8 +294,8 @@ test("low-confidence speech requires transcript review and new capture clears pr
     "Low recognition confidence",
   );
   await expect(page.locator("[data-vm-confirm]")).toHaveCount(0);
-  await expect(page.locator(".score-team.our .score-total")).toHaveText(
-    "0total pts",
+  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
+    "(0)",
   );
   await nav(page, "Interpret text");
   await expect(page.locator("[data-vm-confirm]")).toHaveCount(1);

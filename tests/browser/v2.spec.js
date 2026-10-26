@@ -21,19 +21,10 @@ async function nav(page, name) {
 async function shot(page, type = "Point", player = "") {
   await page.getByRole("button", { name: new RegExp(`^${type} \\+`) }).click();
   await page
-    .getByRole("button", {
-      name: "Add player / location to last shot (optional)",
-      exact: true,
-    })
-    .click();
-  await page
     .getByRole("button", { name: "Shot location pitch" })
     .click({ position: { x: 80, y: 110 } });
-  if (player) await page.locator(`[data-quick-player="${player}"]`).click();
-  else
-    await page
-      .getByRole("button", { name: "Skip player & save event" })
-      .click();
+  if (player) await page.locator(`[data-shot-player="${player}"]`).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
 }
 
 test("quick kickouts capture known outcome and optional length at initial tap time", async ({
@@ -102,14 +93,7 @@ test("shots save immediately and optional enrichment retains normalized location
   await shot(page, "2 Point");
   await nav(page, "Home");
   await page.getByRole("button", { name: /Wide \/ Miss/ }).click();
-  await page
-    .getByRole("button", {
-      name: "Add player / location to last shot (optional)",
-      exact: true,
-    })
-    .click();
-  await nav(page, "Skip location → Choose player");
-  await nav(page, "Skip player & save event");
+  await nav(page, "Done");
   expect((await state(page)).events[2]).toMatchObject({
     outcome: "missed",
     shotX: null,
@@ -361,8 +345,8 @@ test("legacy V1 is migrated in browser without losing old events or clock and ba
   await page.goto("/");
   await expect(page.locator("[data-clock]")).toHaveText("31:10");
   await expect(page.locator("[data-clock-status]")).toHaveText("Added time");
-  await expect(page.locator(".score-team.our .score-total")).toHaveText(
-    "42total pts",
+  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
+    "(42)",
   );
   await nav(page, "Interception");
   const match = await state(page);

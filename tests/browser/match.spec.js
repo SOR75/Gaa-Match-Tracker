@@ -11,24 +11,8 @@ async function live(page) {
 }
 async function recordScore(page, label, player = "") {
   await page.getByRole("button", { name: new RegExp(`^${label} \\+`) }).click();
-  await page
-    .getByRole("button", {
-      name: "Add player / location to last shot (optional)",
-      exact: true,
-    })
-    .click();
-  await page
-    .getByRole("button", { name: "Skip location → Choose player" })
-    .click();
-  if (player) {
-    await page.getByLabel("Other player number").fill(player);
-    await page
-      .getByRole("button", { name: "Save player", exact: true })
-      .click();
-  } else
-    await page
-      .getByRole("button", { name: "Skip player & save event" })
-      .click();
+  if (player) await page.getByLabel("Other player number").fill(player);
+  await page.getByRole("button", { name: "Done", exact: true }).click();
 }
 
 test("mobile match workflow: squad, scoring, edits, undo, timeline and refresh", async ({
@@ -47,14 +31,14 @@ test("mobile match workflow: squad, scoring, edits, undo, timeline and refresh",
   await recordScore(page, "Goal", "7");
   await recordScore(page, "Point");
   await recordScore(page, "2 Point");
-  await expect(page.locator(".score-team.our .score-total")).toHaveText(
-    "6total pts",
+  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
+    "(6)",
   );
   await page.getByRole("button", { name: "Visitors", exact: true }).click();
   await recordScore(page, "Point");
-  await expect(page.locator(".score-team.opposition .score-total")).toHaveText(
-    "1total pts",
-  );
+  await expect(
+    page.locator(".score-team.opposition .score-calculated"),
+  ).toHaveText("(1)");
   await page.getByRole("button", { name: "Our Kickout", exact: true }).click();
   await page.getByRole("button", { name: "WON", exact: true }).click();
   await page
@@ -73,17 +57,17 @@ test("mobile match workflow: squad, scoring, edits, undo, timeline and refresh",
     .click();
   await page.getByLabel("Event", { exact: true }).selectOption("goal");
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.locator(".score-team.opposition .score-total")).toHaveText(
-    "3total pts",
-  );
+  await expect(
+    page.locator(".score-team.opposition .score-calculated"),
+  ).toHaveText("(3)");
   await page.reload();
   await live(page);
-  await expect(page.locator(".score-team.our .score-total")).toHaveText(
-    "6total pts",
+  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
+    "(6)",
   );
-  await expect(page.locator(".score-team.opposition .score-total")).toHaveText(
-    "3total pts",
-  );
+  await expect(
+    page.locator(".score-team.opposition .score-calculated"),
+  ).toHaveText("(3)");
   await expect(
     page.getByRole("button", { name: "Pause clock", exact: true }),
   ).toBeVisible();
@@ -96,9 +80,9 @@ test("mobile match workflow: squad, scoring, edits, undo, timeline and refresh",
     .click();
   await expect(page.locator(".event-row")).toHaveCount(0);
   await live(page);
-  await expect(page.locator(".score-team.opposition .score-total")).toHaveText(
-    "0total pts",
-  );
+  await expect(
+    page.locator(".score-team.opposition .score-calculated"),
+  ).toHaveText("(0)");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -128,8 +112,8 @@ test("clock recovers elapsed time, half resets preserve events, and offline relo
   await page.getByRole("button", { name: "Start second half" }).click();
   await expect(page.locator("[data-clock]")).toHaveText("00:00");
   await expect(page.locator(".half-label")).toHaveText("SECOND HALF");
-  await expect(page.locator(".score-team.our .score-total")).toHaveText(
-    "3total pts",
+  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
+    "(3)",
   );
   await page.evaluate(() => navigator.serviceWorker.ready);
   await expect
@@ -151,12 +135,12 @@ test("clock recovers elapsed time, half resets preserve events, and offline relo
   await context.setOffline(true);
   await page.reload();
   await live(page);
-  await expect(page.locator(".score-team.our .score-total")).toHaveText(
-    "3total pts",
+  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
+    "(3)",
   );
   await recordScore(page, "2 Point");
-  await expect(page.locator(".score-team.our .score-total")).toHaveText(
-    "5total pts",
+  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
+    "(5)",
   );
 });
 

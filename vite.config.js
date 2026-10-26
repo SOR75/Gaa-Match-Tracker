@@ -29,7 +29,7 @@ export default defineConfig({
       configureServer(server) {
         server.httpServer?.once("listening", () =>
           server.config.logger.info(
-            `[Sideline V0.3.4] Project root: ${server.config.root}`,
+            `[Sideline V0.3.5-dev] Project root: ${server.config.root}`,
           ),
         );
         server.middlewares.use((req, res, next) => {

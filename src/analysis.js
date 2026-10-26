@@ -1,3 +1,4 @@
+import { shotDetails, SHOT_SOURCES } from "./shots.js";
 import { totals, isShot, isKickout } from "./domain.js";
 export const percentage = (part, whole) =>
   whole ? Math.round((part / whole) * 1000) / 10 : null;
@@ -45,6 +46,23 @@ export function summarize(events, team) {
     successful,
     misses: shots.length - successful,
     conversion: percentage(successful, shots.length),
+    scoresBySource: Object.fromEntries(
+      SHOT_SOURCES.map(([source]) => [
+        source,
+        shots.filter(
+          (e) => e.outcome === "scored" && shotDetails(e).shotSource === source,
+        ).length,
+      ]),
+    ),
+    blockedAttempts: shots.filter(
+      (e) => shotDetails(e).missReason === "blocked",
+    ).length,
+    defensiveBlocks:
+      team === "our"
+        ? events.filter(
+            (e) => e.team === "opposition" && shotDetails(e)?.blockedByNumber,
+          ).length
+        : 0,
     kickouts: {
       total: kickouts.length,
       won,
@@ -69,6 +87,9 @@ export function playerStatistics(match, team) {
     ...squad
       .filter((player) => Number.isInteger(player.number))
       .map((player) => String(player.number)),
+    ...(team === "our"
+      ? match.events.map((e) => shotDetails(e)?.blockedByNumber).filter(Boolean)
+      : []),
     ...match.events
       .filter((event) => event.team === team && event.playerNumber !== "")
       .map((event) => String(event.playerNumber)),
@@ -86,6 +107,12 @@ export function playerStatistics(match, team) {
           squad.find((player) => String(player.number) === number)?.name ||
           "Unlisted player",
         ...summary,
+        defensiveBlocks:
+          team === "our"
+            ? match.events.filter(
+                (e) => shotDetails(e)?.blockedByNumber === number,
+              ).length
+            : 0,
         kickoutInvolvement: events.filter(isKickout).length,
       };
     });

@@ -1,3 +1,4 @@
+import { SHOT_SOURCES, gaelicScore } from "./shots.js";
 import {
   summarize,
   playerStatistics,
@@ -35,6 +36,8 @@ export function analysisScreen(match, filters = {}, report = false) {
     ["Successful attempts", "successful"],
     ["Wides / misses", "misses"],
     ["Conversion %", "conversion"],
+    ["Blocked attempts", "blockedAttempts"],
+    ["Defensive blocks credited", "defensiveBlocks"],
     ["Turnovers won", "turnoversWon"],
     ["Turnovers lost", "turnoversLost"],
     ["Interceptions", "interceptions"],
@@ -54,6 +57,8 @@ export function analysisScreen(match, filters = {}, report = false) {
       player.turnoversLost,
       player.interceptions,
       player.kickoutInvolvement,
+      player.blockedAttempts,
+      player.defensiveBlocks,
     ]),
   );
   const options = (values, current) =>
@@ -95,7 +100,7 @@ export function analysisScreen(match, filters = {}, report = false) {
         )
       : ""
   }
-  ${section(report ? "Recorded score — current / final" : "Match summary", `<div class="analysis-scores">${teams.map((team) => `<div><span>${esc(name(team))}</span><strong>${stats[team].total}</strong><small>${stats[team].goals} goals · ${stats[team].points} points · ${stats[team].twoPointers} 2-pointers</small></div>`).join("")}</div><p class="small-note">${match.events.length} recorded events · ${match.clock.half === 1 ? "First" : "Second"} half · ${report ? "Report uses all recorded events; no full-time status is assumed." : "No independent score totals are stored."}</p>`)}
+  ${section(report ? "Recorded score — current / final" : "Match summary", `<div class="analysis-scores">${teams.map((team) => `<div><span>${esc(name(team))}</span><strong>${gaelicScore(stats[team])}</strong><small>(${stats[team].total})</small><small>${stats[team].goals} goals · ${stats[team].points} points · ${stats[team].twoPointers} 2-pointers</small></div>`).join("")}</div><p class="small-note">${match.events.length} recorded events · ${match.clock.half === 1 ? "First" : "Second"} half · ${report ? "Report uses all recorded events; no full-time status is assumed." : "No independent score totals are stored."}</p>`)}
   ${section(
     "Score by half",
     table(
@@ -117,12 +122,18 @@ export function analysisScreen(match, filters = {}, report = false) {
     "Team comparison · shooting & possession",
     table(
       ["Recorded metric", name("our"), name("opposition")],
-      teamMetrics.map(([label, key]) => [
-        label,
-        ...teams.map((team) =>
-          key === "conversion" ? pct(stats[team][key]) : stats[team][key],
-        ),
-      ]),
+      [
+        ...teamMetrics.map(([label, key]) => [
+          label,
+          ...teams.map((team) =>
+            key === "conversion" ? pct(stats[team][key]) : stats[team][key],
+          ),
+        ]),
+        ...SHOT_SOURCES.map(([id, label]) => [
+          `Scores from ${label.toLowerCase()}`,
+          ...teams.map((team) => stats[team].scoresBySource[id]),
+        ]),
+      ],
     ) +
       '<p class="small-note">Conversion = successful attempts ÷ recorded attempts. Possession events are counts only; no possession percentage is inferred.</p>',
   )}
@@ -192,7 +203,7 @@ export function analysisScreen(match, filters = {}, report = false) {
     ) +
       '<p class="small-note">Won/lost is from the kicking team’s perspective. Retention and length success use known won/lost outcomes only; unrecorded outcomes are shown as unknown. Unrecorded or legacy Medium lengths are counted in total kickouts, not short/long. Player involvement below reflects attribution, not an inferred receiver.</p>',
   )}
-  ${section("Player shooting & event analysis", playerRows.length ? table(["Player", "Goals", "Points", "2P", "Total pts", "Attempts", "Misses", "Conv.", "TO won", "TO lost", "Intercept.", "Kickouts"], playerRows) : '<p class="small-note">Add players or record attributed events to populate this table.</p>')}
+  ${section("Player shooting & event analysis", playerRows.length ? table(["Player", "Goals", "Points", "2P", "Total pts", "Attempts", "Misses", "Conv.", "TO won", "TO lost", "Intercept.", "Kickouts", "Blocked attempts", "Defensive blocks"], playerRows) : '<p class="small-note">Add players or record attributed events to populate this table.</p>')}
   ${section(
     "Half comparison",
     table(

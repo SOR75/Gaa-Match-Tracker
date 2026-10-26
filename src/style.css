@@ -3509,3 +3509,60 @@ dialog::backdrop {
     font-size: 9px;
   }
 }
+
+/* V0.3.5-dev: match-day team clarity and optional shot details. */
+.score-calculated {
+  font-size: 20px;
+  font-weight: 650;
+  margin: 4px 0;
+}
+.recording-team {
+  padding: 10px 14px;
+  border: 2px solid #245841;
+  border-radius: 8px;
+  background: #e4efde;
+  font-size: 17px;
+  margin-bottom: 10px;
+}
+.recording-opposition .recording-team {
+  background: #fff0d8;
+  border-color: #9c5b15;
+}
+.team-toggle button.selected {
+  box-shadow: inset 0 0 0 3px currentColor;
+  font-weight: 800;
+}
+.recording-opposition .team-toggle button.selected {
+  background: #86501b;
+  color: white;
+}
+.shot-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.shot-fields [hidden] {
+  display: none;
+}
+.shot-detail-layout {
+  display: grid;
+  gap: 16px;
+}
+.shot-detail-layout .capture-pitch {
+  max-width: 300px;
+  margin: 0 auto;
+  width: 100%;
+}
+.shot-detail-layout .quick-player-grid {
+  max-height: 180px;
+  overflow: auto;
+}
+@media (min-width: 700px) {
+  #event-dialog:has(.shot-detail-layout) {
+    width: min(820px, calc(100% - 24px));
+  }
+  .shot-detail-layout {
+    grid-template-columns: 1fr 1fr;
+  }
+}

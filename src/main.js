@@ -1,3 +1,5 @@
+import { openShotDetails, shotFieldsMarkup } from "./shot-capture.js";
+import { gaelicScore } from "./shots.js";
 import "./style.css";
 import {
   EVENT_TYPES,
@@ -76,7 +78,7 @@ let view =
     match.clock.elapsedMs > 0)
     ? "live"
     : "setup";
-let selectedTeam = "our";
+let selectedTeam = match?.recordingTeam === "opposition" ? "opposition" : "our";
 let playerEditing = null;
 let squadTeam = "our";
 let analysisFilters = {
@@ -102,6 +104,28 @@ function recordEvent(event) {
   persist();
   render();
   toast(`${eventType(event.event).label} recorded`);
+}
+function enrichShot(event) {
+  openShotDetails(
+    document.querySelector("#event-dialog"),
+    structuredClone(event),
+    match,
+    (details) => {
+      const current = match.events.find((item) => item.id === details.id);
+      if (!current) return;
+      match.events = saveEvent(match.events, {
+        ...current,
+        playerNumber: details.playerNumber,
+        shotX: details.shotX,
+        shotY: details.shotY,
+        shotSource: details.shotSource,
+        missReason: details.missReason,
+        blockedByNumber: details.blockedByNumber,
+      });
+      persist();
+    },
+    () => render(),
+  );
 }
 function saveEventNote(event) {
   if (!match) return;
@@ -179,7 +203,7 @@ function render() {
       <div class="sidebar-bottom"><span class="local-dot"></span><div>Made for the sideline<small>Your match stays on this device.</small></div></div>
     </aside>
     <div class="main-shell">
-      <header class="topbar"><span class="build-tag">V0.3.4</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
+      <header class="topbar"><span class="build-tag">V0.3.5-dev</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
       <main id="main"><p id="storage-warning" class="warning" role="alert" hidden></p>${view === "setup" ? setupScreen() : view === "squad" ? squadScreen() : view === "live" ? liveScreen() : view === "timeline" ? timelineScreen() : analysisScreen(match, analysisFilters, reportMode)}</main>
       <footer class="actionbar"><div class="last-event">${lastEventSummary()}</div><div class="history-actions"><button class="button subtle" data-action="edit-last" aria-label="Edit last event" ${match.events.length ? "" : "disabled"}>${icon("edit")}<span>Edit last<span class="wide-label"> event</span></span></button><button class="button undo" data-action="undo" aria-label="Undo last event" ${match.events.length ? "" : "disabled"}>${icon("undo")}<span>Undo last<span class="wide-label"> event</span></span></button></div></footer>
     </div>
@@ -229,17 +253,17 @@ function squadScreen() {
 function scoreboard() {
   const score = (team) => {
     const tally = totals(match.events, team);
-    return `<div class="score-team ${team}"><span class="score-team-label">${team === "our" ? "OUR TEAM" : "OPPOSITION"}</span><h2>${esc(teamName(team))}</h2><div class="score-total">${tally.total}<span>total pts</span></div><div class="score-breakdown"><span><b>${tally.goals}</b> goals</span><span><b>${tally.points}</b> points</span><span><b>${tally.twoPointers}</b> 2-pointers</span></div></div>`;
+    return `<div class="score-team ${team}"><span class="score-team-label">${team === "our" ? "OUR TEAM" : "OPPOSITION"}</span><h2>${esc(teamName(team))}</h2><div class="score-total">${gaelicScore(tally)}</div><div class="score-calculated" aria-label="Calculated total points">(${tally.total})</div><div class="score-breakdown"><span><b>${tally.goals}</b> goals</span><span><b>${tally.points}</b> points</span><span><b>${tally.twoPointers}</b> 2-pointers</span></div></div>`;
   };
   return `<section class="scoreboard" aria-label="Live scoreboard">${score("our")}<div class="score-clock"><span class="half-label">${match.clock.half === 1 ? "FIRST" : "SECOND"} HALF</span><div class="clock-digits" data-clock>${formatTime(elapsedMs(match.clock))}</div><span class="clock-status" data-clock-status></span><button class="clock-button" data-action="clock" aria-label="${match.clock.startedAt === null ? "Start clock" : "Pause clock"}">${match.clock.startedAt === null ? `${icon("live")} Start clock` : '<span class="pause-icon">Ⅱ</span> Pause clock'}</button><button class="half-button" data-action="half">${match.clock.half === 1 ? "Start second half" : "Return to first half"}</button></div>${score("opposition")}<span class="score-save-status" data-save-status></span></section>`;
 }
 function liveScreen() {
   return `${heading("FROM THE SIDELINE", "Every moment counts.", "Tap an event. Keep your eyes on the game.", `<span class="match-status"><span class="local-dot"></span>${match.clock.startedAt === null ? "MATCH WORKSPACE" : "LIVE TRACKING"}</span>`)}
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
-    <div class="matchday-toolbar"><span class="build-tag">V0.3.4</span><button class="button microphone" data-action="voice-mode" aria-pressed="${voiceMode}">${icon("mic")} Voice Match Mode ${voiceMode ? "ON" : "OFF"}</button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
+    <div class="matchday-toolbar"><span class="build-tag">V0.3.5-dev</span><button class="button microphone" data-action="voice-mode" aria-pressed="${voiceMode}">${icon("mic")} Voice Match Mode ${voiceMode ? "ON" : "OFF"}</button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
     ${scoreboard()}
     ${voiceMode ? '<section class="card voice-match-panel" id="voice-match-panel"></section>' : ""}
-    <section class="event-controls"><div class="controls-heading"><div><h2>Record an event</h2><p>Scores save on one tap. Add player / pitch afterwards if time allows.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div><div class="team-toggle" role="group" aria-label="Event team"><button data-team="our" aria-pressed="${selectedTeam === "our"}" class="${selectedTeam === "our" ? "selected" : ""}">${esc(teamName("our"))}</button><button data-team="opposition" aria-pressed="${selectedTeam === "opposition"}" class="${selectedTeam === "opposition" ? "selected" : ""}">${esc(teamName("opposition"))}</button></div></div>
+    <section class="event-controls recording-${selectedTeam}"><div class="recording-team" role="status">Recording for: <strong>${esc(teamName(selectedTeam))}</strong></div><div class="controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div><div class="team-toggle" role="group" aria-label="Event team"><button data-team="our" aria-pressed="${selectedTeam === "our"}" class="${selectedTeam === "our" ? "selected" : ""}">${esc(teamName("our"))}</button><button data-team="opposition" aria-pressed="${selectedTeam === "opposition"}" class="${selectedTeam === "opposition" ? "selected" : ""}">${esc(teamName("opposition"))}</button></div></div>
     <div class="scoring-grid">${EVENT_TYPES.slice(0, 4)
       .map(
         (type, index) =>
@@ -349,10 +373,10 @@ function openEvent(event, editing = false) {
           }`
         : ""
     }
-    ${event.event === "miss" ? selectField("Outcome", "outcome", event.outcome, ["missed", "wide", "saved", "blocked", "short", "post"]) : ""}
+    <div data-edit-shot-fields>${shotFieldsMarkup(event, match, { editing: true })}</div>
     <details class="event-details" ${editing ? "open" : ""}><summary>${editing ? "Event details" : "Add details"} <span>Optional</span></summary><div class="detail-fields">
     ${editing ? `<div class="form-grid"><label class="field"><span>Event</span><select name="event" aria-label="Event">${EVENT_TYPES.map((item) => `<option value="${item.id}" ${item.id === event.event ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><label class="field"><span>Team</span><select name="team" aria-label="Team" ${type.team ? "disabled" : ""}><option value="our" ${event.team === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${event.team === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select></label><label class="field"><span>Half</span><select name="half" aria-label="Half"><option value="1" ${event.half === 1 ? "selected" : ""}>First half</option><option value="2" ${event.half === 2 ? "selected" : ""}>Second half</option></select></label>${input("Half time (mm:ss)", "time", formatTime(event.timeMs), 'required pattern="[0-9]{1,3}:[0-5][0-9]" inputmode="text" title="Use minutes:seconds, for example 05:30"')}</div>` : ""}
-    <div class="form-grid">${!scoring && event.event !== "miss" ? selectField("Outcome", "outcome", event.outcome, ["won", "lost", "retained", "completed", "incomplete"]) : ""}${selectField("Zone", "zone", event.zone, ["Defensive third", "Middle third", "Attacking third"])}${selectField("Side", "side", event.side, ["Left", "Centre", "Right"])}${kickout || editing ? selectField("Kickout length", "kickoutLength", event.kickoutLength, ["Short", "Medium", "Long"]) : ""}${scoring || editing ? selectField("Score origin", "scoreOrigin", event.scoreOrigin, ["Open play", "Free", "45", "Penalty", "Mark", "Sideline"]) : ""}${selectField("Possession result", "possessionResult", event.possessionResult, ["Retained", "Lost", "Shot", "Score"])}${input("Attack pattern", "attackPattern", event.attackPattern, 'maxlength="120" placeholder="Optional"')}</div>
+    <div class="form-grid">${!scoring && event.event !== "miss" ? selectField("Outcome", "outcome", event.outcome, ["won", "lost", "retained", "completed", "incomplete"]) : ""}${selectField("Zone", "zone", event.zone, ["Defensive third", "Middle third", "Attacking third"])}${selectField("Side", "side", event.side, ["Left", "Centre", "Right"])}${kickout || editing ? selectField("Kickout length", "kickoutLength", event.kickoutLength, ["Short", "Medium", "Long"]) : ""}${!isShot(event) && editing ? selectField("Score origin", "scoreOrigin", event.scoreOrigin, ["Open play", "Free", "45", "Penalty", "Mark", "Sideline"]) : ""}${selectField("Possession result", "possessionResult", event.possessionResult, ["Retained", "Lost", "Shot", "Score"])}${input("Attack pattern", "attackPattern", event.attackPattern, 'maxlength="120" placeholder="Optional"')}</div>
     ${noteMarkup(event)}${input("Coach observation", "coachObservation", event.coachObservation, 'maxlength="500" placeholder="Optional"')}
     <label class="field"><span>Direct score link</span><select name="directScoreLink"><option value="">No linked score</option>${match.events
       .filter(
@@ -412,6 +436,25 @@ function openEvent(event, editing = false) {
         : `${nextType.label} recorded`,
     );
   });
+  const refreshShotFields = () => {
+    const form = dialog.querySelector("#event-form");
+    const data = Object.fromEntries(new FormData(form));
+    const next = eventType(data.event || event.event);
+    const draft = {
+      ...event,
+      ...data,
+      event: next.id,
+      outcome: next.id === event.event ? event.outcome : next.outcome,
+    };
+    dialog.querySelector("[data-edit-shot-fields]").innerHTML =
+      shotFieldsMarkup(draft, match, { editing: true });
+  };
+  dialog
+    .querySelector('[name="team"]')
+    ?.addEventListener("change", refreshShotFields);
+  dialog
+    .querySelector("[data-edit-shot-fields]")
+    .addEventListener("change", refreshShotFields);
   dialog
     .querySelector('[name="event"]')
     ?.addEventListener("change", (eventChange) => {
@@ -419,6 +462,7 @@ function openEvent(event, editing = false) {
       const team = dialog.querySelector('[name="team"]');
       team.disabled = Boolean(nextType.team);
       if (nextType.team) team.value = nextType.team;
+      refreshShotFields();
     });
 }
 
@@ -469,6 +513,8 @@ document.addEventListener("click", (event) => {
     );
   if (button.dataset.team) {
     selectedTeam = button.dataset.team;
+    match.recordingTeam = selectedTeam;
+    persist();
     render();
   }
   if (button.dataset.event) {
@@ -497,7 +543,11 @@ document.addEventListener("click", (event) => {
         recordEvent,
         saveEventNote,
       );
-    else recordEvent(record);
+    else {
+      recordEvent(record);
+      if (isShot(record))
+        enrichShot(match.events.find((e) => e.id === record.id));
+    }
   }
 
   if (button.dataset.editEvent)
@@ -555,14 +605,7 @@ document.addEventListener("click", (event) => {
       break;
     case "enrich-shot": {
       const last = match.events.at(-1);
-      if (last && isShot(last))
-        openQuickCapture(
-          document.querySelector("#event-dialog"),
-          structuredClone(last),
-          match,
-          recordEvent,
-          saveEventNote,
-        );
+      if (last && isShot(last)) enrichShot(last);
       break;
     }
     case "new-match": {
