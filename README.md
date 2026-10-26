@@ -1,7 +1,6 @@
 # Sideline V0.3.5-dev — development review
 
-**Known manual-test issue remains OPEN:** attacking Blocked shots have still displayed the red X in the user's Chrome live-capture modal despite passing automated amber-B checks. See [KNOWN-ISSUES.md](KNOWN-ISSUES.md). This checkpoint preserves the working data/analysis and does not claim the visible-marker defect is resolved.
-
+**Chrome manual verification passed:** a fresh GitHub download was verified for amber-B attacking blocked shots, independent purple-D Defensive Blocks, player/location attribution, separate analysis, and the existing Kickout/Mark workflow. The prior marker issue is closed on that manual evidence; its history remains in [KNOWN-ISSUES.md](KNOWN-ISSUES.md). Version remains V0.3.5-dev.
 
 ## V0.3.5-dev kickout workflow and LGFA Marks
 

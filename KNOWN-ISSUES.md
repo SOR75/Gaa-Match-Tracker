@@ -1,30 +1,25 @@
-# Known issues — Sideline V0.3.5-dev
+# Issue history — Sideline V0.3.5-dev
 
-## V035-BLOCKED-LIVE-MARKER — OPEN, manual-test failure
+## V035-BLOCKED-LIVE-MARKER — CLOSED, manually verified in Chrome
 
-Reported in Chrome on the user's Mac. This issue remains unresolved at the real-match workflow checkpoint, regardless of automated test results. This is a development checkpoint, not a claim that the marker defect is fixed.
+The user has manually verified the current V0.3.5 implementation in Chrome from a fresh GitHub download. The attacking blocked-shot marker displays amber B, and the separate Defensive Block marker displays purple D. This closure is based on that manual confirmation as well as automated checks; it is not a claim of verification on other browsers or a released V0.3.5 version.
 
-### Reproduction
+### Manual verification confirmed
 
-1. Open real Live Match and select our team.
-2. Tap Wide / Miss; the shot saves immediately.
-3. Set Miss reason to Blocked, select #6 Isabel, and tap a pitch location.
-4. Also test location first (default X), then change the reason to Blocked.
+- An attacking blocked shot remains one shot attempt, counts as a Blocked Attempt and not a Wide, and preserves shooter/location attribution with the amber B marker.
+- Standalone Defensive Block is independent of a shot, permits optional our-player credit and location, and creates no shooting attempt, turnover or possession change.
+- Defensive Block locations use the separate purple D map treatment.
+- Analysis separates Blocked Attempts from Defensive Blocks.
+- Existing Kickout/Mark functionality remains working.
 
-Expected: the visible attacking-shot marker in the open optional-details capture modal is the amber B, with no normal red Wide/Miss X. Location and player stay attached to the same single shot.
+### Historical failure and regression coverage
 
-Actual manual report: the modal simultaneously displays Open Play, Blocked, #6 Isabel and a recorded location, but the pitch still displays the red X. Starting a newer Vite server and repeating the test did not resolve the report.
+Previously, the user reported Open Play, Blocked, #6 Isabel and a recorded location in the live capture modal while the pitch still showed the red X. The report was kept OPEN even though automation passed, and was explicitly recorded in the real-match workflow checkpoint.
 
-### Status and evidence limits
+Regression tests inspect the actual open capture modal for both location-before-reason and reason-before-location orders. They check SVG classes/content, computed amber fill, visible B text, absence of red/X paths, marker layers and hit-testing. They also exercise input/change timing and shooter/location taps while control values are pending. No renderer is mocked and the tests do not rely solely on saved event data.
 
-The current automated regressions inspect the real open capture modal, including SVG classes/content, computed amber fill, B text, absence of red/X paths, marker layers and hit-testing. They currently pass in the development environment. That does not invalidate or resolve the manual failure.
-
-The exact root cause in the failing Mac Chrome instance has not been established. Earlier work addressed input/change timing and cached capture state, but manual testing still reported the defect afterward. Do not present that state fix as proof of resolution. The working environment renders B in the tested paths; comparison with the failing browser's actual SVG and served modules remains a follow-up diagnostic step.
+The exact cause in the original failing Mac runtime was not conclusively established. The current fresh-download manual success closes the observed issue; it does not retrospectively prove a particular cache or event-timing explanation. If the symptom returns, reopen this issue with the actual failing SVG, computed styles and served module evidence.
 
 ### Functionality to preserve
 
-Underlying blocked-shot event data and analysis are working and must remain intact: one shot event, shooter attribution, missReason Blocked, actual location, Attempt + Blocked Attempt, no Wide classification, and no inferred turnover or possession change. Preserve the separate Defensive Block action, all shot sources/defaults, Gaelic scoreboard and manually approved Kickout/Mark workflow.
-
-### Follow-up
-
-Retest from this GitHub checkpoint as one authoritative source. Inspect the actual failing open-modal SVG, computed styles, marker layers and served renderer modules, and compare them with the passing run. Keep the issue OPEN until the real manual capture screen is verified to replace X with B in both interaction orders. Do not relax tests or remove the Wide/Blocked distinction to obtain a pass.
+Keep one attacking shot event, the shooter, miss reason Blocked, actual location, Attempt + Blocked Attempt and no Wide classification. Preserve the separate Defensive Block action, no inferred possession/turnover changes, all shot sources/defaults, Gaelic scoreboard and the approved Kickout/Mark workflow. Do not relax tests or remove the Wide/Blocked distinction.

@@ -1,11 +1,11 @@
 {
   "buildId": "0.3.5-dev",
   "version": "0.3.5-dev",
-  "revision": "v0.3.5-dev-real-match-workflow-checkpoint",
+  "revision": "v0.3.5-dev-chrome-verified-block-workflows",
   "files": {
     ".gitignore": "82eaa5e04de9523c94aae899334adce703f6197be8ad21f9eb6ae074582e231e",
-    "KNOWN-ISSUES.md": "a4341057283570fe6f356a9347ffd39f6f2f19b6d52af940cbb9c8ff982b5178",
-    "README.md": "e85d0bd8ae2c339ca12b399b2b37ff31564ddd347c1ef967bfc40632903ffdeb",
+    "KNOWN-ISSUES.md": "9a8a93b941a1f096a8bc6e3c8a3bbeebf91cc00e1088b3586850d5b8e60d3539",
+    "README.md": "1d94910e5b86a2e2bef76010a44fe2a9be9cf1a3351a2e6232e53d1f97b3530c",
     "index.html": "51391c7ed74d747aab39e2c7bbb76084ec561ec9f70e80d8569c1dbf8b1c06f6",
     "package-lock.json": "98947875c795b2e58492407e60df2d516c888e48cc744c71e3eaf4f18e9c6b21",
     "package.json": "197f8e212c3209acfeb99db22b79dcddbc86bfa1d09f27062cedd0254b1eff75",
