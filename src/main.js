@@ -1,3 +1,4 @@
+import { attributionRoster } from "./player-credit.js";
 import { openDefensiveBlockDetails } from "./defensive-block-capture.js";
 import { isDefensiveBlockEvent } from "./defensive-blocks.js";
 import {
@@ -231,7 +232,7 @@ function render() {
       <div class="sidebar-bottom"><span class="local-dot"></span><div>Made for the sideline<small>Your match stays on this device.</small></div></div>
     </aside>
     <div class="main-shell">
-      <header class="topbar"><span class="build-tag">V0.3.5-dev</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
+      <header class="topbar"><span class="build-tag">V0.3.6</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
       <main id="main"><p id="storage-warning" class="warning" role="alert" hidden></p>${view === "setup" ? setupScreen() : view === "squad" ? squadScreen() : view === "live" ? liveScreen() : view === "timeline" ? timelineScreen() : analysisScreen(match, analysisFilters, reportMode)}</main>
       <footer class="actionbar"><div class="last-event">${lastEventSummary()}</div><div class="history-actions"><button class="button subtle" data-action="edit-last" aria-label="Edit last event" ${match.events.length ? "" : "disabled"}>${icon("edit")}<span>Edit last<span class="wide-label"> event</span></span></button><button class="button undo" data-action="undo" aria-label="Undo last event" ${match.events.length ? "" : "disabled"}>${icon("undo")}<span>Undo last<span class="wide-label"> event</span></span></button></div></footer>
     </div>
@@ -299,7 +300,7 @@ function liveTeamControls() {
 function liveScreen() {
   return `${heading("FROM THE SIDELINE", "Every moment counts.", "Tap an event. Keep your eyes on the game.", `<span class="match-status"><span class="local-dot"></span>${match.clock.startedAt === null ? "MATCH WORKSPACE" : "LIVE TRACKING"}</span>`)}
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
-    <div class="matchday-toolbar"><span class="build-tag">V0.3.5-dev</span><button class="button microphone" data-action="voice-mode" aria-pressed="${voiceMode}">${icon("mic")} Voice Match Mode ${voiceMode ? "ON" : "OFF"}</button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
+    <div class="matchday-toolbar"><span class="build-tag">V0.3.6</span><button class="button microphone" data-action="voice-mode" aria-pressed="${voiceMode}">${icon("mic")} Voice Match Mode ${voiceMode ? "ON" : "OFF"}</button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
     ${scoreboard()}
     ${voiceMode ? '<section class="card voice-match-panel" id="voice-match-panel"></section>' : ""}
     <section class="event-controls recording-${selectedTeam}">${liveTeamControls()}<div class="controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div></div>
@@ -397,10 +398,10 @@ function openEvent(event, editing = false) {
   dialog.innerHTML = `<form id="event-form"><div class="dialog-heading"><div><p class="eyebrow">${editing ? "EDIT EVENT" : "RECORD EVENT"} · H${event.half} · ${formatTime(event.timeMs)}</p><h2 id="event-dialog-title">${esc(displayLabel)}</h2></div><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cancel event">${icon("close")}</button></div><p class="dialog-team"><span class="local-dot"></span>${esc(teamName(event.team))}${scoring ? ` <span>+${type.value} ${type.value === 1 ? "point" : "points"}</span>` : ""}</p>
     ${
       playerRelevant
-        ? `<label class="field"><span>Player number <small>Optional</small></span><input name="playerNumber" type="number" min="1" max="99" step="1" inputmode="numeric" placeholder="Jersey number" value="${esc(event.playerNumber)}"></label>${
-            playersFor(match, event.team).length
+        ? `<label class="field"><span>Player number / Other number <small>Optional</small></span><input name="playerNumber" type="number" min="1" max="99" step="1" inputmode="numeric" placeholder="Jersey number" value="${esc(event.playerNumber)}"></label>${
+            attributionRoster(match, event.team).players.length
               ? `<div class="player-picks" aria-label="Choose player">${[
-                  ...playersFor(match, event.team).filter((player) =>
+                  ...attributionRoster(match, event.team).players.filter((player) =>
                     Number.isInteger(player.number),
                   ),
                 ]

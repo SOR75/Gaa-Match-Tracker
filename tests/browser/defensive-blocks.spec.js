@@ -279,7 +279,7 @@ test("empty defensive roster explicitly reports No players loaded, remains valid
     modal.getByText("No players loaded", { exact: true }),
   ).toBeVisible();
   await expect(modal).not.toContainText("Opponent Three");
-  await expect(modal.locator("button[data-defensive-player]")).toHaveCount(0);
+  await expect(modal.locator("button[data-defensive-player]")).toHaveCount(15);
   await nav(page, "Skip / Close");
   expect((await state(page)).events).toHaveLength(1);
   expect((await state(page)).events[0]).toMatchObject({

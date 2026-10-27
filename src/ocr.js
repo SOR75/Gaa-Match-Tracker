@@ -1,3 +1,9 @@
+import { readNumberedList } from "./list-programme.js";
+import {
+  lightCardRects,
+  selectCardFormation,
+  readBoxedProgramme,
+} from "./boxed-programme.js";
 import {
   detectReferenceRoster,
   readReferenceFormation,
@@ -67,6 +73,9 @@ export async function recognizeImage(
       ]);
       return { text: data.text, words: tsvWords(data.tsv) };
     }
+    const originalScan = await read(source);
+    const listPlayers = readNumberedList(originalScan.words);
+    if (listPlayers) return { ...originalScan, players: listPlayers, diagnostics: { layout: "numbered-list" } };
     const scan = await read(normalized);
     const grid = fitFormation(scan.words);
     if (!grid) return scan;
@@ -81,6 +90,24 @@ export async function recognizeImage(
         .drawImage(canvas, x, y, w, h, 0, 0, result.width, result.height);
       return result;
     }
+    const cards = selectCardFormation(
+      lightCardRects(
+        source.getContext("2d").getImageData(0, 0, source.width, source.height),
+      ),
+      scan.words,
+      grid,
+    );
+    if (cards)
+      return await readBoxedProgramme({
+        cards,
+        scan,
+        source,
+        normalized,
+        crop,
+        read,
+        worker,
+        onProgress,
+      });
     const reference = detectReferenceRoster(scan.words, grid);
     if (reference)
       return await readReferenceFormation({

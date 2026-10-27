@@ -362,7 +362,7 @@ test("empty OUR squad explicitly says No players loaded, allows skipping and nev
   await expect(
     modal.getByText("No players loaded", { exact: true }),
   ).toBeVisible();
-  await expect(modal.locator("[data-mark-player]")).toHaveCount(0);
+  await expect(modal.locator("[data-mark-player]")).toHaveCount(15);
   await expect(modal).not.toContainText("Opposition Eight");
   await expect(
     modal.getByRole("button", { name: "Skip player / Close", exact: true }),

@@ -11,12 +11,13 @@ const state = (page) =>
 test("real PNG OCR populates editable candidates offline without any external OCR requests", async ({
   page,
   context,
+  baseURL,
 }) => {
   test.setTimeout(90000);
   const external = [];
   page.on("request", (request) => {
     if (
-      !request.url().startsWith("http://127.0.0.1:4173") &&
+      !request.url().startsWith(`${new URL(baseURL).origin}/`) &&
       !request.url().startsWith("blob:") &&
       !request.url().startsWith("data:")
     )

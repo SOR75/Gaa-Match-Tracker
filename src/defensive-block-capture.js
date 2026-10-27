@@ -1,4 +1,4 @@
-import { ourCreditRoster, playerCreditPicker } from "./player-credit.js";
+import { ourCreditRoster, playerCreditPicker, bindOtherCredit } from "./player-credit.js";
 import { attackingDirection, transformLocation } from "./matchday.js";
 import { normalizedLocation } from "./domain.js";
 import { pitchMarkup } from "./pitch.js";
@@ -38,6 +38,7 @@ export function openDefensiveBlockDetails(
         dialog.close();
       }),
   );
+  bindOtherCredit(dialog, (_, number) => { if (finished) return; finished = true; save({ playerNumber: number }); dialog.close(); });
   const pitch = dialog.querySelector(".gaelic-pitch");
   const paint = () => {
     pitch.innerHTML = pitchMarkup([draft], false, options).match(

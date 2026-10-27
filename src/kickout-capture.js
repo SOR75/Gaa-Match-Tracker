@@ -1,5 +1,6 @@
 import {
   ourCreditRoster,
+  bindOtherCredit,
   emptyCreditRosterMarkup,
   playerCreditPicker,
 } from "./player-credit.js";
@@ -15,7 +16,8 @@ export function kickoutFieldsMarkup(event, match) {
     kickoutChoices(event.event).find(
       (c) => c.outcome === data.outcome && c.mark === data.mark,
     )?.id || "unknown";
-  const { players, guidance } = ourCreditRoster(match);
+  const roster = ourCreditRoster(match);
+  const { players, guidance } = roster;
   const retained =
     data.markPlayerNumber &&
     !players.some((p) => String(p.number) === data.markPlayerNumber)
@@ -54,7 +56,8 @@ export function openKickoutCapture(dialog, event, match, onSave, onClose) {
   let draft = { ...event },
     recorded = false,
     finished = false;
-  const { players, guidance } = ourCreditRoster(match);
+  const roster = ourCreditRoster(match);
+  const { players, guidance } = roster;
   dialog.innerHTML = `<div class="dialog-heading"><div><p class="eyebrow">KICKOUT · H${event.half} · ${formatTime(event.timeMs)}</p><h2 id="event-dialog-title">${esc(eventType(event.event).label)}</h2></div><button type="button" class="icon-button" data-kickout-close aria-label="Close kickout">×</button></div><p class="capture-instruction">Who secured possession?</p><p class="small-note">WON means our team secured possession. LOST means opposition secured possession.</p><div class="quick-length" role="group" aria-label="Optional kickout length"><span>Length · optional</span><button type="button" class="button subtle" data-ko-length="Short" aria-pressed="false">SHORT</button><button type="button" class="button subtle" data-ko-length="Long" aria-pressed="false">LONG</button></div><div class="kickout-outcomes">${kickoutChoices(
     event.event,
   )
@@ -64,7 +67,7 @@ export function openKickoutCapture(dialog, event, match, onSave, onClose) {
     )
     .join(
       "",
-    )}</div><p data-ko-saved role="status" hidden>Mark recorded. Player credit is optional; close to continue.</p><div data-ko-credit hidden><p class="small-note">Who caught our Mark? · optional</p>${playerCreditPicker({ players, guidance }, { groupLabel: "Our Mark winner", attribute: "data-mark-player", actionLabel: "Credit Mark to" })}<button type="button" class="button subtle full-width" data-kickout-close>Skip player / Close</button></div><details class="optional-note"><summary>● Add typed / dictated note <span>Optional</span></summary>${noteMarkup(draft)}</details>`;
+    )}</div><p data-ko-saved role="status" hidden>Mark recorded. Player credit is optional; close to continue.</p><div data-ko-credit hidden><p class="small-note">Who caught our Mark? · optional</p>${playerCreditPicker(roster, { groupLabel: "Our Mark winner", attribute: "data-mark-player", actionLabel: "Credit Mark to" })}<button type="button" class="button subtle full-width" data-kickout-close>Skip player / Close</button></div><details class="optional-note"><summary>● Add typed / dictated note <span>Optional</span></summary>${noteMarkup(draft)}</details>`;
   const collectNotes = () => {
     for (const key of ["notes", "dictatedNote"])
       draft[key] = dialog.querySelector(`[name="${key}"]`)?.value || "";
@@ -117,6 +120,10 @@ export function openKickoutCapture(dialog, event, match, onSave, onClose) {
         } else dialog.close();
       }),
   );
+  bindOtherCredit(dialog, (_, number) => {
+    if (finished || !recorded) return;
+    finished = true; draft.markPlayerNumber = number; save(); dialog.close();
+  });
   dialog.querySelectorAll("[data-mark-player]").forEach(
     (b) =>
       (b.onclick = () => {

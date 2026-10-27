@@ -256,7 +256,7 @@ test("D: empty OUR squad shows No players loaded, does not offer opponents, and 
   await expect(
     panel.getByText("No players loaded", { exact: true }),
   ).toBeVisible();
-  await expect(panel.locator("[data-block-player]")).toHaveCount(0);
+  await expect(panel.locator("[data-block-player]")).toHaveCount(15);
   await expect(panel).not.toContainText("Opponent Three");
   await nav(page, "Skip / Close");
   expect((await state(page)).events).toHaveLength(1);
