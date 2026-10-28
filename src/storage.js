@@ -14,17 +14,17 @@ export function loadMatch() {
     };
   }
 }
-export function persistMatch(match) {
+export function persistMatch(match, storage = localStorage) {
   try {
-    const previous = localStorage.getItem(KEY);
+    const previous = storage.getItem(KEY);
     if (
       previous &&
       JSON.parse(previous).schemaVersion === 1 &&
-      !localStorage.getItem("sideline.match.v1.backup")
+      !storage.getItem("sideline.match.v1.backup")
     ) {
-      localStorage.setItem("sideline.match.v1.backup", previous);
+      storage.setItem("sideline.match.v1.backup", previous);
     }
-    localStorage.setItem(KEY, JSON.stringify(match));
+    storage.setItem(KEY, JSON.stringify(match));
     return "";
   } catch {
     return "Autosave failed. Keep this tab open: recent changes are only in memory. Check that browser storage is available.";

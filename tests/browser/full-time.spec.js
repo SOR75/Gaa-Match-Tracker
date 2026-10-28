@@ -217,5 +217,11 @@ test("Full-Time with missing locations and unknown kickouts shows neutral eviden
   await comparisonRow(page, "Our KO retained", ["—", "—", "—"]);
   await comparisonRow(page, "Their KO won by us", ["—", "—", "—"]);
   await comparisonRow(page, "Shooting", ["—", "100% (1/1)", "100% (1/1)"]);
-  expect(await state(page)).toEqual(m);
+  const completed = await state(page);
+  expect(completed.lifecycle.status).toBe("completed");
+  expect(Number.isFinite(Date.parse(completed.lifecycle.completedAt))).toBe(
+    true,
+  );
+  const { lifecycle, ...payload } = completed;
+  expect(payload).toEqual(m);
 });

@@ -230,6 +230,7 @@ test("offline tap mode survives roadmap taps and new blank match preserves old s
   await nav(page, "Match setup");
   page.once("dialog", (dialog) => dialog.accept());
   await nav(page, "Start a new blank match");
+  await expect.poll(async () => (await state(page)).id).not.toBe(old.id);
   const blank = await state(page);
   expect(blank.setup.ourTeam).toBe("");
   expect(blank.setup.opposition).toBe("");
@@ -239,8 +240,16 @@ test("offline tap mode survives roadmap taps and new blank match preserves old s
   expect(
     await page.evaluate(
       (id) =>
-        JSON.parse(localStorage.getItem(`sideline.match.archive.${id}`)).events
-          .length,
+        new Promise((resolve, reject) => {
+          const r = indexedDB.open("sideline.history", 1);
+          r.onsuccess = () => {
+            const tx = r.result.transaction("matches", "readonly"),
+              q = tx.objectStore("matches").get(id);
+            q.onsuccess = () => resolve(q.result.match.events.length);
+            q.onerror = () => reject(q.error);
+          };
+          r.onerror = () => reject(r.error);
+        }),
       old.id,
     ),
   ).toBe(1);

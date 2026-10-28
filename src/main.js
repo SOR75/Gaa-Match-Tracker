@@ -1,3 +1,6 @@
+import { createHistoryRepository } from "./history-repository.js";
+import { createHistoryUI } from "./history-ui.js";
+import { completeMatch } from "./history.js";
 import "./voice-roadmap.css";
 import { fullTimeScreen } from "./full-time-ui.js";
 import { halfTimeScreen } from "./half-time-ui.js";
@@ -28,7 +31,7 @@ import {
   isShot,
   isKickout,
 } from "./domain.js";
-import { loadMatch, persistMatch, startBlankMatch } from "./storage.js";
+import { loadMatch, persistMatch } from "./storage.js";
 import { openNoteCapture } from "./capture.js";
 import {
   squadTools,
@@ -101,6 +104,28 @@ let analysisFilters = {
 };
 let reportMode = false;
 let analysisHalf = null;
+const historyRepository = createHistoryRepository();
+let switchingMatch = false;
+const historyUI = createHistoryUI({
+  repository: historyRepository,
+  getActive: () => match,
+  onChange: () => {
+    if (view === "history") render();
+  },
+  onResume: (next) => {
+    if (next) {
+      match = next;
+      storageError = "";
+      selectedTeam =
+        match.recordingTeam === "opposition" ? "opposition" : "our";
+      squadTeam = "our";
+      playerEditing = null;
+    }
+    view = next ? "live" : "setup";
+    render();
+  },
+  renderTimeline: (saved) => timelineScreen(saved, true),
+});
 const setPlayers = (players) => {
   match[squadTeam === "our" ? "players" : "oppositionPlayers"] = players;
 };
@@ -170,10 +195,10 @@ function saveEventNote(event) {
   persist();
 }
 const ready = () => match.setup.ourTeam.trim() && match.setup.opposition.trim();
-const teamName = (team) =>
+const teamName = (team, source = match) =>
   team === "our"
-    ? match.setup.ourTeam || "Our team"
-    : match.setup.opposition || "Opposition";
+    ? source.setup.ourTeam || "Our team"
+    : source.setup.opposition || "Opposition";
 const initials = (name) =>
   name
     .trim()
@@ -219,6 +244,7 @@ function render() {
     ["live", "pitch", "Live match"],
     ["timeline", "timeline", "Timeline"],
     ["analysis", "setup", "Match analysis"],
+    ["history", "timeline", "Match History"],
   ];
   app.innerHTML = `
     <aside class="sidebar">
@@ -228,9 +254,9 @@ function render() {
       <div class="sidebar-bottom"><span class="local-dot"></span><div>Made for the sideline<small>Your match stays on this device.</small></div></div>
     </aside>
     <div class="main-shell">
-      <header class="topbar"><span class="build-tag">V0.3.7-dev</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${view === "halftime" ? "Half-Time Analysis" : view === "fulltime" ? "Full-Time Analysis" : tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
-      <main id="main"><p id="storage-warning" class="warning" role="alert" hidden></p>${view === "setup" ? setupScreen() : view === "squad" ? squadScreen() : view === "live" ? liveScreen() : view === "timeline" ? timelineScreen() : view === "halftime" ? halfTimeScreen(match) : view === "fulltime" ? fullTimeScreen(match) : analysisScreen(match, analysisFilters, reportMode, analysisHalf)}</main>
-      <footer class="actionbar"><div class="last-event">${lastEventSummary()}</div><div class="history-actions"><button class="button subtle" data-action="edit-last" aria-label="Edit last event" ${match.events.length ? "" : "disabled"}>${icon("edit")}<span>Edit last<span class="wide-label"> event</span></span></button><button class="button undo" data-action="undo" aria-label="Undo last event" ${match.events.length ? "" : "disabled"}>${icon("undo")}<span>Undo last<span class="wide-label"> event</span></span></button></div></footer>
+      <header class="topbar"><span class="build-tag">V0.3.8-dev</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${view === "halftime" ? "Half-Time Analysis" : view === "fulltime" ? "Full-Time Analysis" : tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
+      <main id="main"><p id="storage-warning" class="warning" role="alert" hidden></p>${view === "history" ? historyUI.screen() : view === "setup" ? setupScreen() : view === "squad" ? squadScreen() : view === "live" ? liveScreen() : view === "timeline" ? timelineScreen() : view === "halftime" ? halfTimeScreen(match) : view === "fulltime" ? fullTimeScreen(match) : analysisScreen(match, analysisFilters, reportMode, analysisHalf)}</main>
+      ${view === "history" ? `<footer class="actionbar"><strong>History · read-only viewing</strong><button class="button subtle" data-view="live">Return to current match</button></footer>` : `<footer class="actionbar"><div class="last-event">${lastEventSummary()}</div><div class="history-actions"><button class="button subtle" data-action="edit-last" aria-label="Edit last event" ${match.events.length ? "" : "disabled"}>${icon("edit")}<span>Edit last<span class="wide-label"> event</span></span></button><button class="button undo" data-action="undo" aria-label="Undo last event" ${match.events.length ? "" : "disabled"}>${icon("undo")}<span>Undo last<span class="wide-label"> event</span></span></button></div></footer>`}
     </div>
     <dialog id="event-dialog" aria-labelledby="event-dialog-title"></dialog>
   `;
@@ -294,7 +320,7 @@ function liveTeamControls() {
 function liveScreen() {
   return `${heading("FROM THE SIDELINE", "Every moment counts.", "Tap an event. Keep your eyes on the game.", `<span class="match-status"><span class="local-dot"></span>${match.clock.startedAt === null ? "MATCH WORKSPACE" : "LIVE TRACKING"}</span>`)}
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
-    <div class="matchday-toolbar"><span class="build-tag">V0.3.7-dev</span><button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>${match.clock.half === 2 ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone voice-roadmap-button" data-action="voice-mode" aria-label="Voice Match Mode — Coming soon">${icon("mic")}<span>Voice Match Mode<small class="voice-roadmap-label">COMING SOON</small></span></button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
+    <div class="matchday-toolbar"><span class="build-tag">V0.3.8-dev</span><button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>${match.clock.half === 2 ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone voice-roadmap-button" data-action="voice-mode" aria-label="Voice Match Mode — Coming soon">${icon("mic")}<span>Voice Match Mode<small class="voice-roadmap-label">COMING SOON</small></span></button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
     ${scoreboard()}
     <section class="event-controls recording-${selectedTeam}">${liveTeamControls()}<div class="controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div></div>
     <div class="scoring-grid">${EVENT_TYPES.slice(0, 4)
@@ -322,39 +348,40 @@ function liveScreen() {
         : '<p class="recent-empty">The whistle hasn’t gone yet. Your first event will appear here.</p>'
     }</section>`;
 }
-function eventRow(event) {
+function eventRow(event, displayMatch = match, readOnly = false) {
   const type = eventType(event.event);
   const label = isBlockedShot(event) ? "Shot · Blocked" : type.label;
-  const player = playersFor(match, event.team).find(
+  const player = playersFor(displayMatch, event.team).find(
     (item) => String(item.number) === String(event.playerNumber),
   );
-  return `<button class="event-row" data-edit-event="${event.id}" aria-label="Edit ${esc(label)} at ${formatTime(event.timeMs)}"><span class="event-time">${formatTime(event.timeMs)}<small>H${event.half}</small></span><span class="timeline-dot ${event.team} ${isDefensiveBlockEvent(event) ? "defensive-block" : isBlockedShot(event) ? "blocked-shot" : ""}">${icon(isDefensiveBlockEvent(event) ? "block" : type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(label)} ${event.event === "substitution" ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team))}${player ? ` · ${esc(player.name)}` : ""}${isKickout(event) ? ` · ${esc(kickoutLabel(event))}${kickoutDetails(event).markPlayerNumber ? ` · Mark #${kickoutDetails(event).markPlayerNumber}` : ""}` : !type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}${(isBlockedShot(event) || isDefensiveBlockEvent(event)) && hasLocation(event) ? "<small>Pitch location recorded</small>" : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}<span class="row-edit">${icon("edit")}</span></button>`;
+  return `<${readOnly ? "div" : "button"} class="event-row" ${readOnly ? "" : `data-edit-event="${event.id}" aria-label="Edit ${esc(label)} at ${formatTime(event.timeMs)}"`}><span class="event-time">${formatTime(event.timeMs)}<small>H${event.half}</small></span><span class="timeline-dot ${event.team} ${isDefensiveBlockEvent(event) ? "defensive-block" : isBlockedShot(event) ? "blocked-shot" : ""}">${icon(isDefensiveBlockEvent(event) ? "block" : type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(label)} ${event.event === "substitution" ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team, displayMatch))}${player ? ` · ${esc(player.name)}` : ""}${isKickout(event) ? ` · ${esc(kickoutLabel(event))}${kickoutDetails(event).markPlayerNumber ? ` · Mark #${kickoutDetails(event).markPlayerNumber}` : ""}` : !type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}${(isBlockedShot(event) || isDefensiveBlockEvent(event)) && hasLocation(event) ? "<small>Pitch location recorded</small>" : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}${readOnly ? "" : `<span class="row-edit">${icon("edit")}</span>`}</${readOnly ? "div" : "button"}>`;
 }
-function timelineScreen() {
-  const filtered = match.events
+function timelineScreen(displayMatch = match, readOnly = false) {
+  const filtered = displayMatch.events
     .filter(
       (event) =>
-        (timelineTeam === "all" || event.team === timelineTeam) &&
-        (timelineKind === "all" ||
+        (readOnly || timelineTeam === "all" || event.team === timelineTeam) &&
+        (readOnly ||
+          timelineKind === "all" ||
           (timelineKind === "scores"
             ? eventType(event.event).value > 0
             : eventType(event.event).value === 0)),
     )
     .slice()
     .sort((a, b) => b.half - a.half || b.timeMs - a.timeMs);
-  return `${heading("THE STORY OF THE MATCH", "Every event. In order.", "Your event log is the source of truth. Tap any event to review or edit it.", `<span class="total-events">${match.events.length} events recorded</span>`)}
-    <section class="card timeline-card"><div class="timeline-toolbar"><h2>Event timeline</h2><div class="timeline-filters"><label class="sr-only" for="timeline-team">Filter team</label><select id="timeline-team"><option value="all">Both teams</option><option value="our" ${timelineTeam === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${timelineTeam === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select><label class="sr-only" for="timeline-kind">Filter event type</label><select id="timeline-kind"><option value="all">All events</option><option value="scores" ${timelineKind === "scores" ? "selected" : ""}>Scores</option><option value="other" ${timelineKind === "other" ? "selected" : ""}>Other events</option></select></div></div>${
+  return `${heading("THE STORY OF THE MATCH", "Every event. In order.", readOnly ? "Read-only recorded events. Your active match is unchanged." : "Your event log is the source of truth. Tap any event to review or edit it.", `<span class="total-events">${displayMatch.events.length} events recorded</span>`)}
+    <section class="card timeline-card"><div class="timeline-toolbar"><h2>Event timeline</h2>${readOnly ? "" : `<div class="timeline-filters"><label class="sr-only" for="timeline-team">Filter team</label><select id="timeline-team"><option value="all">Both teams</option><option value="our" ${timelineTeam === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${timelineTeam === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select><label class="sr-only" for="timeline-kind">Filter event type</label><select id="timeline-kind"><option value="all">All events</option><option value="scores" ${timelineKind === "scores" ? "selected" : ""}>Scores</option><option value="other" ${timelineKind === "other" ? "selected" : ""}>Other events</option></select></div>`}</div>${
       filtered.length
         ? [2, 1]
             .map((half) => {
               const events = filtered.filter((event) => event.half === half);
               return events.length
-                ? `<div class="timeline-half"><span>${half === 1 ? "FIRST" : "SECOND"} HALF</span><span>${events.length} events</span></div>${events.map(eventRow).join("")}`
+                ? `<div class="timeline-half"><span>${half === 1 ? "FIRST" : "SECOND"} HALF</span><span>${events.length} events</span></div>${events.map((event) => eventRow(event, displayMatch, readOnly)).join("")}`
                 : "";
             })
             .join("")
-        : `<div class="empty-state"><span class="empty-icon">${icon("timeline")}</span><h3>${match.events.length ? "No matching events." : "Your match story starts here."}</h3><p>${match.events.length ? "Try another filter to see more of the match." : "Record an event on the Live match screen.<br>Scores and the timeline will update together."}</p><button class="button primary" data-view="live">Go to live match ${icon("arrow")}</button></div>`
-    }</section><p class="timeline-note">Most recent match time first · Edits recalculate the scoreboard automatically.</p>`;
+        : `<div class="empty-state"><span class="empty-icon">${icon("timeline")}</span><h3>${displayMatch.events.length ? "No matching events." : "Your match story starts here."}</h3><p>${displayMatch.events.length ? "Try another filter to see more of the match." : "Record an event on the Live match screen.<br>Scores and the timeline will update together."}</p>${readOnly ? "" : `<button class="button primary" data-view="live">Go to live match ${icon("arrow")}</button>`}</div>`
+    }</section><p class="timeline-note">${readOnly ? "Most recent recorded match time first · Read-only" : "Most recent match time first · Edits recalculate the scoreboard automatically."}</p>`;
 }
 function lastEventSummary() {
   const last = match.events.at(-1);
@@ -518,10 +545,20 @@ function openEvent(event, editing = false) {
     });
 }
 
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
   if (!match) return;
   const button = event.target.closest("button");
   if (!button || button.disabled) return;
+  if (button.dataset.view === "history") {
+    view = "history";
+    void historyUI.open();
+    return;
+  }
+  if (view === "history" && button.closest("[data-history-root]")) {
+    void historyUI.click(button);
+    return;
+  }
+
   if (button.dataset.view) {
     view = button.dataset.view;
     if (view === "analysis") {
@@ -676,13 +713,19 @@ document.addEventListener("click", (event) => {
         )
       )
         break;
-      const result = startBlankMatch(match);
-      if (result.error) {
-        storageError = result.error;
+      if (switchingMatch) break;
+      switchingMatch = true;
+      button.disabled = true;
+      try {
+        match = await historyRepository.startNew(match);
+      } catch (error) {
+        storageError = error.message;
+        switchingMatch = false;
+        button.disabled = false;
         refreshSaveStatus();
         break;
       }
-      match = result.match;
+      switchingMatch = false;
       storageError = "";
       selectedTeam = "our";
       squadTeam = "our";
@@ -711,11 +754,8 @@ document.addEventListener("click", (event) => {
         );
       break;
     case "end-match":
-      // Ending for analysis pauses the existing clock; no synthetic event/status.
-      if (match.clock.startedAt !== null) {
-        match.clock = toggleClock(match.clock);
-        persist();
-      }
+      match = completeMatch(match);
+      persist();
       view = "fulltime";
       render();
       window.scrollTo(0, 0);
@@ -775,6 +815,15 @@ document.addEventListener("click", (event) => {
       break;
     case "clock":
       match.clock = toggleClock(match.clock);
+      if (
+        match.clock.startedAt !== null &&
+        match.lifecycle?.status === "completed"
+      )
+        match.lifecycle = {
+          ...match.lifecycle,
+          status: "live",
+          completedAt: undefined,
+        };
       persist();
       render();
       break;
@@ -805,6 +854,10 @@ document.addEventListener("click", (event) => {
   }
 });
 document.addEventListener("input", (event) => {
+  if (view === "history") {
+    historyUI.input(event.target);
+    return;
+  }
   if (!event.target.closest("#setup-form")) return;
   const { name, value } = event.target;
   if (!Object.hasOwn(match.setup, name) && name !== "ourFirstHalfAttacks")
@@ -877,6 +930,10 @@ document.addEventListener("submit", (event) => {
 });
 document.addEventListener("change", (event) => {
   if (!match) return;
+  if (view === "history") {
+    historyUI.change(event.target);
+    return;
+  }
   if (
     ["team-sheet-file", "team-sheet-photo"].includes(event.target.id) &&
     event.target.files[0]
