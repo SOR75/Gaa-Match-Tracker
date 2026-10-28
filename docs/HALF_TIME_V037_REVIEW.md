@@ -1,7 +1,9 @@
 # V0.3.7-dev — Half-Time Analysis review
 
-Development branch: `sideline-v0.3.7`, based exactly on frozen V0.3.6
-`9a60fb81f0ddb12e5fbafd8648dfc301629e4627`. No commit/push is part of this review.
+Development branch: `sideline-v0.3.7`, originating from frozen V0.3.6
+`9a60fb81f0ddb12e5fbafd8648dfc301629e4627`. The earlier review checkpoint
+`01953851a848c2b1a10d966f4f231643514ddf92` is already on GitHub. The current
+compact-dashboard revisions remain uncommitted; no commit/push is part of this review.
 
 ## Review locally
 
@@ -16,7 +18,7 @@ profile/origin for review rather than replacing a live-match installation.
 3. Choose **HALF-TIME ANALYSIS** above the scoreboard.
 4. Check H1 score, conversion, our kickout retention, our wins on opposition
    kickouts, turnovers, shot map and recorded player contributions.
-5. **VIEW FULL STATS · FIRST HALF** reuses Match Analysis with every section
+5. **View Full Stats** reuses Match Analysis with every section
    scoped to H1. The usual Match Analysis navigation still opens the normal view.
 6. Return to Live Match/Timeline, edit or delete an H1 event, then reopen the
    summary. Every figure recalculates; there is no saved statistical snapshot.
@@ -90,3 +92,58 @@ Screenshots use review-only teams and player names entered through the UI; the
 application itself starts blank. Tests cover 1024×768 landscape interaction and
 1366×1024 landscape review screenshots, plus desktop and offline reopening.
 Physical iPad Safari/Home Screen testing remains a manual-review step.
+
+## Compact-dashboard revision
+
+The primary review image is a real 1024×768 Chromium viewport screenshot, not a
+full-page stitch or concept drawing. Layout tests inspect actual bounds: the
+four KPI cards share a row, the shot-map card occupies 55–60% of the two-column
+main area, contributors follow that area, and all three bottom actions fit above
+the existing Undo/Edit history controls. A fifteen-contributor case also checks
+that the strip stays compact and scrolls horizontally. Phone layouts may stack.
+
+`src/coaching-dashboard.js` is a presentation-only component. Its caller supplies
+analysis data, labels, attack direction and actions. `src/half-time-ui.js` alone
+selects H1 data and half-time actions. The existing deterministic rules, their
+thresholds and their evidence text are unchanged. This allows later reuse with a
+whole-match data provider. The Full-Time refinement below now uses that same presentation.
+
+The four headline cards omit secondary breakdowns; those remain available through
+View Full Stats. Genuine scoring, block and Mark contributions appear in the
+horizontal strip without ratings. The pitch renderer and geometry files are
+unchanged by this UI revision.
+
+## Enlarged pitch and Full-Time refinement
+
+- The physical pitch drawing is 30% larger: 312px high instead of 240px at
+  1024×768 landscape (338px instead of 260px on taller/wider views). Only the
+  dashboard display size changes. `src/pitch.js` and `src/pitch-geometry.js` are
+  unchanged by this refinement. Browser tests measure the drawn SVG background,
+  check equal X/Y scale, unchanged 2:3 ratio, clipping bounds, and visible H1 actions.
+- `analysisForScope(match, scope)` accepts H1, H2 and FULL_MATCH. The existing
+  `halfTimeAnalysis` wrapper remains H1-only. Each scope uses existing event,
+  kickout, scoring and contributor readers and identical observation rules.
+- In H2, Live Match offers **END MATCH / FULL TIME**. This pauses the existing
+  clock and opens the Full-Time dashboard without adding an event, a duplicate
+  match, or a persisted analytics snapshot. It does not lock later corrections.
+- Full-Time uses all recorded match events. Our H1 and H2 shot locations are
+  plotted in their canonical attacking-top orientation, preserving all stored
+  coordinates and using the shared pitch renderer. H1 display orientation is
+  unchanged and still follows the configured first-half direction.
+- Full-Time adds a compact H1/H2/Match comparison. Score cells show our score /
+  opposition score. Shooting uses successful attempts / attempts; our KO retained
+  and their KO won by us use known outcomes. Turnovers means our won minus lost,
+  with its sign explained. Match rates use combined counts, not averaged rates.
+  Missing denominators display an em dash.
+- **VIEW DETAILED MATCH REPORT** opens the existing whole-match report unchanged.
+  Return to Match / Return to Timeline preserve editing. Reopening the dashboard
+  recomputes all scopes and comparisons after corrections.
+- No schema, storage-key, saved-match migration, ended-status field or extra
+  event-entry requirement is introduced. After reopening the browser, the app
+  resumes its normal Live Match view with the H2 clock paused; Full-Time can be
+  reopened from the same End Match action. Both dashboards work offline through
+  the existing production PWA cache.
+
+Full-Time is allowed to scroll down to the comparison/actions on 1024×768. The
+main coaching area keeps the approved hierarchy. Full-Time and H1 share one
+`coachingDashboard` presentation; the comparison is optional and Full-Time-only.

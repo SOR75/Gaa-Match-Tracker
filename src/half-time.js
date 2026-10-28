@@ -71,8 +71,14 @@ export function halfTimeObservations(data) {
     });
   return result;
 }
-export function halfTimeAnalysis(match) {
-  const events = match.events.filter((event) => event.half === 1);
+export const ANALYSIS_SCOPES = ["H1", "H2", "FULL_MATCH"];
+export function analysisForScope(match, scope = "H1") {
+  if (!ANALYSIS_SCOPES.includes(scope))
+    throw new Error("Unknown analysis scope");
+  const events = match.events.filter(
+    (event) =>
+      scope === "FULL_MATCH" || event.half === (scope === "H1" ? 1 : 2),
+  );
   const shots = events.filter((e) => e.team === "our" && isShot(e));
   const zones = Object.fromEntries(
     ["inside", "outside", "unknown"].map((zone) => {
@@ -104,4 +110,14 @@ export function halfTimeAnalysis(match) {
     ),
   };
   return { ...data, observations: halfTimeObservations(data) };
+}
+
+// Compatibility wrapper: existing H1 callers keep the same event-derived results.
+export function halfTimeAnalysis(match) {
+  return analysisForScope(match, "H1");
+}
+export function periodComparison(match) {
+  return Object.fromEntries(
+    ANALYSIS_SCOPES.map((scope) => [scope, analysisForScope(match, scope)]),
+  );
 }

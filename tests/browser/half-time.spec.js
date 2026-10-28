@@ -2,7 +2,8 @@ import { test, expect } from "@playwright/test";
 import { blankMatch, createEvent } from "../../src/domain.js";
 const state = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem("sideline.match.v1")));
-const review = process.env.SIDELINE_REVIEW_DIR || "test-results/half-time-review";
+const review =
+  process.env.SIDELINE_REVIEW_DIR || "test-results/half-time-review";
 async function live(page) {
   await page.goto("/");
   await page.getByLabel("Our team", { exact: true }).fill("Harbour Athletic");
@@ -50,6 +51,45 @@ async function open(page) {
   await expect(
     page.getByRole("heading", { name: "Half-Time Analysis", exact: true }),
   ).toBeVisible();
+}
+async function assertDashboardLayout(page) {
+  const boxes = await page.evaluate(() => {
+    const box = (selector) => {
+      const b = document.querySelector(selector).getBoundingClientRect();
+      return {
+        x: b.x,
+        y: b.y,
+        width: b.width,
+        height: b.height,
+        bottom: b.bottom,
+      };
+    };
+    return {
+      score: box(".ht-score"),
+      kpis: [...document.querySelectorAll(".ht-kpi")].map(
+        (n) => n.getBoundingClientRect().y,
+      ),
+      body: box(".ht-body"),
+      map: box(".ht-map"),
+      observations: box(".ht-observations"),
+      contributors: box(".ht-contributors"),
+      actions: box(".ht-actions"),
+      footer: box(".actionbar"),
+      pageWidth: document.documentElement.scrollWidth,
+      viewportWidth: innerWidth,
+    };
+  });
+  expect(Math.max(...boxes.kpis) - Math.min(...boxes.kpis)).toBeLessThan(2);
+  expect(boxes.map.width / boxes.body.width).toBeGreaterThan(0.55);
+  expect(boxes.map.width / boxes.body.width).toBeLessThan(0.6);
+  expect(Math.abs(boxes.map.y - boxes.observations.y)).toBeLessThan(2);
+  expect(boxes.contributors.y).toBeGreaterThanOrEqual(boxes.body.bottom);
+  expect(boxes.actions.y).toBeGreaterThanOrEqual(boxes.contributors.bottom);
+  expect(boxes.actions.bottom).toBeLessThanOrEqual(boxes.footer.y);
+  expect(boxes.pageWidth).toBeLessThanOrEqual(boxes.viewportWidth);
+  await expect(
+    page.getByRole("button", { name: "START SECOND HALF →", exact: true }),
+  ).toBeInViewport({ ratio: 1 });
 }
 const arcs = [
   "M95.122 145A240 240 0 0 0 504.878 145",
@@ -149,15 +189,53 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
     "#4 Casey Defender",
   );
   await expect(page.locator(".ht-contributors")).toContainText(
-    "1 Kickout Marks",
+    "1 Kickout Mark",
   );
   // Allow the existing live-event toast to clear before review images.
   await expect(page.locator("#toast")).not.toHaveClass(/visible/);
   await expect(page.locator("#toast")).toHaveCSS("opacity", "0");
-  await page.setViewportSize({ width: 1366, height: 1024 });
+  await assertDashboardLayout(page);
+  // Actual drawn background, not the possibly letterboxed SVG element bounds.
+  const drawnPitch = await map.evaluate((svg) => {
+    const r = svg.querySelector("rect").getBoundingClientRect();
+    const viewport = svg.getBoundingClientRect();
+    const matrix = svg.querySelector("rect").getScreenCTM();
+    return {
+      width: r.width,
+      height: r.height,
+      left: r.left,
+      right: r.right,
+      top: r.top,
+      bottom: r.bottom,
+      viewport: {
+        left: viewport.left,
+        right: viewport.right,
+        top: viewport.top,
+        bottom: viewport.bottom,
+      },
+      scaleX: matrix.a,
+      scaleY: matrix.d,
+    };
+  });
+  expect(drawnPitch.height / 240).toBeCloseTo(1.3, 2);
+  expect(drawnPitch.width / drawnPitch.height).toBeCloseTo(2 / 3, 5);
+  expect(drawnPitch.scaleX).toBeCloseTo(drawnPitch.scaleY, 5);
+  expect(drawnPitch.left).toBeGreaterThanOrEqual(
+    drawnPitch.viewport.left - 0.1,
+  );
+  expect(drawnPitch.right).toBeLessThanOrEqual(drawnPitch.viewport.right + 0.1);
+  expect(drawnPitch.top).toBeGreaterThanOrEqual(drawnPitch.viewport.top - 0.1);
+  expect(drawnPitch.bottom).toBeLessThanOrEqual(
+    drawnPitch.viewport.bottom + 0.1,
+  );
   await page.screenshot({
     path: `${review}/iPad-Landscape-Half-Time.png`,
-    fullPage: true,
+    fullPage: false,
+  });
+  await page.setViewportSize({ width: 1366, height: 1024 });
+  await page.screenshot({
+    path: `${review}/iPad-Pro-Landscape-Half-Time.png`,
+    fullPage: false,
   });
   await page
     .locator(".ht-map")
@@ -168,7 +246,7 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
     fullPage: true,
   });
   await page
-    .getByRole("button", { name: "VIEW FULL STATS · FIRST HALF", exact: true })
+    .getByRole("button", { name: "View Full Stats", exact: true })
     .click();
   await expect(page.locator(".inline-notice")).toContainText("FIRST HALF ONLY");
   await page
@@ -217,7 +295,7 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
       .locator(".shot-marker"),
   ).toHaveCount(8);
   await page
-    .getByRole("button", { name: "VIEW FULL STATS · FIRST HALF", exact: true })
+    .getByRole("button", { name: "View Full Stats", exact: true })
     .click();
   const summary = page.locator(".analysis-section").filter({
     has: page.getByRole("heading", { name: "Match summary", exact: true }),
@@ -244,7 +322,7 @@ test("small/no-data observations are neutral, compatible saved matches and H1 an
   );
   await page.reload();
   await open(page);
-  await expect(page.locator(".ht-neutral")).toBeVisible();
+  await expect(page.locator(".ht-observations .ht-neutral")).toBeVisible();
   await expect(page.locator("[data-observation]")).toHaveCount(0);
   await expect(page.locator('[data-ht-score="our"]')).toHaveText("0-01 (1)");
   await expect(page.locator('[data-ht-zone="inside"]')).toContainText(
@@ -262,7 +340,7 @@ test("small/no-data observations are neutral, compatible saved matches and H1 an
   await page.reload();
   await open(page);
   await expect(page.locator('[data-ht-score="our"]')).toHaveText("0-01 (1)");
-  await expect(page.locator(".ht-neutral")).toBeVisible();
+  await expect(page.locator(".ht-observations .ht-neutral")).toBeVisible();
   expect(await state(page)).toEqual(before);
   await page
     .getByRole("button", { name: "START SECOND HALF →", exact: true })
@@ -316,4 +394,51 @@ test("H1 map respects bottom attack, shares renderer byte-for-byte and never rew
       return n.isEqualNode(div.firstElementChild);
     }, expected),
   ).toBe(true);
+});
+
+test("normal landscape iPad keeps full dashboard/actions visible with fifteen horizontal contributors", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  const saved = blankMatch();
+  saved.setup.ourTeam = "Harbour Athletic";
+  saved.setup.opposition = "Mountain Rovers";
+  saved.players = Array.from({ length: 15 }, (_, i) => ({
+    id: `player-${i}`,
+    number: i + 1,
+    name: `Squad player ${i + 1}`,
+    role: "starter",
+    position: "",
+    notes: "",
+  }));
+  saved.events = saved.players.map((p) => ({
+    ...createEvent(saved, "point", "our"),
+    playerNumber: String(p.number),
+    shotX: 0.5,
+    shotY: 0.2,
+  }));
+  await page.goto("/");
+  await page.evaluate(
+    (m) => localStorage.setItem("sideline.match.v1", JSON.stringify(m)),
+    saved,
+  );
+  await page.reload();
+  await open(page);
+  await assertDashboardLayout(page);
+  await expect(page.locator(".ht-contributors li")).toHaveCount(15);
+  expect(
+    await page
+      .locator(".ht-contributors")
+      .evaluate((n) => n.getBoundingClientRect().height),
+  ).toBeLessThan(80);
+  expect(
+    await page
+      .locator(".ht-contributors ul")
+      .evaluate((n) => n.scrollWidth > n.clientWidth),
+  ).toBe(true);
+  await page.locator(".ht-contributors ul").focus();
+  await page.keyboard.press("End");
+  await expect(
+    page.getByRole("button", { name: "START SECOND HALF →", exact: true }),
+  ).toBeInViewport({ ratio: 1 });
 });
