@@ -1,0 +1,38 @@
+.starter-warning {
+  max-width: 390px;
+  padding: 10px 12px;
+  border: 1px solid #d7af58;
+  background: #fff6df;
+  border-radius: 12px;
+}
+.starter-warning p {
+  color: #66501f;
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+.starter-warning > div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.starter-warning .button {
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+/* Live headings are intentionally hidden in compact iPad layout; keep this
+   advisory in the visible match workspace rather than inside that heading. */
+.starter-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: none;
+  margin: 8px 0;
+  padding: 8px 12px;
+}
+.starter-warning p {
+  margin: 0;
+  flex: 1 1 250px;
+}

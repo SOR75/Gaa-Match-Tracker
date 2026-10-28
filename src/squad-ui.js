@@ -3,6 +3,7 @@ import { esc } from "./ui.js";
 import { playersFor } from "./domain.js";
 import {
   loadSquads,
+  deleteSavedSquad,
   persistSquads,
   snapshotSquad,
   loadSquadPlayers,
@@ -16,7 +17,7 @@ import {
 } from "./import-parser.js";
 
 export function squadTools(match, team) {
-  return `<section class="card squad-tools"><div class="team-toggle" role="group" aria-label="Squad team"><button data-squad-team="our" aria-pressed="${team === "our"}" class="${team === "our" ? "selected" : ""}">${esc(match.setup.ourTeam || "Our team")}</button><button data-squad-team="opposition" aria-pressed="${team === "opposition"}" class="${team === "opposition" ? "selected" : ""}">${esc(match.setup.opposition || "Opposition")}</button></div><div class="form-grid import-options"><label class="field"><span>Import layout</span><select id="import-layout"><option value="auto">Auto / programme list</option><option value="programme">Printed programme</option><option value="registered">Foireann / LGFA registered panel</option><option value="formation">Formation / pitch image</option></select></label><label class="field"><span>Formation goalkeeper end</span><select id="import-goal"><option value="top">Goalkeeper at top</option><option value="bottom">Goalkeeper at bottom</option></select></label></div><div class="squad-methods"><button class="button subtle" data-squad-library>Saved squads</button><label class="button subtle file-button">IMPORT SIDELINE SQUAD<input type="file" id="sideline-squad-file" accept=".xlsx"></label><button class="button subtle" data-save-squad>Save this squad</button><button class="button subtle" data-paste-squad>Paste team-sheet text</button><label class="button subtle file-button">Import team sheet<input type="file" id="team-sheet-file" accept=".csv,.tsv,.txt,.xlsx,.pdf,image/*"></label><label class="button subtle file-button">Scan / photo team sheet<input type="file" id="team-sheet-photo" accept="image/*" capture="environment"></label></div><p class="small-note">Manual entry below · imports are always reviewed before adding. JPEG/PNG and scanned PDF use bundled local OCR. PDFs use their text layer first. Handwriting / checkbox recognition is uncertain; always review. HEIC: export to JPEG/PNG first.</p></section>`;
+  return `<section class="card squad-tools"><div class="team-toggle" role="group" aria-label="Squad team"><button data-squad-team="our" aria-pressed="${team === "our"}" class="${team === "our" ? "selected" : ""}">${esc(match.setup.ourTeam || "Our team")}</button><button data-squad-team="opposition" aria-pressed="${team === "opposition"}" class="${team === "opposition" ? "selected" : ""}">${esc(match.setup.opposition || "Opposition")}</button></div><div class="form-grid import-options"><label class="field"><span>Import layout</span><select id="import-layout"><option value="auto">Auto / programme list</option><option value="programme">Printed programme</option><option value="registered">Foireann / LGFA registered panel</option><option value="formation">Formation / pitch image</option></select></label><label class="field"><span>Formation goalkeeper end</span><select id="import-goal"><option value="top">Goalkeeper at top</option><option value="bottom">Goalkeeper at bottom</option></select></label></div><div class="squad-methods"><button class="button subtle" data-squad-library>Saved squads</button><label class="button subtle file-button">IMPORT SIDELINE SQUAD<input type="file" id="sideline-squad-file" accept=".xlsx"></label><button class="button subtle" data-save-squad>Save this squad</button><button class="button subtle" data-save-team-setup>Save team setup</button><button class="button subtle" data-team-setup-library>Use saved team setup</button><button class="button subtle" data-paste-squad>Paste team-sheet text</button><label class="button subtle file-button">Import team sheet<input type="file" id="team-sheet-file" accept=".csv,.tsv,.txt,.xlsx,.pdf,image/*"></label><label class="button subtle file-button">Scan / photo team sheet<input type="file" id="team-sheet-photo" accept="image/*" capture="environment"></label></div><p class="small-note">Manual entry below · imports are always reviewed before adding. JPEG/PNG and scanned PDF use bundled local OCR. PDFs use their text layer first. Handwriting / checkbox recognition is uncertain; always review. HEIC: export to JPEG/PNG first.</p></section>`;
 }
 const closeButton =
   '<button type="button" class="icon-button" data-close-squad aria-label="Close squad dialog">×</button>';
@@ -136,11 +137,28 @@ export function openSquadLibrary(dialog, match, team, onLoaded) {
           const squad = loaded.squads.find(
             (item) => item.id === button.dataset.editSquad,
           );
-          dialog.innerHTML = `<form><div class="dialog-heading"><h2 id="event-dialog-title">Edit saved squad</h2>${closeButton}</div><label class="field"><span>Squad name</span><input name="squadName" value="${esc(squad.name)}" required maxlength="80"></label>${reviewTable(squad.players)}<p class="warning" data-squad-error hidden></p><div class="dialog-actions"><button type="button" class="button subtle" data-back-library>Back</button><button type="submit" class="button primary">Save library changes</button></div></form>`;
+          dialog.innerHTML = `<form><div class="dialog-heading"><h2 id="event-dialog-title">Edit saved squad</h2>${closeButton}</div><label class="field"><span>Squad name</span><input name="squadName" value="${esc(squad.name)}" required maxlength="80"></label>${reviewTable(squad.players)}<p class="warning" data-squad-error hidden></p><div class="dialog-actions"><button type="button" class="button subtle" data-back-library>Back</button><button type="submit" class="button primary">Save library changes</button><button type="button" class="button subtle" data-delete-saved-squad>Delete saved squad</button></div></form>`;
           const read = bindRows(dialog, squad.players);
           dialog.querySelector("[data-close-squad]").onclick = () =>
             dialog.close();
           dialog.querySelector("[data-back-library]").onclick = listing;
+          dialog.querySelector("[data-delete-saved-squad]").onclick = () => {
+            const editNodes = [...dialog.childNodes];
+            dialog.innerHTML = `<div class="dialog-heading"><h2 id="event-dialog-title">Delete saved squad</h2></div><p>Delete “${esc(squad.name)}”?</p><p>This removes the squad from Saved Squads. Existing matches and historical records will not be deleted.</p><p class="warning" data-delete-error hidden></p><div class="dialog-actions"><button class="button subtle" data-cancel-delete-squad>Cancel</button><button class="button primary" data-confirm-delete-squad>Delete squad</button></div>`;
+            dialog.querySelector("[data-cancel-delete-squad]").onclick = () =>
+              dialog.replaceChildren(...editNodes);
+            dialog.querySelector("[data-confirm-delete-squad]").onclick =
+              () => {
+                try {
+                  deleteSavedSquad(squad.id);
+                  listing();
+                } catch (error) {
+                  const n = dialog.querySelector("[data-delete-error]");
+                  n.hidden = false;
+                  n.textContent = error.message;
+                }
+              };
+          };
           dialog.querySelector("form").onsubmit = (event) => {
             event.preventDefault();
             try {

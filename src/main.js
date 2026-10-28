@@ -1,3 +1,6 @@
+import { openSaveTeamSetup, openUseTeamSetup } from "./team-setups-ui.js";
+import { starterWarningMarkup, starterLineupKey } from "./starter-warning.js";
+import "./starter-warning.css";
 import { actionCreditMarkup, actionCreditEvent } from "./action-credit.js";
 import { createPlayerInsightsUI } from "./player-insights-ui.js";
 import { openMatchLineup } from "./match-lineup.js";
@@ -341,7 +344,7 @@ function liveScreen() {
   return `${heading("FROM THE SIDELINE", "Every moment counts.", "Tap an event. Keep your eyes on the game.", `<span class="match-status"><span class="local-dot"></span>${match.clock.startedAt === null ? "MATCH WORKSPACE" : "LIVE TRACKING"}</span>`)}
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
     <div class="matchday-toolbar"><span class="build-tag">V0.3.8-dev</span><button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>${match.clock.half === 2 ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone voice-roadmap-button" data-action="voice-mode" aria-label="Voice Match Mode — Coming soon">${icon("mic")}<span>Voice Match Mode<small class="voice-roadmap-label">COMING SOON</small></span></button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
-    ${scoreboard()}
+    ${starterWarningMarkup(match)}${scoreboard()}
     <section class="event-controls recording-${selectedTeam}">${liveTeamControls()}<div class="controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div></div>
     <div class="scoring-grid">${EVENT_TYPES.slice(0, 4)
       .map(
@@ -570,6 +573,54 @@ document.addEventListener("click", async (event) => {
   if (!match) return;
   const button = event.target.closest("button");
   if (!button || button.disabled) return;
+  if (button.hasAttribute("data-continue-starters")) {
+    match.starterCountAcknowledgement = starterLineupKey(match);
+    persist();
+    render();
+    return;
+  }
+  if (button.hasAttribute("data-review-starters")) {
+    squadTeam = "our";
+    view = "squad";
+    render();
+    openMatchLineup(
+      document.querySelector("#event-dialog"),
+      match.players,
+      (players) => {
+        setPlayers(players);
+        persist();
+        render();
+      },
+    );
+    return;
+  }
+  if (button.hasAttribute("data-save-team-setup")) {
+    openSaveTeamSetup(
+      document.querySelector("#event-dialog"),
+      match,
+      squadTeam,
+      () => toast("Team setup saved on this device."),
+    );
+    return;
+  }
+  if (button.hasAttribute("data-team-setup-library")) {
+    openUseTeamSetup(
+      document.querySelector("#event-dialog"),
+      match,
+      squadTeam,
+      (players, squad) => {
+        if (squadTeam === "our") {
+          match.squadId = squad.id;
+          match.seasonId = squad.seasonId || null;
+        } else match.oppositionSquadId = squad.id;
+        setPlayers(players);
+        persist();
+        render();
+        toast("Team setup loaded as an independent match copy.");
+      },
+    );
+    return;
+  }
   if (button.hasAttribute("data-action-player")) {
     const last = match.events.at(-1);
     if (view === "live" && actionCreditEvent(last)) {

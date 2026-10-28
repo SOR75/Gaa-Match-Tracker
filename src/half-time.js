@@ -1,3 +1,4 @@
+import { enhanceKickoutObservations } from "./kickout-patterns.js";
 import { summarize, playerStatistics, percentage } from "./analysis.js";
 import { isShot } from "./domain.js";
 import { fortyMetreZone } from "./pitch-geometry.js";
@@ -14,7 +15,15 @@ export const OBSERVATION_RULES = Object.freeze({
   zoneGap: 20,
 });
 const known = (k) => k.won + k.lost;
-export function halfTimeObservations(data) {
+export function halfTimeObservations(
+  data,
+  match = {
+    players: [],
+    oppositionPlayers: [],
+    setup: {},
+    events: data.events || [],
+  },
+) {
   const r = OBSERVATION_RULES,
     result = [];
   const k = data.our.kickouts,
@@ -69,7 +78,7 @@ export function halfTimeObservations(data) {
       title: "Shot selection — inside 40m",
       detail: `${inside.successful}/${inside.attempts} converted inside (${inside.conversion}%) compared with ${outside.successful}/${outside.attempts} outside (${outside.conversion}%). Located attempts only.`,
     });
-  return result;
+  return enhanceKickoutObservations(result, match, data.events || []);
 }
 export const ANALYSIS_SCOPES = ["H1", "H2", "FULL_MATCH"];
 export function analysisForScope(match, scope = "H1") {
@@ -109,7 +118,7 @@ export function analysisForScope(match, scope = "H1") {
         p.interceptions,
     ),
   };
-  return { ...data, observations: halfTimeObservations(data) };
+  return { ...data, observations: halfTimeObservations(data, match) };
 }
 
 // Compatibility wrapper: existing H1 callers keep the same event-derived results.

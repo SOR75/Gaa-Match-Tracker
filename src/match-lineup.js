@@ -7,10 +7,6 @@ export function applyMatchLineup(original, changes) {
     new Set(changes.map((p) => p.id)).size !== original.length
   )
     throw Error("Roster changed. Reopen today’s lineup.");
-  if (changes.filter((p) => p.role === "starter").length > 15)
-    throw Error(
-      "Choose at most 15 starters. Other players can remain substitutes/panel.",
-    );
   return validatePlayers(
     changes.map((c) => {
       const old = original.find((p) => p.id === c.id);

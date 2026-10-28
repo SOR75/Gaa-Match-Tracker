@@ -165,3 +165,12 @@ export function loadSquadPlayers(
     });
   });
 }
+
+// Library-only removal: no match/history/setup repository is touched.
+export function deleteSavedSquad(id) {
+  const loaded = loadSquads();
+  if (loaded.error) throw Error(loaded.error);
+  if (!loaded.squads.some((s) => s.id === id))
+    throw Error("This Saved Squad is no longer available.");
+  persistSquads(loaded.squads.filter((s) => s.id !== id));
+}
