@@ -80,31 +80,71 @@ for (const core of ["default", "scalar"])
     await expect(
       page.getByRole("heading", { name: "Review & confirm", exact: true }),
     ).toBeVisible({ timeout: 95000 });
-    const rows = await page
-      .locator("[data-review-row]")
-      .evaluateAll((rs) =>
-        rs.map((r) => ({
-          ...Object.fromEntries(
-            [...r.querySelectorAll("input,select")].map((e) => [
-              e.name,
-              e.value,
-            ]),
-          ),
-          confidence: r.querySelector(".uncertain").textContent,
-        })),
-      );
-    expect(rows).toHaveLength(37);
-    expect(rows.filter((r) => r.number).map((r) => [r.name, r.number])).toEqual(
-      expected,
+    const rows = await page.locator("[data-review-row]").evaluateAll((rs) =>
+      rs.map((r) => ({
+        ...Object.fromEntries(
+          [...r.querySelectorAll("input,select")].map((e) => [e.name, e.value]),
+        ),
+        confidence: r.querySelector(".uncertain").textContent,
+      })),
     );
+    expect(rows).toHaveLength(37);
+    expect(
+      rows
+        .filter((r) => r.number)
+        .map((r) => [r.name, r.number])
+        .sort((a, b) => +a[1] - b[1]),
+    ).toEqual([...expected].sort((a, b) => +a[1] - b[1]));
     expect(rows.filter((r) => !r.number)).toHaveLength(29);
     expect(
       rows
         .filter((r) => !r.number)
         .every((r) => r.confidence.includes("jersey blank/uncertain")),
     ).toBe(true);
+    const ticked = rows.filter((r) => r.confidence.includes("✓ Selected"));
+    expect(ticked.map((r) => r.name).sort()).toEqual(
+      [
+        "Mella Casey",
+        "Sarah Cleary",
+        "Katie Doolan",
+        "Avril Flynn",
+        "Riona No Fhoghlu",
+        "Emma Kelly H",
+        "Amy Lehane",
+        "Caoimhe Laigheanain",
+        "Anne Marie Mec Cormack",
+        "Saoirse McGuinness",
+        "Heidi Murray",
+        "Sheola Rosney",
+        "EABHA MAI TIERNEY",
+      ].sort(),
+    );
+    expect(
+      rows
+        .slice(0, 6)
+        .every(
+          (r) =>
+            !r.number && r.confidence.includes("✓ Selected — Review jersey"),
+        ),
+    ).toBe(true);
+    expect(ticked.filter((r) => r.number)).toHaveLength(7);
+    expect(
+      rows.find((r) => r.name === "Ruth Carroll").confidence,
+    ).not.toContain("✓ Selected");
+    expect(rows.find((r) => r.name === "Aine Macken").confidence).not.toContain(
+      "✓ Selected",
+    );
+    expect(
+      rows.find((r) => r.name === "Hannah Doolan").confidence,
+    ).not.toContain("✓ Selected");
+    await page
+      .locator("dialog")
+      .screenshot({ path: testInfo.outputPath("foireann-ticked-review.png") });
     const crops = await page.evaluate(() => window.originalJerseyCrops);
     expect(crops.length).toBeGreaterThan(25);
+    // Six unresolved ticked rows receive an expanded original-image crop;
+    // ordinary fields are narrower, and unticked rows get no extra retry.
+    expect(crops.filter((c) => c.box[2] > 60)).toHaveLength(6);
     expect(
       crops.every(
         (c) =>
@@ -127,6 +167,23 @@ for (const core of ["default", "scalar"])
             ?.players || [],
       ),
     ).toHaveLength(0);
+    if (core === "default") {
+      const first = page.locator("[data-review-row]").first();
+      await expect(first.locator("[name=name]")).toHaveValue("Katie Doolan");
+      await first.locator("[name=number]").fill("14");
+      await first.locator("[name=role]").selectOption("starter");
+      await page
+        .getByRole("button", { name: "Confirm & add to squad", exact: true })
+        .click();
+      const saved = await page.evaluate(() =>
+        JSON.parse(localStorage.getItem("sideline.match.v1")),
+      );
+      expect(saved.players).toHaveLength(37);
+      expect(
+        saved.players.find((p) => p.name === "Katie Doolan"),
+      ).toMatchObject({ number: 14, role: "starter" });
+      expect(saved.events).toHaveLength(0);
+    }
     await testInfo.attach("foireann-production-jersey-review.json", {
       body: JSON.stringify({ core, rows, crops, whitelists }, null, 2),
       contentType: "application/json",

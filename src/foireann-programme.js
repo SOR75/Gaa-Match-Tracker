@@ -1,4 +1,10 @@
 import {
+  foireannSelection,
+  expandedSelectedJerseyBox,
+  prioritiseFoireannReview,
+  selectedRetryCompatible,
+} from "./foireann-ticks.js";
+import {
   handwrittenJerseyBox,
   readHandwrittenJersey,
 } from "./foireann-jerseys.js";
@@ -575,12 +581,13 @@ export async function readFoireannProgramme({
         english,
         sourceRow: row,
         right,
+        nextRow: next,
       });
     }
   }
   // Names are final before the dedicated jersey pass starts. Only jersey,
   // role/position and its existing confidence text may be updated below.
-  for (const [i, region] of regions.entries()) {
+  for (const region of regions) {
     const box = handwrittenJerseyBox({
       row: region.sourceRow,
       words: scan.words,
@@ -588,6 +595,12 @@ export async function readFoireannProgramme({
       right: region.right,
       width: source.width,
     });
+    region.selection = foireannSelection(source, box || region.numberBox, h);
+    region.handwrittenBox = box;
+  }
+  let jerseyPassFailed = false;
+  for (const [i, region] of regions.entries()) {
+    const box = region.handwrittenBox;
     if (!box) continue;
     onProgress(`Reading handwritten jersey ${i + 1}/${regions.length}`);
     let result;
@@ -596,6 +609,7 @@ export async function readFoireannProgramme({
     } catch (error) {
       // A failed/expired digit pass must not discard already extracted names.
       region.handwritten = { box, error: error.message };
+      jerseyPassFailed = true;
       break;
     }
     region.handwritten = result;
@@ -616,6 +630,50 @@ export async function readFoireannProgramme({
       });
     }
   }
+  for (const [i, region] of regions.entries()) {
+    if (!region.selection?.ticked) continue;
+    players[i].selectedTick = true;
+    if (!players[i].number && !jerseyPassFailed) {
+      onProgress(
+        `Selected player: focused jersey search ${i + 1}/${regions.length}`,
+      );
+      const box = expandedSelectedJerseyBox(
+        region.handwritten?.box || region.numberBox,
+        h,
+        region.sourceRow,
+        region.nextRow,
+      );
+      try {
+        const result = await readHandwrittenJersey({
+          source,
+          box,
+          read,
+          worker,
+        });
+        region.selectedRetry = result;
+        if (
+          selectedRetryCompatible(region.handwritten, result, region.number)
+        ) {
+          players[i] = {
+            ...foireannPlayer({
+              number: result.number,
+              name: players[i].name,
+              nameScore: region.nameScore,
+              numberScore: result.score,
+              english: region.english,
+            }),
+            selectedTick: true,
+          };
+        }
+      } catch (error) {
+        region.selectedRetry = { error: error.message };
+        jerseyPassFailed = true;
+      }
+    }
+    players[i].confidence += players[i].number
+      ? " · ✓ Selected — verify jersey"
+      : " · ✓ Selected — Review jersey";
+  }
   for (const p of players)
     if (
       p.number &&
@@ -624,7 +682,9 @@ export async function readFoireannProgramme({
       p.confidence += " · duplicate jersey: verify both entries";
   return {
     ...scan,
-    players,
+    players: regions.some((r) => r.selection?.ticked)
+      ? prioritiseFoireannReview(players)
+      : players,
     diagnostics: { layout: "foireann-bilingual-two-column", regions },
   };
 }
