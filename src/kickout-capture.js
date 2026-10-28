@@ -16,7 +16,7 @@ export function kickoutFieldsMarkup(event, match) {
     kickoutChoices(event.event).find(
       (c) => c.outcome === data.outcome && c.mark === data.mark,
     )?.id || "unknown";
-  const roster = ourCreditRoster(match);
+  const roster = ourCreditRoster(match, { includeInactive: true });
   const { players, guidance } = roster;
   const retained =
     data.markPlayerNumber &&
@@ -122,7 +122,10 @@ export function openKickoutCapture(dialog, event, match, onSave, onClose) {
   );
   bindOtherCredit(dialog, (_, number) => {
     if (finished || !recorded) return;
-    finished = true; draft.markPlayerNumber = number; save(); dialog.close();
+    finished = true;
+    draft.markPlayerNumber = number;
+    save();
+    dialog.close();
   });
   dialog.querySelectorAll("[data-mark-player]").forEach(
     (b) =>

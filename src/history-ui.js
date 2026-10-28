@@ -180,6 +180,11 @@ export function createHistoryUI({
   }
   return {
     screen,
+    openMatch: async (id) => {
+      selected = null;
+      await refresh();
+      await click({ dataset: { historyAction: "view", id } });
+    },
     click,
     change,
     input,

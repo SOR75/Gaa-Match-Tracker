@@ -1,3 +1,7 @@
+import { actionCreditMarkup, actionCreditEvent } from "./action-credit.js";
+import { createPlayerInsightsUI } from "./player-insights-ui.js";
+import { openMatchLineup } from "./match-lineup.js";
+import "./player-insights.css";
 import { openOfficialSquadImport } from "./squad-excel-ui.js";
 import { createMatchPlayer, resolveParticipant } from "./identity.js";
 import { createHistoryRepository } from "./history-repository.js";
@@ -128,6 +132,17 @@ const historyUI = createHistoryUI({
   },
   renderTimeline: (saved) => timelineScreen(saved, true),
 });
+const playerReviewUI = createPlayerInsightsUI({
+  repository: historyRepository,
+  getActive: () => match,
+  onChange: () => {
+    if (view === "players") render();
+  },
+  onViewMatch: async (id) => {
+    view = "history";
+    await historyUI.openMatch(id);
+  },
+});
 const setPlayers = (players) => {
   match[squadTeam === "our" ? "players" : "oppositionPlayers"] =
     players.map(createMatchPlayer);
@@ -249,6 +264,7 @@ function render() {
     ["timeline", "timeline", "Timeline"],
     ["analysis", "setup", "Match analysis"],
     ["history", "timeline", "Match History"],
+    ["players", "squad", "Player Review"],
   ];
   app.innerHTML = `
     <aside class="sidebar">
@@ -259,8 +275,8 @@ function render() {
     </aside>
     <div class="main-shell">
       <header class="topbar"><span class="build-tag">V0.3.8-dev</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${view === "halftime" ? "Half-Time Analysis" : view === "fulltime" ? "Full-Time Analysis" : tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
-      <main id="main"><p id="storage-warning" class="warning" role="alert" hidden></p>${view === "history" ? historyUI.screen() : view === "setup" ? setupScreen() : view === "squad" ? squadScreen() : view === "live" ? liveScreen() : view === "timeline" ? timelineScreen() : view === "halftime" ? halfTimeScreen(match) : view === "fulltime" ? fullTimeScreen(match) : analysisScreen(match, analysisFilters, reportMode, analysisHalf)}</main>
-      ${view === "history" ? `<footer class="actionbar"><strong>History · read-only viewing</strong><button class="button subtle" data-view="live">Return to current match</button></footer>` : `<footer class="actionbar"><div class="last-event">${lastEventSummary()}</div><div class="history-actions"><button class="button subtle" data-action="edit-last" aria-label="Edit last event" ${match.events.length ? "" : "disabled"}>${icon("edit")}<span>Edit last<span class="wide-label"> event</span></span></button><button class="button undo" data-action="undo" aria-label="Undo last event" ${match.events.length ? "" : "disabled"}>${icon("undo")}<span>Undo last<span class="wide-label"> event</span></span></button></div></footer>`}
+      <main id="main"><p id="storage-warning" class="warning" role="alert" hidden></p>${view === "players" ? playerReviewUI.screen() : view === "history" ? historyUI.screen() : view === "setup" ? setupScreen() : view === "squad" ? squadScreen() : view === "live" ? liveScreen() : view === "timeline" ? timelineScreen() : view === "halftime" ? halfTimeScreen(match) : view === "fulltime" ? fullTimeScreen(match) : analysisScreen(match, analysisFilters, reportMode, analysisHalf)}</main>
+      ${["history", "players"].includes(view) ? `<footer class="actionbar"><strong>Device records · read-only viewing</strong><button class="button subtle" data-view="live">Return to current match</button></footer>` : `<footer class="actionbar"><div class="last-event">${lastEventSummary()}</div><div class="history-actions"><button class="button subtle" data-action="edit-last" aria-label="Edit last event" ${match.events.length ? "" : "disabled"}>${icon("edit")}<span>Edit last<span class="wide-label"> event</span></span></button><button class="button undo" data-action="undo" aria-label="Undo last event" ${match.events.length ? "" : "disabled"}>${icon("undo")}<span>Undo last<span class="wide-label"> event</span></span></button></div></footer>`}
     </div>
     <dialog id="event-dialog" aria-labelledby="event-dialog-title"></dialog>
   `;
@@ -275,14 +291,14 @@ function input(label, name, value, extra = "", type = "text") {
 }
 function setupScreen() {
   const setup = match.setup;
-  return `${heading("BEFORE THE THROW-IN", "Every match starts here.", "Set the scene. Add your squad. Be ready when the ball is.")}<div class="setup-layout">
+  return `${heading("CURRENT MATCH", "Every match starts here.", "Edit current match details below. Editing the opponent does not create a new match.", `<button class="button primary" data-action="new-match">Start a new blank match</button>`)}<p class="inline-notice">Current match: ${esc(match.setup.ourTeam || "Our team")} vs ${esc(match.setup.opposition || "Opposition")} · ${match.events.length} recorded events. Use Start a new blank match to archive this match and create a separate record.</p><div class="setup-layout">
     <section class="card setup-card"><div class="card-heading"><div class="section-icon">${icon("setup")}</div><div><h2>Match details</h2><p>The essentials for your day on the sideline.</p></div><span class="step-tag">STEP 01</span></div>
       <form id="setup-form"><div class="form-section-label">THE TEAMS <span>Required</span></div><div class="teams-fields">${input("Our team", "ourTeam", setup.ourTeam, 'placeholder="Enter your team name" required maxlength="80" autocomplete="off"')}<span class="versus">VS</span>${input("Opposition", "opposition", setup.opposition, 'placeholder="Enter opposition name" required maxlength="80" autocomplete="off"')}</div>
       <div class="form-divider"></div><div class="form-section-label">THE OCCASION</div><div class="form-grid">${input("Competition", "competition", setup.competition, 'placeholder="e.g. Senior championship" maxlength="100"')}${input("Venue", "venue", setup.venue, 'placeholder="Where are we playing?" maxlength="100"')}${input("Match date", "date", setup.date, "", "date")}<label class="field"><span>Half length</span><div class="input-suffix"><input name="halfLength" type="number" inputmode="numeric" min="1" max="90" step="1" required value="${setup.halfLength}"><span>minutes</span></div></label>${input("Tracker / Coach", "coach", setup.coach, 'placeholder="Your name" maxlength="80"')}</div>
       <label class="field direction-setting"><span>Our team attacks in first half (pitch display)</span><select name="ourFirstHalfAttacks" aria-label="Our first-half attacking goal"><option value="top" ${(setup.ourFirstHalfAttacks || "top") === "top" ? "selected" : ""}>Top goal</option><option value="bottom" ${setup.ourFirstHalfAttacks === "bottom" ? "selected" : ""}>Bottom goal</option></select><small>Opposition attacks the other goal; directions reverse in the second half. Stored locations do not change.</small></label><div class="form-end"><span class="form-hint">${icon("check")} Details save as you go</span><button class="button primary" type="submit">Continue to squad ${icon("arrow")}</button></div></form>
     </section>
     <aside class="setup-aside"><div class="match-preview"><div class="preview-top"><span class="eyebrow">MATCH DAY</span>${icon("pitch")}</div><div class="preview-teams"><span class="team-crest" id="preview-crest">${esc(initials(setup.ourTeam))}</span><h2 id="preview-our">${esc(setup.ourTeam || "Your team")}</h2><span class="preview-vs">versus</span><h2 id="preview-opposition">${esc(setup.opposition || "The opposition")}</h2></div><div class="preview-bottom"><span>${icon("clock")} <span id="preview-length">${setup.halfLength}</span> min / half</span><span>GAELIC FOOTBALL</span></div></div>
-    <div class="quiet-note"><span class="section-icon">${icon("check")}</span><div><h3>Focus on the game.</h3><p>Your match and every event save automatically on this device. No account. No distractions.</p></div></div><p class="device-note">Keep this browser’s data to keep your match. Private browsing may not retain it.</p></aside></div><button class="button subtle new-match" data-action="new-match">Start a new blank match</button>`;
+    <div class="quiet-note"><span class="section-icon">${icon("check")}</span><div><h3>Focus on the game.</h3><p>Your match and every event save automatically on this device. No account. No distractions.</p></div></div><p class="device-note">Keep this browser’s data to keep your match. Private browsing may not retain it.</p></aside></div>`;
 }
 function squadScreen() {
   const squad = playersFor(match, squadTeam);
@@ -290,7 +306,7 @@ function squadScreen() {
   const active = onFieldNumbers(match, squadTeam);
   const starters = squad.filter((item) => item.role === "starter").length;
   return `${heading("KNOW YOUR SQUAD", "Numbers. Names. Ready.", "Add your players, or head straight to the match. You can return at any time.", `<button class="button primary" data-action="go-live">Go to live match ${icon("arrow")}</button>`)}
-  ${squadTools(match, squadTeam)}<p class="small-note">Tap a role to adjust the actual starting lineup without deleting players. Current on-field players are calculated from these roles plus substitution events. During play, record a substitution for an on/off change.</p><div class="squad-layout"><section class="card player-entry"><div class="card-heading"><div class="section-icon">${icon("squad")}</div><div><h2>${player ? "Edit player" : "Add a player"}</h2><p>Your squad starts with a blank sheet.</p></div></div><form id="player-form"><div class="form-grid">${input("Jersey number", "number", player?.number ?? "", 'min="1" max="99" step="1" inputmode="numeric" placeholder="Blank or 1–99"', "number")}${input("Player name", "name", player?.name ?? "", 'required maxlength="80" placeholder="Full name" autocomplete="off"')}</div><label class="field"><span>Match role</span><select name="role"><option value="starter" ${!player || player.role === "starter" ? "selected" : ""}>Starter</option><option value="substitute" ${player?.role === "substitute" ? "selected" : ""}>Substitute</option><option value="panel" ${player?.role === "panel" ? "selected" : ""}>Panel · not selected</option></select></label>${input("Position", "position", player?.position ?? "", 'placeholder="e.g. Full forward" maxlength="60"')}<label class="field"><span>Notes <small>Optional</small></span><textarea name="notes" rows="3" maxlength="2000" placeholder="Anything to keep in mind">${esc(player?.notes ?? "")}</textarea></label><div class="player-form-actions">${player ? '<button class="button subtle" type="button" data-action="cancel-player">Cancel</button>' : ""}<button class="button primary" type="submit">${icon(player ? "check" : "plus")}${player ? "Save player" : "Add player"}</button></div></form></section>
+  ${squadTools(match, squadTeam)}${squad.length ? `<button class="button primary" data-today-team>Set today’s team</button>` : ""}<p class="small-note">Tap a role to adjust the actual starting lineup without deleting players. Current on-field players are calculated from these roles plus substitution events. During play, record a substitution for an on/off change.</p><div class="squad-layout"><section class="card player-entry"><div class="card-heading"><div class="section-icon">${icon("squad")}</div><div><h2>${player ? "Edit player" : "Add a player"}</h2><p>Your squad starts with a blank sheet.</p></div></div><form id="player-form"><div class="form-grid">${input("Jersey number", "number", player?.number ?? "", 'min="1" max="99" step="1" inputmode="numeric" placeholder="Blank or 1–99"', "number")}${input("Player name", "name", player?.name ?? "", 'required maxlength="80" placeholder="Full name" autocomplete="off"')}</div><label class="field"><span>Match role</span><select name="role"><option value="starter" ${!player || player.role === "starter" ? "selected" : ""}>Starter</option><option value="substitute" ${player?.role === "substitute" ? "selected" : ""}>Substitute</option><option value="panel" ${player?.role === "panel" ? "selected" : ""}>Panel · not selected</option></select></label>${input("Position", "position", player?.position ?? "", 'placeholder="e.g. Full forward" maxlength="60"')}<label class="field"><span>Notes <small>Optional</small></span><textarea name="notes" rows="3" maxlength="2000" placeholder="Anything to keep in mind">${esc(player?.notes ?? "")}</textarea></label><div class="player-form-actions">${player ? '<button class="button subtle" type="button" data-action="cancel-player">Cancel</button>' : ""}<button class="button primary" type="submit">${icon(player ? "check" : "plus")}${player ? "Save player" : "Add player"}</button></div></form></section>
   <section class="card squad-list"><div class="card-heading"><div><h2>Your squad <span class="count-badge">${squad.length}</span></h2><p>${starters} named starters · ${squad.filter((player) => player.role === "substitute").length} substitutes · ${squad.filter((player) => player.role === "panel").length} unselected panel · ${active.size} currently on field</p></div></div>${
     squad.length
       ? `<div class="player-rows">${[...squad]
@@ -342,7 +358,7 @@ function liveScreen() {
       )
       .join("")}</div></section>
     ${match.events.length && isShot(match.events.at(-1)) ? '<button class="button subtle shot-enrich" data-action="enrich-shot">Add player / location to last shot (optional)</button>' : ""}
-    <div class="live-note-bar"><button class="button microphone" data-action="live-note" ${match.events.length ? "" : "disabled"}>${icon("mic")} Add / dictate note to last event</button><span class="small-note">Optional · no detailed editor needed</span></div><section class="card recent-card"><div class="recent-heading"><h2>Latest events <span class="count-badge">${match.events.length}</span></h2><button class="text-button" data-view="timeline">View timeline ${icon("arrow")}</button></div>${
+    ${actionCreditMarkup(match)}<div class="live-note-bar"><button class="button microphone" data-action="live-note" ${match.events.length ? "" : "disabled"}>${icon("mic")} Add / dictate note to last event</button><span class="small-note">Optional · no detailed editor needed</span></div><section class="card recent-card"><div class="recent-heading"><h2>Latest events <span class="count-badge">${match.events.length}</span></h2><button class="text-button" data-view="timeline">View timeline ${icon("arrow")}</button></div>${
       match.events.length
         ? match.events
             .slice(-3)
@@ -421,10 +437,13 @@ function openEvent(event, editing = false) {
     ${
       playerRelevant
         ? `<label class="field"><span>Player number / Other number <small>Optional</small></span><input name="playerNumber" type="number" min="1" max="99" step="1" inputmode="numeric" placeholder="Jersey number" value="${esc(event.playerNumber)}"></label>${
-            attributionRoster(match, event.team).players.length
+            attributionRoster(match, event.team, { includeInactive: editing })
+              .players.length
               ? `<div class="player-picks" aria-label="Choose player">${[
-                  ...attributionRoster(match, event.team).players.filter(
-                    (player) => Number.isInteger(player.number),
+                  ...attributionRoster(match, event.team, {
+                    includeInactive: editing,
+                  }).players.filter((player) =>
+                    Number.isInteger(player.number),
                   ),
                 ]
                   .sort((a, b) => (a.number ?? 1000) - (b.number ?? 1000))
@@ -551,6 +570,39 @@ document.addEventListener("click", async (event) => {
   if (!match) return;
   const button = event.target.closest("button");
   if (!button || button.disabled) return;
+  if (button.hasAttribute("data-action-player")) {
+    const last = match.events.at(-1);
+    if (view === "live" && actionCreditEvent(last)) {
+      match.events = saveMatchEvent({
+        ...last,
+        playerNumber: button.dataset.actionPlayer,
+      });
+      persist();
+      render();
+    }
+    return;
+  }
+  if (button.hasAttribute("data-today-team")) {
+    openMatchLineup(
+      document.querySelector("#event-dialog"),
+      playersFor(match, squadTeam),
+      (players) => {
+        setPlayers(players);
+        persist();
+        render();
+      },
+    );
+    return;
+  }
+  if (button.dataset.view === "players") {
+    view = "players";
+    void playerReviewUI.open();
+    return;
+  }
+  if (view === "players" && button.closest("[data-player-review]")) {
+    playerReviewUI.click(button);
+    return;
+  }
   if (button.dataset.view === "history") {
     view = "history";
     void historyUI.open();
@@ -715,7 +767,7 @@ document.addEventListener("click", async (event) => {
     case "new-match": {
       if (
         !confirm(
-          "Start a blank match? Current match is preserved as a local recovery snapshot. Teams and both squads will be empty; saved squad templates remain available.",
+          `Create a NEW match? ${teamName("our")} vs ${teamName("opposition")} (${match.events.length} events) will first be preserved in Match History. This creates a separate match with blank teams and squads. Saved Squads remain available.`,
         )
       )
         break;
@@ -939,6 +991,27 @@ document.addEventListener("submit", (event) => {
 });
 document.addEventListener("change", (event) => {
   if (!match) return;
+  if (
+    event.target.dataset.creditOther === "data-action-player" &&
+    view === "live" &&
+    event.target.validity.valid &&
+    event.target.value
+  ) {
+    const last = match.events.at(-1);
+    if (actionCreditEvent(last)) {
+      match.events = saveMatchEvent({
+        ...last,
+        playerNumber: String(+event.target.value),
+      });
+      persist();
+      render();
+    }
+    return;
+  }
+  if (view === "players") {
+    playerReviewUI.change(event.target);
+    return;
+  }
   if (view === "history") {
     historyUI.change(event.target);
     return;

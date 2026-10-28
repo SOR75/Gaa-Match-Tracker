@@ -31,6 +31,19 @@ async function load(page) {
   await nav(page, "Saved squads");
   page.once("dialog", (d) => d.accept());
   await page.locator("[data-load-squad]").click();
+  await nav(page, "Set today’s team");
+  for (const [index, number, role] of [
+    [1, 6, "starter"],
+    [2, 22, "substitute"],
+  ]) {
+    await page
+      .getByLabel(`Today's jersey ${index}`, { exact: true })
+      .fill(String(number));
+    await page
+      .getByLabel(`Today's role ${index}`, { exact: true })
+      .selectOption(role);
+  }
+  await nav(page, "Save today's team");
 }
 async function shot(page) {
   await nav(page, "Live match");
@@ -104,9 +117,9 @@ test("real Save Squad / reload / edit / Load keeps permanent UUID and current ma
     matchPlayerId: first[0].matchPlayerId,
     name: "Isabel Updated",
     nameSnapshot: "Isabel Updated",
-    number: 8,
-    jerseyNumber: 8,
-    position: "Midfield",
+    number: 6,
+    jerseyNumber: 6,
+    position: "",
     sourceSquadId: saved.id,
   });
 });

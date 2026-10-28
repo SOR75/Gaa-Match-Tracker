@@ -125,7 +125,13 @@ test("blocked opposition shot offers our shared roster; own blocked shot needs n
   await page.locator("[data-event=miss]").click();
   await page.getByLabel("Miss reason", { exact: true }).selectOption("blocked");
   const blockers = page.getByRole("group", { name: "Our blocker" });
-  await expect(blockers.getByRole("button")).toHaveCount(2);
+  await expect(blockers.getByRole("button")).toHaveCount(1);
+  await expect(
+    blockers.getByRole("button", {
+      name: "Credit block to #22 Bench",
+      exact: true,
+    }),
+  ).toHaveCount(0);
   await blockers
     .getByRole("button", { name: "Credit block to #3 Defender", exact: true })
     .click();

@@ -1,21 +1,41 @@
+import { onFieldKeys, playerKey } from "./participation.js";
 import { playersFor } from "./domain.js";
 import { esc } from "./ui.js";
 
 // Mark and defensive-block credit share the active our-team roster, not a copy
 // or separate database. Numberless players are never assigned invented jerseys.
-export function attributionRoster(match, team, { includePanel = true } = {}) {
+export function attributionRoster(
+  match,
+  team,
+  { includePanel = true, includeInactive = false } = {},
+) {
   const roster = playersFor(match, team);
+  const active = onFieldKeys(match, team);
   const players = roster
-    .filter((p) => Number.isInteger(p.number) && (includePanel || p.role !== "panel"))
+    .filter(
+      (p) =>
+        Number.isInteger(p.number) &&
+        (includePanel || p.role !== "panel") &&
+        (team !== "our" || includeInactive || active.has(playerKey(p))),
+    )
     .sort((a, b) => a.number - b.number);
   const guidance = !roster.length
     ? "No players loaded"
     : !players.length
-      ? "No numbered players available"
+      ? roster.some((p) => Number.isInteger(p.number))
+        ? "No on-field players available — set today’s lineup in Squad"
+        : "No numbered players available"
       : "";
-  return { players: roster.length ? players : Array.from({ length: 15 }, (_, i) => ({ number: i + 1, name: "" })), guidance, fallback: !roster.length };
+  return {
+    players: roster.length
+      ? players
+      : Array.from({ length: 15 }, (_, i) => ({ number: i + 1, name: "" })),
+    guidance,
+    fallback: !roster.length,
+  };
 }
-export const ourCreditRoster = (match) => attributionRoster(match, "our");
+export const ourCreditRoster = (match, options) =>
+  attributionRoster(match, "our", options);
 export function emptyCreditRosterMarkup(guidance) {
   return guidance
     ? `<p class="small-note" role="status">${esc(guidance)}</p><p class="small-note">${guidance === "No players loaded" ? "Choose a number without a squad, or skip player credit." : "Load our players and add jersey numbers in Squad, or skip player credit."}</p>`
@@ -31,9 +51,10 @@ export function playerCreditPicker(
 
 // A numeric input is explicit; no keyboard opens until the operator chooses it.
 export function bindOtherCredit(root, onChoose) {
-  root.querySelectorAll('[data-credit-other]').forEach(input => {
+  root.querySelectorAll("[data-credit-other]").forEach((input) => {
     input.onchange = () => {
-      if (input.value && input.validity.valid) onChoose(input.dataset.creditOther, String(+input.value));
+      if (input.value && input.validity.valid)
+        onChoose(input.dataset.creditOther, String(+input.value));
     };
   });
 }

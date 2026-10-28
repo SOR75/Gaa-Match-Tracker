@@ -28,7 +28,7 @@ const workbook = (players) => [
       ["Coach / Manager", "Coach"],
     ],
   },
-  { sheet: "Players", data: [SQUAD_COLUMNS, ...players] },
+  { sheet: "Players", data: [["Player Name *", "Default No."], ...players] },
 ];
 const draft = (players) => parseOfficialSquad(workbook(players));
 function storage() {
@@ -65,9 +65,10 @@ test("actual Club workbook imports 21 player-name-only entries with all optional
 test("only nonempty incomplete rows require name review; completely unused rows are ignored", () => {
   const d = draft([["Only Name"], [], [null, null], ["", 6]]),
     v = validateSquadDraft(d);
-  assert.equal(d.players.length, 2);
-  assert.match(v.rows[1].errors.join(" "), /Review name/);
-  assert.equal(v.valid, false);
+  assert.equal(d.players.length, 1);
+  assert.equal(v.valid, true);
+  d.players[0].name="";
+  assert.match(validateSquadDraft(d).rows[0].errors.join(" "), /Review name/);
 });
 test("duplicate display names are warnings, create separate permanent IDs, and never merge", () => {
   const d = draft([
@@ -81,30 +82,13 @@ test("duplicate display names are warnings, create separate permanent IDs, and n
   const s = createImportedSquad(d);
   assert.notEqual(s.players[0].playerId, s.players[1].playerId);
 });
-test("duplicate default jerseys flag both rows; clearing either is reviewable and never merges identities", () => {
-  const d = draft([
-    ["First Player", 6],
-    ["Second Player", "06"],
-  ]);
-  assert.equal(validateSquadDraft(d).valid, false);
-  assert.ok(
-    validateSquadDraft(d).rows.every((r) =>
-      r.errors.some((e) => e.includes("Duplicate")),
-    ),
-  );
-  d.players[1].number = "";
-  assert.equal(validateSquadDraft(d).valid, true);
-  assert.equal(createImportedSquad(d).players.length, 2);
+test("legacy duplicate default jerseys are ignored without merging people or forcing match numbers",()=>{
+ const s=createImportedSquad(draft([["First Player",6],["Second Player",6]]));
+ assert.ok(s.players.every(p=>p.number===null));assert.notEqual(s.players[0].playerId,s.players[1].playerId);
 });
-for (const number of ["abc", "0", "100", "-1", "6.5", "1e1", "true"])
-  test(`invalid default jersey ${number} is flagged without guessing`, () => {
-    assert.match(
-      validateSquadDraft(draft([["A Player", number]])).rows[0].errors.join(
-        " ",
-      ),
-      /Review default number/,
-    );
-  });
+for(const number of ["abc","0","100","-1","6.5","1e1","true"])test(`ignored legacy default jersey ${number} cannot block name-only creation`,()=>{
+ const s=createImportedSquad(draft([["A Player",number]]));assert.equal(s.players[0].number,null);
+});
 test("older template position/status columns are ignored even when unsupported, and cannot block creation", async () => {
   const d = parseOfficialSquad(await readWorkbook(path("Legacy-rich")));
   const s = createImportedSquad(d);
@@ -117,7 +101,7 @@ test("older template position/status columns are ignored even when unsupported, 
         p.secondaryPosition === "",
     ),
   );
-  assert.equal(s.players[0].number, 23);
+  assert.equal(s.players[0].number, null);
 });
 test("missing Players, wrong columns, unsupported workbook and missing Setup are rejected with template guidance", async () => {
   for (const name of ["Missing-Players", "Wrong-columns"]) {

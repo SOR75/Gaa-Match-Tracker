@@ -117,11 +117,16 @@ export function openSquadLibrary(dialog, match, team, onLoaded) {
           if (
             playersFor(match, team).length &&
             !confirm(
-              `Replace the selected team's current squad with ${squad.name}? Event records are kept. Historical number/name labels in this active match will use the loaded squad.`,
+              `Replace the selected team's current squad with ${squad.name}? Event records are kept. Existing linked players retain today’s jerseys/roles; new players start with blank jerseys as panel members.`,
             )
           )
             return;
-          onLoaded(loadSquadPlayers(squad, playersFor(match, team)), squad);
+          onLoaded(
+            loadSquadPlayers(squad, playersFor(match, team), {
+              matchDay: true,
+            }),
+            squad,
+          );
           dialog.close();
         }),
     );

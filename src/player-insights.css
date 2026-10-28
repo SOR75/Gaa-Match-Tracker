@@ -1,0 +1,28 @@
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.insights-grid .card {
+  padding: 18px;
+}
+.insights-grid .card p {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.insights-grid .card strong {
+  font-size: 23px;
+}
+[data-player-review] > .card {
+  margin: 16px 0;
+  padding: 20px;
+}
+[data-player-review] table td,
+[data-player-review] table th {
+  padding: 12px;
+  text-align: left;
+}
+[data-player-review] #review-player {
+  max-width: 100%;
+}

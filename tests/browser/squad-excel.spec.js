@@ -23,6 +23,16 @@ async function review(page) {
 async function load(page) {
   await nav(page, "Saved squads");
   await page.locator("[data-load-squad]").click();
+  const names = (await state(page)).players.map((p) => p.name);
+  if (names.includes("Fia Field")) {
+    await nav(page, "Set today’s team");
+    const i = names.indexOf("Fia Field") + 1;
+    await page.getByLabel(`Today's jersey ${i}`, { exact: true }).fill("6");
+    await page
+      .getByLabel(`Today's role ${i}`, { exact: true })
+      .selectOption("starter");
+    await nav(page, "Save today's team");
+  }
 }
 
 test("offline official County workbook → review → create → reload → Load → match → native History preserves permanent identity", async ({
@@ -164,39 +174,30 @@ test("Club name-only 21 players ignores unused rows and saved edits of default/n
   );
 });
 
-test("review corrects invalid number, clears duplicate defaults, retains duplicate-name people and removes blank-name partial row", async ({
+test("name-only review corrects blank names and ignores old default collisions without merging duplicate names", async ({
   page,
 }) => {
   await setup(page);
   await upload(page, "Review-errors");
   await review(page);
-  const rows = page.locator("[data-excel-row]");
-  await expect(rows).toHaveCount(4);
-  await expect(rows.nth(0)).toContainText("Duplicate default number");
-  await expect(rows.nth(0)).toContainText("Duplicate name");
-  await expect(rows.nth(2)).toContainText("Review default number");
-  await expect(rows.nth(3)).toContainText("Review name");
+  await expect(page.locator("[data-excel-row]")).toHaveCount(3);
+  await expect(page.locator("[data-excel-row]").first()).toContainText(
+    "Duplicate name",
+  );
+  await expect(page.locator("[data-excel-row] input[name=number]")).toHaveCount(
+    0,
+  );
+  const field = page.getByLabel("Imported player 1 name", { exact: true });
+  await field.fill("");
   await expect(
     page.getByRole("button", { name: "CREATE SQUAD", exact: true }),
   ).toBeDisabled();
-  await page
-    .getByLabel("Imported player 2 default number", { exact: true })
-    .fill("");
-  await page
-    .getByLabel("Imported player 3 default number", { exact: true })
-    .fill("18");
-  await page
-    .getByRole("button", { name: "Remove imported player 4", exact: true })
-    .click();
-  await expect(
-    page.getByRole("button", { name: "CREATE SQUAD", exact: true }),
-  ).toBeEnabled();
+  await field.fill("Same Name");
   await nav(page, "CREATE SQUAD");
   const saved = (await library(page)).squads[0];
   expect(saved.players).toHaveLength(3);
-  expect(saved.players[0].name).toBe(saved.players[1].name);
   expect(saved.players[0].playerId).not.toBe(saved.players[1].playerId);
-  expect(saved.players.map((p) => p.number)).toEqual([6, null, 18]);
+  expect(saved.players.every((p) => p.number === null)).toBe(true);
 });
 for (const name of ["Missing-Players", "Wrong-columns", "Malformed"])
   test(`${name} workbook explains official-template support and does not save anything`, async ({
@@ -263,7 +264,7 @@ test("older richer workbook ignores positions/status and presents only name/defa
         p.secondaryPosition === "",
     ),
   ).toBe(true);
-  expect(s.players.map((p) => p.number)).toEqual([23, null]);
+  expect(s.players.map((p) => p.number)).toEqual([null, null]);
 });
 test("two-column workbook preserves Unicode/capitalisation and cleans line breaks without merging duplicate names", async ({
   page,

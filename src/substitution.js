@@ -1,22 +1,18 @@
-import { playersFor } from "./domain.js";
+import { substitutionChoices } from "./participation.js";
 import { validSubstitution } from "./matchday.js";
 import { esc } from "./ui.js";
 export function openSubstitution(dialog, draft, match, onSaved) {
   let saved = false;
+  const choices = substitutionChoices(match, draft);
   dialog.innerHTML = `<form id="substitution-form"><div class="dialog-heading"><div><p class="eyebrow">H${draft.half} · ${Math.floor(draft.timeMs / 60000)}:${String(Math.floor(draft.timeMs / 1000) % 60).padStart(2, "0")}</p><h2 id="event-dialog-title">Substitution</h2></div><button type="button" class="icon-button" data-sub-cancel aria-label="Cancel substitution">×</button></div><p class="small-note">${esc(draft.team === "our" ? match.setup.ourTeam : match.setup.opposition)} · choose player ON, then OFF. Jersey numbers can also be entered.</p><div class="sub-grid">${[
     "On",
     "Off",
   ]
     .map(
       (key) =>
-        `<fieldset><legend>Player ${key.toUpperCase()}</legend><div class="sub-picks">${playersFor(
-          match,
-          draft.team,
-        )
-          .filter(
-            (player) =>
-              Number.isInteger(player.number) && player.role !== "panel",
-          )
+        `<fieldset><legend>Player ${key.toUpperCase()}</legend><div class="sub-picks">${choices[
+          key.toLowerCase()
+        ]
           .slice()
           .sort((a, b) => a.number - b.number)
           .map(
@@ -53,6 +49,16 @@ export function openSubstitution(dialog, draft, match, onSaved) {
       const error = dialog.querySelector("[data-sub-error]");
       error.hidden = false;
       error.textContent = "Choose different on/off jersey numbers, 1–99.";
+      return;
+    }
+    if (
+      choices.off.some((p) => String(p.number) === data.playerOn) ||
+      choices.on.some((p) => String(p.number) === data.playerOff)
+    ) {
+      const error = dialog.querySelector("[data-sub-error]");
+      error.hidden = false;
+      error.textContent =
+        "Choose an inactive player ON and an on-field player OFF.";
       return;
     }
     saved = true;

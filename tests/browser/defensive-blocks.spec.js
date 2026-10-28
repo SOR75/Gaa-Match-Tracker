@@ -133,13 +133,18 @@ test("main Blocked button saves our defensive action immediately, credits our sh
     modal.getByRole("heading", { name: "Defensive Block", exact: true }),
   ).toBeVisible();
   const picker = modal.getByRole("group", { name: "Our defensive blocker" });
-  for (const name of [
-    "Credit defensive block to #4 Eibhleann",
-    "Credit defensive block to #9 Panel Player",
-  ])
-    await expect(
-      picker.getByRole("button", { name, exact: true }),
-    ).toBeVisible();
+  await expect(
+    picker.getByRole("button", {
+      name: "Credit defensive block to #4 Eibhleann",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    picker.getByRole("button", {
+      name: "Credit defensive block to #9 Panel Player",
+      exact: true,
+    }),
+  ).toHaveCount(0);
   await modal.getByText("Add location · optional", { exact: true }).click();
   await modal
     .getByRole("button", {

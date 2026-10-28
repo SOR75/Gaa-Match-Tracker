@@ -60,7 +60,7 @@ test("quick kickouts capture known outcome and optional length at initial tap ti
   await nav(page, "Undo last event");
   expect((await state(page)).events).toHaveLength(1);
   await nav(page, "Edit last event");
-  await page.getByLabel("Player number").fill("8");
+  await page.getByRole("dialog").getByLabel("Player number").fill("8");
   await page.getByLabel("Kickout length").selectOption("Long");
   await nav(page, "Save changes");
   expect((await state(page)).events[0]).toMatchObject({
@@ -167,6 +167,12 @@ test("saved squads load for both teams and library edits leave the match unchang
   let match = await state(page);
   expect(match.oppositionPlayers[0].name).toBe("Library Name");
   expect(match.players[0].name).toBe("Original Name");
+  await nav(page, "Set today’s team");
+  await page.getByLabel("Today's jersey 1", { exact: true }).fill("7");
+  await page
+    .getByLabel("Today's role 1", { exact: true })
+    .selectOption("starter");
+  await nav(page, "Save today's team");
   await nav(page, "Live match");
   await nav(page, "Away");
   await shot(page, "Point", "7");

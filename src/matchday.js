@@ -1,4 +1,4 @@
-import { participantRef, resolveParticipant } from "./identity.js";
+import { onFieldKeys, playerKey } from "./participation.js";
 const playersFor = (match, team) =>
   team === "our" ? match.players : match.oppositionPlayers;
 export function createTapGuard(delay = 650) {
@@ -23,30 +23,13 @@ export function transformLocation(location, direction = "top") {
   return { shotX: 1 - location.shotX, shotY: 1 - location.shotY };
 }
 export function onFieldNumbers(match, team) {
-  const active = new Set(
-    playersFor(match, team)
-      .filter(
-        (player) =>
-          player.role === "starter" && Number.isInteger(player.number),
-      )
-      .map((player) => String(player.number)),
-  );
-  match.events
-    .filter((event) => event.team === team && event.event === "substitution")
-    .slice()
-    .sort((a, b) => a.half - b.half || a.timeMs - b.timeMs)
-    .forEach((event) => {
-      for (const role of ["playerOff", "playerOn"]) {
-        const ref = participantRef(event, role),
-          player = ref ? resolveParticipant(match, event, role) : null;
-        if (ref && !player?.found) continue;
-        const number = ref ? player.number : event[role];
-        if (number !== null && number !== "")
-          active[role === "playerOff" ? "delete" : "add"](
-            String(Number(number)),
-          );
-      }
-    });
+  const keys = onFieldKeys(match, team),
+    active = new Set();
+  for (const p of playersFor(match, team))
+    if (keys.has(playerKey(p)) && Number.isInteger(p.number))
+      active.add(String(p.number));
+  for (const key of keys)
+    if (key.startsWith("number:")) active.add(key.slice(7));
   return active;
 }
 export function validSubstitution(playerOn, playerOff) {

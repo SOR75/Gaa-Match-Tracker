@@ -34,7 +34,7 @@ async function metric(page, label, column) {
 async function oppositionBlock(page) {
   await setup(page);
   await add(page, 3, "Sarah");
-  await add(page, 4, "Maeve", "substitute");
+  await add(page, 4, "Maeve", "starter");
   await nav(page, "Live match");
   await nav(page, "Away");
   await page.locator(".event-controls [data-event=miss]").click();

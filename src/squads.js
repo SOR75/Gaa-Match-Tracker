@@ -137,13 +137,28 @@ export function snapshotSquad(name, players, id = uid(), metadata = {}) {
     players: validatePlayers(players).map(createSquadPlayer),
   };
 }
-export function loadSquadPlayers(squad, existing = []) {
-  return validatePlayers(structuredClone(squad.players)).map((p) => {
+export function loadSquadPlayers(
+  squad,
+  existing = [],
+  { matchDay = false } = {},
+) {
+  return validatePlayers(
+    structuredClone(squad.players).map((p) =>
+      matchDay ? { ...p, number: null } : p,
+    ),
+  ).map((p) => {
     const old = validPlayerId(p.playerId)
       ? existing.find((e) => e.playerId === p.playerId)
       : null;
     return createMatchPlayer({
       ...p,
+      ...(matchDay
+        ? {
+            number: old?.number ?? null,
+            position: old?.position || "",
+            role: old?.role || "panel",
+          }
+        : {}),
       id: old?.id || uid(),
       matchPlayerId: old?.matchPlayerId || old?.id || undefined,
       sourceSquadId: squad.id,

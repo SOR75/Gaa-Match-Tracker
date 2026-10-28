@@ -267,18 +267,19 @@ test("Our Kickout Mark visibly offers our populated squad and credits one event;
   const modal = page.getByRole("dialog");
   const picker = modal.getByRole("group", { name: "Our Mark winner" });
   await expect(picker).toBeVisible();
-  await expect(picker.getByRole("button")).toHaveCount(2);
-  for (const name of [
-    "Credit Mark to #8 Our Eight",
-    "Credit Mark to #9 Our Nine",
-  ]) {
-    await expect(
-      picker.getByRole("button", { name, exact: true }),
-    ).toBeVisible();
-    await expect(
-      picker.getByRole("button", { name, exact: true }),
-    ).toBeInViewport();
-  }
+  await expect(picker.getByRole("button")).toHaveCount(1);
+  await expect(
+    picker.getByRole("button", {
+      name: "Credit Mark to #8 Our Eight",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    picker.getByRole("button", {
+      name: "Credit Mark to #9 Our Nine",
+      exact: true,
+    }),
+  ).toHaveCount(0);
   let match = await state(page);
   expect(match.players).toHaveLength(2);
   expect(match.players.find((p) => p.number === 9).role).toBe("panel");

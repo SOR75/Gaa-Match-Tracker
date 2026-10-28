@@ -1,7 +1,12 @@
 import { snapshotSquad } from "./squads.js";
 
-export const SQUAD_COLUMNS = ["Player Name *", "Default No."];
-const legacyColumns = ["preferred position", "second position", "status"];
+export const SQUAD_COLUMNS = ["Player Name *"];
+const legacyColumns = [
+  "default no",
+  "preferred position",
+  "second position",
+  "status",
+];
 const setupFields = {
   "club name": "clubName",
   "squad name": "squadName",
@@ -53,8 +58,7 @@ export function parseOfficialSquad(sheets) {
   if (index < 0) throw unsupported("Missing Player Name column.");
   const headers = table[index].map(heading);
   while (headers.at(-1) === "") headers.pop();
-  const hasNumber = headers[1] === "default no";
-  const tail = headers.slice(hasNumber ? 2 : 1);
+  const tail = headers.slice(1);
   if (
     tail.some((h) => !legacyColumns.includes(h)) ||
     new Set(headers).size !== headers.length
@@ -65,38 +69,26 @@ export function parseOfficialSquad(sheets) {
     if (!row) return;
     if (row.slice(headers.length).some((v) => text(v)))
       throw unsupported("Unexpected player columns.");
-    const name = text(row[0]),
-      number = hasNumber ? text(row[1]) : "";
+    const name = text(row[0]);
     // Deprecated position/status cells are deliberately ignored, including on
     // unused rows. They are not Squad membership or availability information.
-    if (!name && !number) return;
-    players.push({ sourceRow: index + i + 2, name, number });
+    if (!name) return;
+    players.push({ sourceRow: index + i + 2, name, number: "" });
   });
   return { metadata, players };
 }
 export function validateSquadDraft(draft) {
-  const names = new Map(),
-    numbers = new Map();
+  const names = new Map();
   for (const p of draft.players) {
-    const name = text(p.name).toLowerCase(),
-      number = text(p.number);
+    const name = text(p.name).toLowerCase();
     if (name) names.set(name, (names.get(name) || 0) + 1);
-    if (/^\d{1,2}$/.test(number) && +number >= 1 && +number <= 99)
-      numbers.set(+number, (numbers.get(+number) || 0) + 1);
   }
   const rows = draft.players.map((p) => {
     const errors = [],
       warnings = [],
-      name = text(p.name),
-      raw = text(p.number);
+      name = text(p.name);
     if (!name || name.length > 80)
       errors.push("Review name: enter a player name (up to 80 characters).");
-    if (raw && (!/^\d{1,2}$/.test(raw) || +raw < 1 || +raw > 99))
-      errors.push("Review default number: blank or 1–99.");
-    else if (raw && numbers.get(+raw) > 1)
-      errors.push(
-        "Duplicate default number: correct or clear before creating.",
-      );
     if (names.get(name.toLowerCase()) > 1)
       warnings.push(
         "Duplicate name: keep both only if they are different players. Separate IDs will be created.",
@@ -106,11 +98,11 @@ export function validateSquadDraft(draft) {
       warnings,
       player: {
         name,
-        number: raw ? Number(raw) : null,
+        number: null,
         position: "",
         secondaryPosition: "",
         status: "active",
-        role: "starter",
+        role: "panel",
         notes: "",
       },
     };
