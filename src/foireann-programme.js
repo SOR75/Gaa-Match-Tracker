@@ -1,3 +1,7 @@
+import {
+  handwrittenJerseyBox,
+  readHandwrittenJersey,
+} from "./foireann-jerseys.js";
 import { playerNumberToken } from "./numbered-rows.js";
 import { candidate, POSITIONS } from "./import-parser.js";
 import { plausibleName } from "./programme-parser.js";
@@ -569,6 +573,46 @@ export async function readFoireannProgramme({
         nameScore,
         numberScore,
         english,
+        sourceRow: row,
+        right,
+      });
+    }
+  }
+  // Names are final before the dedicated jersey pass starts. Only jersey,
+  // role/position and its existing confidence text may be updated below.
+  for (const [i, region] of regions.entries()) {
+    const box = handwrittenJerseyBox({
+      row: region.sourceRow,
+      words: scan.words,
+      height: h,
+      right: region.right,
+      width: source.width,
+    });
+    if (!box) continue;
+    onProgress(`Reading handwritten jersey ${i + 1}/${regions.length}`);
+    let result;
+    try {
+      result = await readHandwrittenJersey({ source, box, read, worker });
+    } catch (error) {
+      // A failed/expired digit pass must not discard already extracted names.
+      region.handwritten = { box, error: error.message };
+      break;
+    }
+    region.handwritten = result;
+    if (result.number || result.ambiguous) {
+      // A conflicting second-pass value must remain a coach decision.
+      const conflict =
+        result.ambiguous || (region.number && region.number !== result.number);
+      const number = conflict ? "" : result.number;
+      players[i] = foireannPlayer({
+        number,
+        name: players[i].name,
+        nameScore: region.nameScore,
+        numberScore: result.score,
+        english: region.english,
+        possible: conflict
+          ? [region.number, ...result.possible].filter(Boolean)
+          : [],
       });
     }
   }

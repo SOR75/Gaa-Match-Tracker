@@ -154,13 +154,16 @@ test("exact black handwritten Foireann photo preserves printed extraction and ac
     "Heather Touhey",
   ]);
   expect(rows.filter((r) => r.number).map((r) => [r.number, r.name])).toEqual([
+    ["21", "Ruth Carroll"],
     ["20", "Mella Casey"],
     ["15", "Sarah Cleary"],
+    ["4", "Avril Flynn"],
     ["2", "Amy Lehane"],
     ["3", "Anne Marie Mec Cormack"],
     ["5", "Saoirse McGuinness"],
+    ["13", "Heidi Murray"],
   ]);
-  expect(rows.filter((r) => !r.number)).toHaveLength(32);
+  expect(rows.filter((r) => !r.number)).toHaveLength(29);
   expect(
     rows
       .filter((r) => !r.number)
@@ -174,7 +177,7 @@ test("exact black handwritten Foireann photo preserves printed extraction and ac
       (r) => !/[0-9]{5}|Management|Extended panel|Bainiste/i.test(r.name),
     ),
   ).toBe(true);
-  expect(rows.find((r) => r.name === "Ruth Carroll").number).toBe(""); // low-confidence 21 is not guessed
+  expect(rows.find((r) => r.name === "Ruth Carroll").number).toBe("21"); // full multi-digit crop has a reliable read
   expect(rows.find((r) => r.name === "Therese Robbins").number).toBe(""); // low-confidence 18 remains editable
   expect(rows.find((r) => r.name === "Eimear Carroll").number).toBe(""); // blank source field stays blank
   await testInfo.attach("foireann-black-extracted.json", {

@@ -560,6 +560,9 @@ export async function imageCanvas(file) {
     context.fillStyle = "white";
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    // Foireann digit rereads can crop original pixels without resizing the
+    // existing printed-text/OCR canvas or changing any other import route.
+    Object.defineProperty(canvas, "originalImage", { value: image });
     return canvas;
   } catch (error) {
     throw new Error(`Image could not be decoded: ${error.message}`);
