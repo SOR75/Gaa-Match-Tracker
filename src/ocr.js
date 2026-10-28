@@ -1,5 +1,8 @@
 import { detectNotebook, readNotebook } from "./notebook-programme.js";
-import { detectFoireannRows, readFoireannProgramme } from "./foireann-programme.js";
+import {
+  detectFoireannRows,
+  readFoireannProgramme,
+} from "./foireann-programme.js";
 import { readNumberedList } from "./list-programme.js";
 import {
   lightCardRects,
@@ -76,20 +79,57 @@ export async function recognizeImage(
       return { text: data.text, words: tsvWords(data.tsv) };
     }
     const originalScan = await read(source);
-    const foireann = detectFoireannRows(originalScan.words);
+    // Route using both independent image passes. A single missed DOB must not
+    // send a bilingual numbered sheet into handwritten/manual row fallback.
+    const scan = await read(normalized);
+    const layouts = [
+      detectFoireannRows(originalScan.words),
+      detectFoireannRows(scan.words),
+    ].filter(Boolean);
+    const rows = (layout) => layout.columns.flatMap((c) => c.rows);
+    layouts.sort(
+      (a, b) =>
+        rows(b).filter((r) => r.dateRecognized).length -
+          rows(a).filter((r) => r.dateRecognized).length ||
+        rows(b).length - rows(a).length,
+    );
+    const foireann =
+      layouts[0] || detectFoireannRows([...originalScan.words, ...scan.words]);
     if (foireann) {
-      const detailScan = await read(normalized);
-      const detailLayout = detectFoireannRows(detailScan.words);
-      const count = layout => layout.columns.reduce((n,c)=>n+c.rows.length,0);
-      return await readFoireannProgramme({ layout: detailLayout && count(detailLayout)>count(foireann) ? detailLayout : foireann, scan: originalScan, detailScan, source, normalized, crop, read, worker, onProgress });
+      return await readFoireannProgramme({
+        layout: foireann,
+        scan: originalScan,
+        detailScan: scan,
+        source,
+        normalized,
+        crop,
+        read,
+        worker,
+        onProgress,
+      });
     }
     const listPlayers = readNumberedList(originalScan.words);
-    if (listPlayers) return { ...originalScan, players: listPlayers, diagnostics: { layout: "numbered-list" } };
-    const scan = await read(normalized);
+    if (listPlayers)
+      return {
+        ...originalScan,
+        players: listPlayers,
+        diagnostics: { layout: "numbered-list" },
+      };
     const grid = fitFormation(scan.words);
     if (!grid) {
-      const notebook = await detectNotebook(source, originalScan.words, scan.words);
-      if (notebook) return await readNotebook({ layout: notebook, crop, read, worker, onProgress });
+      const notebook = await detectNotebook(
+        source,
+        originalScan.words,
+        scan.words,
+      );
+      if (notebook)
+        return await readNotebook({
+          layout: notebook,
+          crop,
+          read,
+          worker,
+          onProgress,
+        });
       return scan;
     }
     const players = [],
