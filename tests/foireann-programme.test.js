@@ -186,3 +186,35 @@ test("detached unmatched bracket noise is removed without dropping name words or
   assert.equal(cleanFoireannName("Nora Example ("), "Nora Example");
   assert.equal(cleanFoireannName("Nora Example (C)"), "Nora Example (C)");
 });
+
+test("DOB-less Foireann uses the registered-name/ID alignment to bound black jersey fields, not a fictitious DOB column", () => {
+  const words = [];
+  for (const x of [150, 650])
+    for (let i = 0; i < 4; i++) {
+      words.push(
+        word("Registered", x, 100 + i * 60, 80),
+        word("Surname", x + 90, 100 + i * 60, 70),
+        word("7654321", x, 125 + i * 60, 75),
+        word("English", x + 85, 125 + i * 60, 65),
+        word("Surname", x + 160, 125 + i * 60, 70),
+      );
+    }
+  const layout = detectFoireannRows(words);
+  assert.ok(layout.blackJerseyOffset > 0);
+  assert.equal(layout.columns.flatMap((c) => c.rows).length, 8);
+  assert.ok(
+    layout.columns.flatMap((c) => c.rows).every((r) => !r.numberAnchor),
+  );
+});
+test("DOB/member detail layouts retain their previous jersey geometry", () => {
+  const words = [];
+  for (const x of [150, 650])
+    for (let i = 0; i < 4; i++)
+      words.push(
+        word("03/04/2012", x, 125 + i * 60, 100),
+        word("7654321", x + 120, 125 + i * 60, 75),
+      );
+  assert.equal(detectFoireannRows(words).blackJerseyOffset, 0);
+});
+test("even high-confidence member IDs cannot become jerseys", () =>
+  assert.equal(resolveFoireannJersey([read("5313081", 99)]).number, ""));

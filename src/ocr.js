@@ -1,3 +1,7 @@
+import {
+  graphicalNumberRegions,
+  readGraphicalProgramme,
+} from "./graphical-programme.js";
 import { referenceFormationRoute } from "./formation-routing.js";
 import { detectNotebook, readNotebook } from "./notebook-programme.js";
 import {
@@ -124,6 +128,20 @@ export async function recognizeImage(
         worker,
         onProgress,
       });
+    const graphical = graphicalNumberRegions(
+      source.getContext("2d").getImageData(0, 0, source.width, source.height),
+    );
+    if (graphical) {
+      const result = await readGraphicalProgramme({
+        boxes: graphical,
+        scan: originalScan,
+        source,
+        read,
+        worker,
+        onProgress,
+      });
+      if (result) return result;
+    }
     const listPlayers = readNumberedList(originalScan.words);
     if (listPlayers)
       return {

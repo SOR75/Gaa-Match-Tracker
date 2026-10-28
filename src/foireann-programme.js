@@ -104,6 +104,18 @@ export function detectFoireannRows(words) {
   const h = median(
     paired.length ? paired.map((r) => r.date.h) : details.map((r) => r.id.h),
   );
+  const registeredOffsets = details.map(({ id }) => {
+    const above = words.filter(
+      (w) =>
+        /\p{L}/u.test(w.text) &&
+        !/\d/.test(w.text) &&
+        w.x > id.x - h * 9 &&
+        w.x < id.x + h * 12 &&
+        cy(w) < id.y &&
+        cy(w) > id.y - h * 3,
+    );
+    return above.length ? id.x - Math.min(...above.map((w) => w.x)) : h * 7;
+  });
   const offsetX = paired.length
     ? median(paired.map((r) => r.id.x - r.date.x))
     : h * 7;
@@ -180,7 +192,12 @@ export function detectFoireannRows(words) {
     }
     c.rows.sort((a, b) => a.date.y - b.date.y);
   }
-  return { columns: selected, height: h };
+  return {
+    columns: selected,
+    height: h,
+    blackJerseyOffset:
+      !paired.length && Math.abs(median(registeredOffsets)) < h * 2 ? h * 7 : 0,
+  };
 }
 
 export function redNumberCanvas(source, box) {
@@ -210,6 +227,103 @@ export function redNumberCanvas(source, box) {
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.drawImage(raw, 20, 20, raw.width * 4, raw.height * 4);
   return { canvas, ink };
+}
+
+// Isolate dark pen strokes inside the established jersey field. Remove long
+// printed underline runs before single-number OCR; never read member-ID areas.
+export function blackNumberCanvas(source, box) {
+  const [x, y, w, h] = box,
+    raw = document.createElement("canvas");
+  raw.width = Math.ceil(w);
+  raw.height = Math.ceil(h);
+  const ctx = raw.getContext("2d");
+  ctx.drawImage(source, x, y, w, h, 0, 0, raw.width, raw.height);
+  const image = ctx.getImageData(0, 0, raw.width, raw.height),
+    gray = [];
+  for (let i = 0; i < image.data.length; i += 4)
+    gray.push((image.data[i] + image.data[i + 1] + image.data[i + 2]) / 3);
+  const threshold = median(gray) * 0.72,
+    mask = gray.map((v) => (v < threshold ? 1 : 0));
+  // A tick may cross the left edge from the separate Starting checkbox.
+  for (let y = 0; y < raw.height; y++)
+    for (let x = 0; x < raw.width * 0.13; x++) mask[y * raw.width + x] = 0;
+  // Find and erase the shallow printed underline, including photographed tilt.
+  let best = { count: 0 };
+  for (let slope = -0.2; slope <= 0.2; slope += 0.025)
+    for (let y = raw.height * 0.5; y < raw.height; y++) {
+      let count = 0;
+      for (let x = 0; x < raw.width; x++) {
+        const yy = Math.round(y + slope * x);
+        if (yy >= 0 && yy < raw.height && mask[yy * raw.width + x]) count++;
+      }
+      if (count > best.count) best = { count, y, slope };
+    }
+  if (best.count > raw.width * 0.55)
+    for (let x = 0; x < raw.width; x++)
+      for (let d = -2; d <= 2; d++) {
+        const y = Math.round(best.y + best.slope * x) + d;
+        if (y >= 0 && y < raw.height) mask[y * raw.width + x] = 0;
+      }
+  // Disconnected pen/tick tips and remnants of the printed rule are not digits.
+  const visited = new Uint8Array(mask.length);
+  for (let seed = 0; seed < mask.length; seed++) {
+    if (!mask[seed] || visited[seed]) continue;
+    const stack = [seed],
+      component = [];
+    visited[seed] = 1;
+    let low = raw.height,
+      high = 0;
+    while (stack.length) {
+      const n = stack.pop(),
+        x = n % raw.width,
+        y = Math.floor(n / raw.width);
+      component.push(n);
+      low = Math.min(low, y);
+      high = Math.max(high, y);
+      for (const next of [
+        x ? n - 1 : -1,
+        x + 1 < raw.width ? n + 1 : -1,
+        y ? n - raw.width : -1,
+        y + 1 < raw.height ? n + raw.width : -1,
+      ])
+        if (next >= 0 && mask[next] && !visited[next]) {
+          visited[next] = 1;
+          stack.push(next);
+        }
+    }
+    if (high - low + 1 < raw.height * 0.18)
+      for (const n of component) mask[n] = 0;
+  }
+  let x0 = raw.width,
+    y0 = raw.height,
+    x1 = 0,
+    y1 = 0,
+    ink = 0;
+  for (let i = 0; i < mask.length; i++) {
+    if (mask[i]) {
+      ink++;
+      x0 = Math.min(x0, i % raw.width);
+      x1 = Math.max(x1, i % raw.width);
+      y0 = Math.min(y0, Math.floor(i / raw.width));
+      y1 = Math.max(y1, Math.floor(i / raw.width));
+    }
+    image.data[i * 4] =
+      image.data[i * 4 + 1] =
+      image.data[i * 4 + 2] =
+        mask[i] ? 0 : 255;
+  }
+  ctx.putImageData(image, 0, 0);
+  const out = document.createElement("canvas"),
+    width = Math.max(1, x1 - x0 + 1),
+    height = Math.max(1, y1 - y0 + 1);
+  out.width = width * 4 + 40;
+  out.height = height * 4 + 40;
+  const draw = out.getContext("2d");
+  draw.fillStyle = "white";
+  draw.fillRect(0, 0, out.width, out.height);
+  if (ink)
+    draw.drawImage(raw, x0, y0, width, height, 20, 20, width * 4, height * 4);
+  return { canvas: out, ink };
 }
 
 export async function readFoireannProgramme({
@@ -341,10 +455,10 @@ export async function readFoireannProgramme({
         chosen = fallback[0];
       }
       const numberBox = [
-        Math.max(0, date.x - h * 4.8),
+        Math.max(0, date.x - h * 4.8 + (layout.blackJerseyOffset || 0)),
         top,
         h * 4.3,
-        date.y + h * 0.3 - top,
+        date.y + h * (layout.blackJerseyOffset ? 1.1 : 0.3) - top,
       ];
       const red = redNumberCanvas(source, numberBox);
       await worker.setParameters({ tessedit_char_whitelist: "0123456789" });
@@ -354,7 +468,7 @@ export async function readFoireannProgramme({
           w.x >= numberBox[0] &&
           w.x + w.w <= numberBox[0] + numberBox[2] &&
           cy(w) >= top &&
-          cy(w) <= date.y + h * 0.4,
+          cy(w) <= date.y + h * (layout.blackJerseyOffset ? 1.1 : 0.4),
       );
       const numberReads = anchorWords.map((w) => ({
         text: w.text,
@@ -373,6 +487,31 @@ export async function readFoireannProgramme({
           kind: "normalized number crop",
         },
       );
+      // Black handwritten numbers on ID-only detail sheets occupy the same
+      // bounded jersey field but need underline removal, not a red-ink mask.
+      if (layout.blackJerseyOffset) {
+        await worker.setParameters({ tessedit_char_whitelist: "" });
+        const black = blackNumberCanvas(source, numberBox);
+        if (black.ink > 10)
+          for (const mode of ["7", "13"])
+            numberReads.push({
+              ...(await read(black.canvas, mode)),
+              kind: "isolated black number",
+            });
+        if (black.ink > 10 && !resolveFoireannJersey(numberReads).number) {
+          const smaller = document.createElement("canvas");
+          smaller.width = Math.round(black.canvas.width / 2);
+          smaller.height = Math.round(black.canvas.height / 2);
+          smaller
+            .getContext("2d")
+            .drawImage(black.canvas, 0, 0, smaller.width, smaller.height);
+          numberReads.push({
+            ...(await read(smaller, "7")),
+            kind: "isolated black number at half scale",
+          });
+        }
+      }
+      await worker.setParameters({ tessedit_char_whitelist: "0123456789" });
       // If the broad entry crop is noisy, reread the actual visible digit box.
       // This uses its own geometry, not a guessed jersey or neighbour's number.
       if (!resolveFoireannJersey(numberReads).number && anchorWords.length) {
