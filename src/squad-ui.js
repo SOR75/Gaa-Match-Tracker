@@ -16,7 +16,7 @@ import {
 } from "./import-parser.js";
 
 export function squadTools(match, team) {
-  return `<section class="card squad-tools"><div class="team-toggle" role="group" aria-label="Squad team"><button data-squad-team="our" aria-pressed="${team === "our"}" class="${team === "our" ? "selected" : ""}">${esc(match.setup.ourTeam || "Our team")}</button><button data-squad-team="opposition" aria-pressed="${team === "opposition"}" class="${team === "opposition" ? "selected" : ""}">${esc(match.setup.opposition || "Opposition")}</button></div><div class="form-grid import-options"><label class="field"><span>Import layout</span><select id="import-layout"><option value="auto">Auto / programme list</option><option value="programme">Printed programme</option><option value="registered">Foireann / LGFA registered panel</option><option value="formation">Formation / pitch image</option></select></label><label class="field"><span>Formation goalkeeper end</span><select id="import-goal"><option value="top">Goalkeeper at top</option><option value="bottom">Goalkeeper at bottom</option></select></label></div><div class="squad-methods"><button class="button subtle" data-squad-library>Saved squads</button><button class="button subtle" data-save-squad>Save this squad</button><button class="button subtle" data-paste-squad>Paste team-sheet text</button><label class="button subtle file-button">Import team sheet<input type="file" id="team-sheet-file" accept=".csv,.tsv,.txt,.xlsx,.pdf,image/*"></label><label class="button subtle file-button">Scan / photo team sheet<input type="file" id="team-sheet-photo" accept="image/*" capture="environment"></label></div><p class="small-note">Manual entry below · imports are always reviewed before adding. JPEG/PNG and scanned PDF use bundled local OCR. PDFs use their text layer first. Handwriting / checkbox recognition is uncertain; always review. HEIC: export to JPEG/PNG first.</p></section>`;
+  return `<section class="card squad-tools"><div class="team-toggle" role="group" aria-label="Squad team"><button data-squad-team="our" aria-pressed="${team === "our"}" class="${team === "our" ? "selected" : ""}">${esc(match.setup.ourTeam || "Our team")}</button><button data-squad-team="opposition" aria-pressed="${team === "opposition"}" class="${team === "opposition" ? "selected" : ""}">${esc(match.setup.opposition || "Opposition")}</button></div><div class="form-grid import-options"><label class="field"><span>Import layout</span><select id="import-layout"><option value="auto">Auto / programme list</option><option value="programme">Printed programme</option><option value="registered">Foireann / LGFA registered panel</option><option value="formation">Formation / pitch image</option></select></label><label class="field"><span>Formation goalkeeper end</span><select id="import-goal"><option value="top">Goalkeeper at top</option><option value="bottom">Goalkeeper at bottom</option></select></label></div><div class="squad-methods"><button class="button subtle" data-squad-library>Saved squads</button><label class="button subtle file-button">IMPORT SIDELINE SQUAD<input type="file" id="sideline-squad-file" accept=".xlsx"></label><button class="button subtle" data-save-squad>Save this squad</button><button class="button subtle" data-paste-squad>Paste team-sheet text</button><label class="button subtle file-button">Import team sheet<input type="file" id="team-sheet-file" accept=".csv,.tsv,.txt,.xlsx,.pdf,image/*"></label><label class="button subtle file-button">Scan / photo team sheet<input type="file" id="team-sheet-photo" accept="image/*" capture="environment"></label></div><p class="small-note">Manual entry below · imports are always reviewed before adding. JPEG/PNG and scanned PDF use bundled local OCR. PDFs use their text layer first. Handwriting / checkbox recognition is uncertain; always review. HEIC: export to JPEG/PNG first.</p></section>`;
 }
 const closeButton =
   '<button type="button" class="icon-button" data-close-squad aria-label="Close squad dialog">×</button>';
@@ -24,7 +24,7 @@ function rowMarkup(player, index) {
   return `<tr data-review-row data-original-index="${index}" data-source-id="${esc(player.id || "")}"><td><input aria-label="Jersey number row ${index + 1}" name="number" type="number" min="1" max="99" inputmode="numeric" value="${esc(player.number)}" placeholder="Blank allowed"></td><td><input aria-label="Player name row ${index + 1}" name="name" value="${esc(player.name)}" required maxlength="80"></td><td><input aria-label="Position row ${index + 1}" name="position" value="${esc(player.position || "")}" list="import-positions" placeholder="Review position"></td><td><select aria-label="Role row ${index + 1}" name="role"><option value="starter" ${player.role === "starter" ? "selected" : ""}>Starter</option><option value="substitute" ${player.role === "substitute" ? "selected" : ""}>Substitute</option><option value="panel" ${player.role === "panel" ? "selected" : ""}>Panel · not selected</option></select></td><td class="uncertain">${esc(player.confidence || "Saved player — editable")}</td><td><button type="button" class="icon-button" data-remove-review aria-label="Remove row ${index + 1}">×</button></td></tr>`;
 }
 function reviewTable(players) {
-  return `<div class="table-scroll review-table"><table><thead><tr><th>Jersey</th><th>Player</th><th>Position</th><th>Starter/Sub</th><th>Confidence</th><th></th></tr></thead><tbody>${players.map(rowMarkup).join("")}</tbody></table></div><datalist id="import-positions">${[...new Set(POSITIONS)].map((position) => `<option value="${position}"></option>`).join("")}</datalist><button class="button subtle" type="button" data-add-review>+ Add row</button>`;
+  return `<div class="table-scroll review-table"><table><thead><tr><th>Jersey</th><th>Player</th><th>Position</th><th>Starter/Sub</th><th>Confidence</th><th></th></tr></thead><tbody>${players.map((p, i) => rowMarkup(p, i)).join("")}</tbody></table></div><datalist id="import-positions">${[...new Set(POSITIONS)].map((position) => `<option value="${position}"></option>`).join("")}</datalist><button class="button subtle" type="button" data-add-review>+ Add row</button>`;
 }
 const rowBindings = new WeakMap();
 function bindRows(dialog, original = []) {
@@ -121,7 +121,7 @@ export function openSquadLibrary(dialog, match, team, onLoaded) {
             )
           )
             return;
-          onLoaded(loadSquadPlayers(squad));
+          onLoaded(loadSquadPlayers(squad, playersFor(match, team)), squad);
           dialog.close();
         }),
     );
@@ -143,6 +143,7 @@ export function openSquadLibrary(dialog, match, team, onLoaded) {
                 new FormData(event.target).get("squadName"),
                 read(),
                 squad.id,
+                squad,
               );
               const current = loadSquads();
               if (current.error) throw new Error(current.error);

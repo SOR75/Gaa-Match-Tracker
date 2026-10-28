@@ -1,3 +1,5 @@
+import { openOfficialSquadImport } from "./squad-excel-ui.js";
+import { createMatchPlayer, resolveParticipant } from "./identity.js";
 import { createHistoryRepository } from "./history-repository.js";
 import { createHistoryUI } from "./history-ui.js";
 import { completeMatch } from "./history.js";
@@ -127,7 +129,8 @@ const historyUI = createHistoryUI({
   renderTimeline: (saved) => timelineScreen(saved, true),
 });
 const setPlayers = (players) => {
-  match[squadTeam === "our" ? "players" : "oppositionPlayers"] = players;
+  match[squadTeam === "our" ? "players" : "oppositionPlayers"] =
+    players.map(createMatchPlayer);
 };
 let toastTimer;
 let timelineTeam = "all";
@@ -136,8 +139,9 @@ let offlineStatus = import.meta.env.PROD
   ? "Offline cache not yet verified"
   : "Development mode — use production build for offline";
 const acceptTap = createTapGuard();
+const saveMatchEvent = (event) => saveEvent(match.events, event, match);
 function recordEvent(event) {
-  match.events = saveEvent(match.events, event);
+  match.events = saveMatchEvent(event);
   persist();
   render();
   toast(`${eventType(event.event).label} recorded`);
@@ -150,7 +154,7 @@ function enrichShot(event) {
     (details) => {
       const current = match.events.find((item) => item.id === details.id);
       if (!current) return;
-      match.events = saveEvent(match.events, {
+      match.events = saveMatchEvent({
         ...current,
         playerNumber: details.playerNumber,
         shotX: details.shotX,
@@ -172,7 +176,7 @@ function enrichDefensiveBlock(event) {
     (details) => {
       const current = match.events.find((e) => e.id === details.id);
       if (!current) return;
-      match.events = saveEvent(match.events, {
+      match.events = saveMatchEvent({
         ...current,
         playerNumber: details.playerNumber,
         shotX: details.shotX,
@@ -187,7 +191,7 @@ function saveEventNote(event) {
   if (!match) return;
   const current = match.events.find((item) => item.id === event.id);
   if (!current) return;
-  match.events = saveEvent(match.events, {
+  match.events = saveMatchEvent({
     ...current,
     notes: event.notes,
     dictatedNote: event.dictatedNote,
@@ -351,9 +355,7 @@ function liveScreen() {
 function eventRow(event, displayMatch = match, readOnly = false) {
   const type = eventType(event.event);
   const label = isBlockedShot(event) ? "Shot · Blocked" : type.label;
-  const player = playersFor(displayMatch, event.team).find(
-    (item) => String(item.number) === String(event.playerNumber),
-  );
+  const player = resolveParticipant(displayMatch, event, "player");
   return `<${readOnly ? "div" : "button"} class="event-row" ${readOnly ? "" : `data-edit-event="${event.id}" aria-label="Edit ${esc(label)} at ${formatTime(event.timeMs)}"`}><span class="event-time">${formatTime(event.timeMs)}<small>H${event.half}</small></span><span class="timeline-dot ${event.team} ${isDefensiveBlockEvent(event) ? "defensive-block" : isBlockedShot(event) ? "blocked-shot" : ""}">${icon(isDefensiveBlockEvent(event) ? "block" : type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(label)} ${event.event === "substitution" ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team, displayMatch))}${player ? ` · ${esc(player.name)}` : ""}${isKickout(event) ? ` · ${esc(kickoutLabel(event))}${kickoutDetails(event).markPlayerNumber ? ` · Mark #${kickoutDetails(event).markPlayerNumber}` : ""}` : !type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}${(isBlockedShot(event) || isDefensiveBlockEvent(event)) && hasLocation(event) ? "<small>Pitch location recorded</small>" : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}${readOnly ? "" : `<span class="row-edit">${icon("edit")}</span>`}</${readOnly ? "div" : "button"}>`;
 }
 function timelineScreen(displayMatch = match, readOnly = false) {
@@ -487,7 +489,7 @@ function openEvent(event, editing = false) {
       Object.assign(updated, kickoutFormFields(data, updated));
     delete updated.kickoutResult;
     try {
-      match.events = saveEvent(match.events, updated);
+      match.events = saveMatchEvent(updated);
     } catch (error) {
       toast(error.message);
       return;
@@ -596,8 +598,12 @@ document.addEventListener("click", async (event) => {
       document.querySelector("#event-dialog"),
       match,
       squadTeam,
-      (players) => {
+      (players, squad) => {
         playerEditing = null;
+        if (squadTeam === "our") {
+          match.squadId = squad.id;
+          match.seasonId = squad.seasonId || null;
+        } else match.oppositionSquadId = squad.id;
         setPlayers(players);
         persist();
         render();
@@ -634,7 +640,7 @@ document.addEventListener("click", async (event) => {
         record,
         match,
         (updated) => {
-          match.events = saveEvent(match.events, updated);
+          match.events = saveMatchEvent(updated);
           persist();
         },
         () => render(),
@@ -741,7 +747,7 @@ document.addEventListener("click", async (event) => {
           match.events.at(-1),
           (updated) => {
             try {
-              match.events = saveEvent(match.events, updated);
+              match.events = saveMatchEvent(updated);
             } catch (error) {
               toast(error.message);
               return;
@@ -908,12 +914,15 @@ document.addEventListener("submit", (event) => {
       toast("Enter a player name.");
       return;
     }
-    const player = {
+    const player = createMatchPlayer({
+      ...(playerEditing
+        ? playersFor(match, squadTeam).find((p) => p.id === playerEditing)
+        : {}),
       ...data,
       name: data.name.trim(),
       number,
       id: playerEditing || uid(),
-    };
+    });
     setPlayers(
       playerEditing
         ? playersFor(match, squadTeam).map((item) =>
@@ -932,6 +941,17 @@ document.addEventListener("change", (event) => {
   if (!match) return;
   if (view === "history") {
     historyUI.change(event.target);
+    return;
+  }
+  if (event.target.id === "sideline-squad-file" && event.target.files[0]) {
+    const file = event.target.files[0];
+    event.target.value = "";
+    void openOfficialSquadImport(
+      document.querySelector("#event-dialog"),
+      file,
+      () =>
+        toast("Saved Squad created on this device. Load it from Saved squads."),
+    );
     return;
   }
   if (

@@ -1,80 +1,152 @@
 import { uid, validPlayer } from "./domain.js";
-const KEY = "sideline.squads.v1";
+import {
+  createMatchPlayer,
+  createSquadPlayer,
+  validPlayerId,
+} from "./identity.js";
+const KEY = "sideline.squads.v2",
+  LEGACY = "sideline.squads.v1";
+const baseValid = (data) =>
+  Array.isArray(data.squads) &&
+  data.squads.every(
+    (s) =>
+      typeof s.id === "string" &&
+      typeof s.name === "string" &&
+      Array.isArray(s.players) &&
+      s.players.every(validPlayer),
+  );
+function validateLibrary(squads) {
+  const squadIds = new Set();
+  for (const s of squads) {
+    if (squadIds.has(s.id)) throw Error("Duplicate saved squad ID");
+    squadIds.add(s.id);
+    const ids = new Set();
+    for (const p of s.players) {
+      if (
+        !validPlayerId(p.playerId) ||
+        p.id !== p.playerId ||
+        ids.has(p.playerId)
+      )
+        throw Error("Saved player identity needs recovery");
+      ids.add(p.playerId);
+    }
+  }
+}
 export function loadSquads() {
   try {
-    const data = JSON.parse(
-      localStorage.getItem(KEY) || '{"version":1,"squads":[]}',
-    );
-    if (
-      data.version !== 1 ||
-      !Array.isArray(data.squads) ||
-      !data.squads.every(
-        (squad) =>
-          typeof squad.id === "string" &&
-          typeof squad.name === "string" &&
-          Array.isArray(squad.players) &&
-          squad.players.every(validPlayer),
-      )
-    )
-      throw new Error();
-    return { squads: data.squads, error: "" };
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data.version !== 2 || !baseValid(data))
+        throw Error("Invalid library");
+      validateLibrary(data.squads);
+      return { squads: data.squads, error: "" };
+    }
+    const oldRaw = localStorage.getItem(LEGACY);
+    if (!oldRaw) return { squads: [], error: "" };
+    const old = JSON.parse(oldRaw);
+    if (old.version !== 1 || !baseValid(old))
+      throw Error("Invalid legacy library");
+    const counts = new Map();
+    for (const s of old.squads)
+      for (const p of s.players) counts.set(p.id, (counts.get(p.id) || 0) + 1);
+    const squads = old.squads.map((s) => ({
+      ...s,
+      clubId: null,
+      seasonId: null,
+      players: s.players.map((p) =>
+        createSquadPlayer({
+          ...p,
+          playerId: validPlayerId(p.id) && counts.get(p.id) === 1 ? p.id : null,
+        }),
+      ),
+    }));
+    validateLibrary(squads);
+    // Confirm durable v2 storage before exposing newly established identities.
+    // Original v1 bytes remain untouched for recovery/frozen-build compatibility.
+    localStorage.setItem(KEY, JSON.stringify({ version: 2, squads }));
+    return { squads, error: "" };
   } catch {
     return {
       squads: [],
       error:
-        "Saved squads could not be read. Existing squad storage has been preserved; reload after recovery before saving squads.",
+        "Saved squads could not be read or upgraded. Original squad storage has been preserved; seek recovery before saving squads.",
     };
   }
 }
 export function persistSquads(squads) {
-  // Never overwrite a corrupt library with an apparently empty one.
-  if (loadSquads().error) throw new Error(loadSquads().error);
-  localStorage.setItem(KEY, JSON.stringify({ version: 1, squads }));
+  const loaded = loadSquads();
+  if (loaded.error) throw Error(loaded.error);
+  if (!baseValid({ squads })) throw Error("Invalid saved squad");
+  validateLibrary(squads);
+  localStorage.setItem(KEY, JSON.stringify({ version: 2, squads }));
 }
 export function validatePlayers(players, existing = []) {
   const numbers = new Set(
-    existing
-      .filter((player) => Number.isInteger(player.number))
-      .map((player) => player.number),
-  );
-  if (!players.length) throw new Error("Add at least one player.");
-  return players.map((player, index) => {
+      existing.filter((p) => Number.isInteger(p.number)).map((p) => p.number),
+    ),
+    ids = new Set();
+  if (!players.length) throw Error("Add at least one player.");
+  return players.map((p, index) => {
     const number =
-      player.number === null || String(player.number ?? " ").trim() === ""
-        ? null
-        : Number(player.number);
-    const name = String(player.name || "").trim();
+        p.number === null || String(p.number ?? " ").trim() === ""
+          ? null
+          : Number(p.number),
+      name = String(p.name || "").trim();
     if (
       (number !== null &&
         (!Number.isInteger(number) || number < 1 || number > 99)) ||
       !name ||
       name.length > 80
     )
-      throw new Error(
+      throw Error(
         `Row ${index + 1}: enter a name and either a blank jersey or a number 1–99 (up to 80 characters).`,
       );
     if (number !== null && numbers.has(number))
-      throw new Error(
+      throw Error(
         `Duplicate jersey #${number}. Edit or remove the duplicate row before confirming.`,
       );
+    if (validPlayerId(p.playerId) && ids.has(p.playerId))
+      throw Error("The same permanent player is listed more than once.");
+    if (validPlayerId(p.playerId)) ids.add(p.playerId);
     if (number !== null) numbers.add(number);
     return {
-      id: uid(),
+      ...p,
       number,
       name,
-      role: ["starter", "substitute", "panel"].includes(player.role)
-        ? player.role
+      role: ["starter", "substitute", "panel"].includes(p.role)
+        ? p.role
         : "starter",
-      position: String(player.position || ""),
-      notes: String(player.notes || ""),
+      position: String(p.position || ""),
+      notes: String(p.notes || ""),
     };
   });
 }
-// Copies protect saved templates and match snapshots from sharing mutable objects.
-export function snapshotSquad(name, players, id = uid()) {
-  if (!name.trim()) throw new Error("Enter a squad name.");
-  return { id, name: name.trim(), players: validatePlayers(players) };
+export function snapshotSquad(name, players, id = uid(), metadata = {}) {
+  if (!name.trim()) throw Error("Enter a squad name.");
+  return {
+    id,
+    name: name.trim(),
+    clubId: metadata.clubId || null,
+    seasonId: metadata.seasonId || null,
+    ...Object.fromEntries(
+      ["clubName", "squadName", "seasonLabel", "code", "coach"]
+        .filter((key) => metadata[key] !== undefined)
+        .map((key) => [key, String(metadata[key])]),
+    ),
+    players: validatePlayers(players).map(createSquadPlayer),
+  };
 }
-export function loadSquadPlayers(squad) {
-  return validatePlayers(structuredClone(squad.players));
+export function loadSquadPlayers(squad, existing = []) {
+  return validatePlayers(structuredClone(squad.players)).map((p) => {
+    const old = validPlayerId(p.playerId)
+      ? existing.find((e) => e.playerId === p.playerId)
+      : null;
+    return createMatchPlayer({
+      ...p,
+      id: old?.id || uid(),
+      matchPlayerId: old?.matchPlayerId || old?.id || undefined,
+      sourceSquadId: squad.id,
+    });
+  });
 }

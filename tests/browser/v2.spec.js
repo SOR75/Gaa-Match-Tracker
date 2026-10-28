@@ -107,7 +107,10 @@ test("shots save immediately and optional enrichment retains normalized location
   await expect(page.locator("[data-map-count]")).toHaveText(
     "1 plotted / 2 attempts in this selection.",
   );
-  await page.getByLabel("Shot map player").selectOption("our:7");
+  const shooter = (await state(page)).players.find((p) => p.number === 7);
+  await page
+    .getByLabel("Shot map player")
+    .selectOption(`id:our:${shooter.matchPlayerId}`);
   await expect(page.locator(".shot-marker")).toHaveCount(1);
   await page.getByLabel("Shot map result").selectOption("miss");
   await expect(page.locator(".shot-marker")).toHaveCount(0);

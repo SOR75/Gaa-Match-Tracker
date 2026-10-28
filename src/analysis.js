@@ -1,3 +1,8 @@
+import {
+  identityPlayerStatistics,
+  hasIdentityAttribution,
+  matchesPlayerFilter,
+} from "./identity-analysis.js";
 import { isDefensiveBlock, defensiveBlockPlayer } from "./defensive-blocks.js";
 import { kickoutDetails } from "./kickouts.js";
 import { shotDetails, SHOT_SOURCES } from "./shots.js";
@@ -13,7 +18,7 @@ export function filterShots(
       isShot(event) &&
       (team === "all" || event.team === team) &&
       (half === "all" || event.half === Number(half)) &&
-      (player === "all" || `${event.team}:${event.playerNumber}` === player) &&
+      (player === "all" || matchesPlayerFilter(event, player)) &&
       (result === "all" ||
         (result === "score"
           ? event.outcome === "scored"
@@ -100,6 +105,8 @@ export function summarize(events, team) {
   };
 }
 export function playerStatistics(match, team) {
+  if (hasIdentityAttribution(match, team))
+    return identityPlayerStatistics(match, team, summarize);
   const squad = team === "our" ? match.players : match.oppositionPlayers;
   const numbers = new Set([
     ...squad

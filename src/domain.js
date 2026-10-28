@@ -1,3 +1,9 @@
+import { uid } from "./ids.js";
+import {
+  bindEventParticipants,
+  validEventIdentity,
+  validMatchPlayerIdentity,
+} from "./identity.js";
 import { kickoutDetails, isKickoutEvent } from "./kickouts.js";
 import { shotFields, shotAttempt } from "./shots.js";
 import { validSubstitution } from "./matchday.js";
@@ -58,17 +64,7 @@ export const EVENT_TYPES = [
   { id: "substitution", label: "Substitution", value: 0, outcome: "completed" },
 ];
 export const eventType = (id) => EVENT_TYPES.find((type) => type.id === id);
-export function uid() {
-  if (crypto.randomUUID) return crypto.randomUUID();
-  // getRandomValues is also available on a plain HTTP LAN development origin.
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  bytes[6] = (bytes[6] & 15) | 64;
-  bytes[8] = (bytes[8] & 63) | 128;
-  const hex = [...bytes]
-    .map((value) => value.toString(16).padStart(2, "0"))
-    .join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
+export { uid };
 export function blankMatch() {
   return {
     schemaVersion: 2,
@@ -84,6 +80,9 @@ export function blankMatch() {
     },
     players: [],
     oppositionPlayers: [],
+    squadId: null,
+    seasonId: null,
+    oppositionSquadId: null,
     events: [],
     clock: { half: 1, elapsedMs: 0, startedAt: null },
   };
@@ -133,6 +132,14 @@ export function createEvent(match, typeId, team, now = Date.now()) {
     timeMs: Math.floor(elapsedMs(match.clock, now) / 1000) * 1000,
     team: type.team || team,
     playerNumber: "",
+    identityVersion: 1,
+    participants: {
+      player: null,
+      markWinner: null,
+      blocker: null,
+      playerOn: null,
+      playerOff: null,
+    },
     ...(shotAttempt({ event: typeId })
       ? {
           shotOutcome: typeId,
@@ -174,15 +181,17 @@ export function normalizeEvent(event) {
     throw new Error("Choose different on/off jerseys, 1–99.");
   const shotX = event.shotX ?? null,
     shotY = event.shotY ?? null;
-  if (!(
-    (shotX === null && shotY === null) ||
-    (Number.isFinite(shotX) &&
-      shotX >= 0 &&
-      shotX <= 1 &&
-      Number.isFinite(shotY) &&
-      shotY >= 0 &&
-      shotY <= 1)
-  ))
+  if (
+    !(
+      (shotX === null && shotY === null) ||
+      (Number.isFinite(shotX) &&
+        shotX >= 0 &&
+        shotX <= 1 &&
+        Number.isFinite(shotY) &&
+        shotY >= 0 &&
+        shotY <= 1)
+    )
+  )
     throw new Error("Shot coordinates must both be within 0–1 or both empty.");
   return {
     ...event,
@@ -202,8 +211,14 @@ export function normalizeEvent(event) {
     scoreValue: event.outcome === "scored" ? type.value : 0,
   };
 }
-export function saveEvent(events, event) {
-  const normalized = normalizeEvent(event);
+export function saveEvent(events, event, match = null) {
+  const normalized = bindEventParticipants(
+    normalizeEvent(event),
+    events.find((e) => e.id === event.id),
+    match,
+  );
+  if (!validEventIdentity(normalized))
+    throw new Error("Invalid event player reference");
   const updated = events.some((item) => item.id === event.id)
     ? events.map((item) => (item.id === event.id ? normalized : item))
     : [...events, normalized];
@@ -252,6 +267,7 @@ export function validMatch(value) {
     value.events.every(
       (event) =>
         typeof event.id === "string" &&
+        validEventIdentity(event) &&
         eventType(event.event) &&
         ["our", "opposition"].includes(event.team) &&
         [1, 2].includes(event.half) &&
@@ -282,6 +298,7 @@ export function validPlayer(player) {
   return (
     player &&
     typeof player.id === "string" &&
+    validMatchPlayerIdentity(player) &&
     typeof player.name === "string" &&
     (player.number === null ||
       (Number.isInteger(player.number) &&
@@ -307,6 +324,9 @@ export function migrateMatch(value) {
     ...structuredClone(value),
     schemaVersion: 2,
     oppositionPlayers: [],
+    squadId: null,
+    seasonId: null,
+    oppositionSquadId: null,
     events: value.events.map((event) => ({
       ...event,
       shotX: null,

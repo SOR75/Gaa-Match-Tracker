@@ -1,3 +1,4 @@
+import { createMatchPlayer } from "../src/identity.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -166,7 +167,7 @@ test("multiple blank jerseys and unselected panel survive storage validation, li
     { name: "Numbered Starter", number: 8, role: "starter" },
   ]);
   const match = blankMatch();
-  match.players = players;
+  match.players = players.map(createMatchPlayer);
   match.events = [createEvent(match, "goal", "our")];
   assert.equal(validMatch(match), true);
   assert.deepEqual([...onFieldNumbers(match, "our")], ["8"]);

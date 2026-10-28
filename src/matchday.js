@@ -1,3 +1,4 @@
+import { participantRef, resolveParticipant } from "./identity.js";
 const playersFor = (match, team) =>
   team === "our" ? match.players : match.oppositionPlayers;
 export function createTapGuard(delay = 650) {
@@ -35,8 +36,16 @@ export function onFieldNumbers(match, team) {
     .slice()
     .sort((a, b) => a.half - b.half || a.timeMs - b.timeMs)
     .forEach((event) => {
-      active.delete(String(Number(event.playerOff)));
-      active.add(String(Number(event.playerOn)));
+      for (const role of ["playerOff", "playerOn"]) {
+        const ref = participantRef(event, role),
+          player = ref ? resolveParticipant(match, event, role) : null;
+        if (ref && !player?.found) continue;
+        const number = ref ? player.number : event[role];
+        if (number !== null && number !== "")
+          active[role === "playerOff" ? "delete" : "add"](
+            String(Number(number)),
+          );
+      }
     });
   return active;
 }

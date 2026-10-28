@@ -84,7 +84,7 @@ export function analysisScreen(
       .join("");
   const players = teams.flatMap((team) =>
     playerStatistics(match, team).map((player) => [
-      `${team}:${player.number}`,
+      player.filterKey || `${team}:${player.number}`,
       `${name(team)} #${player.number} · ${player.name}`,
     ]),
   );
