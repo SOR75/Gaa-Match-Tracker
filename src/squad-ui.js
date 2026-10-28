@@ -1,3 +1,4 @@
+import { showFormationReview } from "./formation-review.js";
 import { esc } from "./ui.js";
 import { playersFor } from "./domain.js";
 import {
@@ -231,6 +232,17 @@ function showReview(
   onConfirmed,
   { filename = "", objectUrl = "" } = {},
 ) {
+  if (result.formationReview) {
+    rowBindings.get(dialog)?.();
+    rowBindings.delete(dialog);
+    return showFormationReview(
+      dialog,
+      result.formationReview,
+      existing,
+      onConfirmed,
+      { filename, objectUrl },
+    );
+  }
   dialog.innerHTML = `<form><div class="dialog-heading"><h2 id="event-dialog-title">Review & confirm</h2>${closeButton}</div><p class="small-note">${esc(filename)}</p><p class="inline-notice">${esc(result.message)}${!result.players.length ? " No usable player rows extracted. Try a clearer/cropped image or paste text; manual entry below is a fallback." : ""}</p>${objectUrl ? `<img class="sheet-preview" src="${objectUrl}" alt="Source team sheet for verification">` : ""}${reviewTable(result.players.length ? result.players : [{ number: "", name: "", position: "", role: "starter", confidence: "Manual fallback — nothing extracted" }])}<p class="warning" data-squad-error hidden></p><div class="dialog-actions"><button type="button" class="button subtle" data-close-squad>Cancel import</button><button type="submit" class="button primary">Confirm & add to squad</button></div><p class="small-note">Verify every row. Blank jerseys are preserved, never generated. Panel = registered, not selected. Duplicate numbered jerseys must be corrected or removed.</p></form>`;
   const read = bindRows(dialog, result.players);
   dialog

@@ -1,0 +1,36 @@
+#event-dialog:has(.formation-review) { width:min(1080px,calc(100% - 24px)); padding:18px; }
+.formation-review .dialog-heading h2 { font-size:22px; }
+.formation-instruction { margin:0 0 10px; font-size:13px; }
+.formation-body { max-height:calc(100dvh - 225px); overflow:auto; overscroll-behavior:contain; padding:2px; }
+.formation-slots { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
+.formation-slot { display:flex; align-items:flex-start; gap:9px; border:1px solid #d8e0ce; border-radius:9px; padding:10px; background:#fffefa; }
+.formation-slot.assigned { background:#f0f5e6; border-color:#a9c389; }
+.formation-number { background:#174d39; color:#fff; font-size:20px; font-weight:800; width:36px; height:36px; display:grid; place-items:center; border-radius:7px; flex-shrink:0; }
+.formation-slot-main { display:grid; gap:4px; min-width:0; width:100%; }
+.formation-slot-main > strong { font-size:12px; }
+.formation-slot-main small { font-size:10px; color:#5c6755; }
+.formation-assignment { text-align:left; min-height:44px; font-size:14px; font-weight:700; border:0; border-radius:6px; background:#e5edd6; color:#174d39; padding:8px; overflow-wrap:anywhere; cursor:pointer; }
+.formation-suggestions { display:grid; gap:4px; }
+.formation-suggestions .button { min-height:44px; font-size:12px; padding:6px; }
+.formation-picker { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin:8px 0 15px; }
+.formation-player-choice { border:1px solid #dce3d1; border-radius:8px; padding:5px; }
+.formation-player-choice > .button { display:grid; text-align:left; gap:5px; min-height:60px; width:100%; padding:10px; white-space:normal; }
+.formation-player-choice small { font-size:10px; }
+.formation-player-choice .button:disabled { opacity:.5; cursor:not-allowed; }
+.formation-edit-name { border:0; background:none; color:#42643b; text-decoration:underline; font-size:11px; min-height:36px; cursor:pointer; }
+.formation-review-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; padding-top:10px; border-top:1px solid #dce3d1; }
+.formation-review-actions .button { min-height:48px; }
+.formation-review-actions span { font-size:11px; color:#526349; }
+.formation-substitutes { margin:12px 0; font-size:12px; }
+.formation-substitutes ul { columns:3; padding-left:18px; }
+@media(max-width:650px) { .formation-slots,.formation-picker { grid-template-columns:1fr; } .formation-review-actions { flex-wrap:wrap; } .formation-review-actions span { flex-basis:100%; order:3; } .formation-substitutes ul { columns:1; } }
+.formation-suggestions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media (min-width:900px) {
+  .formation-slots { grid-template-columns:repeat(5,minmax(0,1fr)); gap:7px; }
+  .formation-slot { padding:8px; gap:6px; }
+  .formation-number { width:30px; height:30px; font-size:18px; }
+  .formation-slot-main > strong { font-size:11px; }
+  .formation-assignment { font-size:12px; padding:6px; }
+  .formation-suggestions .button { font-size:10px; padding:4px; }
+}
+@media (min-width:900px) { .formation-suggestions .button { font-size:11px; white-space:normal; } }

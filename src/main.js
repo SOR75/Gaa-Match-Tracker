@@ -1,3 +1,4 @@
+import "./voice-roadmap.css";
 import { fullTimeScreen } from "./full-time-ui.js";
 import { halfTimeScreen } from "./half-time-ui.js";
 import { attributionRoster } from "./player-credit.js";
@@ -44,7 +45,6 @@ import {
   onFieldNumbers,
   attackingDirection,
 } from "./matchday.js";
-import { createVoiceMatch } from "./voice-match.js";
 import { openSubstitution } from "./substitution.js";
 
 const icons = {
@@ -107,7 +107,6 @@ const setPlayers = (players) => {
 let toastTimer;
 let timelineTeam = "all";
 let timelineKind = "all";
-let voiceMode = false;
 let offlineStatus = import.meta.env.PROD
   ? "Offline cache not yet verified"
   : "Development mode — use production build for offline";
@@ -170,11 +169,6 @@ function saveEventNote(event) {
   });
   persist();
 }
-const voice = createVoiceMatch({
-  getMatch: () => match,
-  getTeam: () => selectedTeam,
-  onSave: recordEvent,
-});
 const ready = () => match.setup.ourTeam.trim() && match.setup.opposition.trim();
 const teamName = (team) =>
   team === "our"
@@ -214,7 +208,6 @@ function toast(message) {
   toastTimer = setTimeout(() => node.classList.remove("visible"), 3500);
 }
 function render() {
-  voice.dispose();
   app.dataset.view = view;
   if (!match) {
     app.innerHTML = `<main class="recovery"><div class="brand-mark">${icon("pitch")}</div><h1>Saved match needs recovery</h1><p class="warning">${esc(storageError)}</p><p>No saved data has been overwritten.</p></main>`;
@@ -243,8 +236,6 @@ function render() {
   `;
   refreshSaveStatus();
   updateClock();
-  if (view === "live" && voiceMode)
-    voice.mount(document.querySelector("#voice-match-panel"));
 }
 function heading(kicker, title, description, action = "") {
   return `<div class="page-heading"><div><p class="eyebrow">${kicker}</p><h1>${title}</h1><p class="page-description">${description}</p></div>${action}</div>`;
@@ -303,9 +294,8 @@ function liveTeamControls() {
 function liveScreen() {
   return `${heading("FROM THE SIDELINE", "Every moment counts.", "Tap an event. Keep your eyes on the game.", `<span class="match-status"><span class="local-dot"></span>${match.clock.startedAt === null ? "MATCH WORKSPACE" : "LIVE TRACKING"}</span>`)}
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
-    <div class="matchday-toolbar"><span class="build-tag">V0.3.7-dev</span><button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>${match.clock.half === 2 ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone" data-action="voice-mode" aria-pressed="${voiceMode}">${icon("mic")} Voice Match Mode ${voiceMode ? "ON" : "OFF"}</button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
+    <div class="matchday-toolbar"><span class="build-tag">V0.3.7-dev</span><button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>${match.clock.half === 2 ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone voice-roadmap-button" data-action="voice-mode" aria-label="Voice Match Mode — Coming soon">${icon("mic")}<span>Voice Match Mode<small class="voice-roadmap-label">COMING SOON</small></span></button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
     ${scoreboard()}
-    ${voiceMode ? '<section class="card voice-match-panel" id="voice-match-panel"></section>' : ""}
     <section class="event-controls recording-${selectedTeam}">${liveTeamControls()}<div class="controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div></div>
     <div class="scoring-grid">${EVENT_TYPES.slice(0, 4)
       .map(
@@ -671,8 +661,8 @@ document.addEventListener("click", (event) => {
   }
   switch (button.dataset.action) {
     case "voice-mode":
-      voiceMode = !voiceMode;
-      render();
+      // V0.3.7 roadmap only. Experimental voice-match.js stays unimported.
+      toast("Voice Match Mode — Coming in a future Sideline update.");
       break;
     case "enrich-shot": {
       const last = match.events.at(-1);
@@ -697,8 +687,6 @@ document.addEventListener("click", (event) => {
       selectedTeam = "our";
       squadTeam = "our";
       playerEditing = null;
-      voice.reset();
-      voiceMode = false;
       view = "setup";
       render();
       break;
@@ -933,7 +921,6 @@ window.addEventListener("hashchange", () => {
 window.addEventListener("storage", (event) => {
   if (event.key === "sideline.match.v1") {
     // Avoid silently replacing an active tab's match or allowing stale overwrites.
-    voice.reset();
     document.querySelector("#event-dialog")?.close();
     app.innerHTML =
       '<main class="recovery"><h1>Match updated in another tab</h1><p>Use one tab to track this match. Reload this tab to use the latest saved version.</p><button class="button primary" onclick="location.reload()">Reload saved match</button></main>';

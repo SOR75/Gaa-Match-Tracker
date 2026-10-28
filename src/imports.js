@@ -195,12 +195,20 @@ export async function extractCandidates(file, options = {}) {
         players:
           result.players ??
           parseSpatialPlayers(result.words, { ...options, ocr: true }),
+        ...(result.diagnostics?.layout === "reference-roster-with-formation"
+          ? {
+              formationReview: {
+                roster: result.diagnostics.roster,
+                formation: result.diagnostics.formation,
+              },
+            }
+          : {}),
         message:
           result.diagnostics?.layout === "number-anchored-player-list"
             ? `${result.diagnostics.evidence === "ocr-number" ? "On-device printed-text OCR completed. " : ""}Numbered team sheet: ${result.players.length} spatial number/name rows located. Local OCR is not reliable for uncertain handwritten names and jerseys. Review name and Review jersey fields against the photograph; blank fields are intentional, not guessed. Unnumbered extended-panel text is not included. Nothing is added before confirmation.`
             : result.diagnostics?.layout === "reference-roster-with-formation"
-            ? `Printed reference roster and bottom formation detected separately. ${result.players.filter((p) => p.role === "starter").length} formation slots; ${result.players.filter((p) => p.role === "starter" && !p.name).length} names unresolved. Handwriting matches are provisional: review against the original. Remaining roster entries are panel candidates with blank jerseys, not confirmed substitutes. Complete or remove blank-name rows before confirming.`
-            : "On-device printed-text OCR completed. Review every candidate: handwriting and flattened Starting checkboxes are not reliably recognised; uncertain jerseys stay blank. Formation positions are provisional and require verification.",
+              ? `Printed reference roster and bottom formation detected separately. ${result.players.filter((p) => p.role === "starter").length} formation slots; ${result.players.filter((p) => p.role === "starter" && !p.name).length} names unresolved. Handwriting matches are provisional: review against the original. Remaining roster entries are panel candidates with blank jerseys, not confirmed substitutes. Complete or remove blank-name rows before confirming.`
+              : "On-device printed-text OCR completed. Review every candidate: handwriting and flattened Starting checkboxes are not reliably recognised; uncertain jerseys stay blank. Formation positions are provisional and require verification.",
       };
     } finally {
       canvas.width = canvas.height = 0;

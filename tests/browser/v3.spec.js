@@ -96,54 +96,32 @@ test("lineup toggles retain squad; manual substitutions store on/off/time and ed
   ).toContainText("Starter");
 });
 
-test("voice proposes but never silently scores; uncertain/multiple events are rejected and substitutions confirm", async ({
+test("voice roadmap cannot create proposed scores or substitutions; tap capture stays available", async ({
   page,
 }) => {
   await page.addInitScript(() => {
+    window.voiceConstructed = 0;
     window.SpeechRecognition = class {
-      start() {
-        this.onresult({
-          resultIndex: 0,
-          results: [
-            Object.assign([{ transcript: "Goal number eleven" }], {
-              isFinal: true,
-            }),
-          ],
-        });
+      constructor() {
+        window.voiceConstructed++;
+        throw Error("Voice Match Mode must be inert");
       }
-      abort() {}
     };
   });
   await setup(page);
   await nav(page, "Live match");
+  const before = await state(page);
   await page.locator("[data-action=voice-mode]").click();
-  await nav(page, "Start voice capture");
-  await expect(page.locator(".voice-preview")).toContainText("Goal");
-  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
-    "(0)",
+  await expect(page.locator("#toast")).toContainText(
+    "Coming in a future Sideline update",
   );
-  await nav(page, "Confirm & record event");
-  expect((await state(page)).events).toHaveLength(1);
-  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
-    "(3)",
-  );
-  await page.getByText("Type / review commentary", { exact: true }).click();
-  await page.getByLabel("Commentary", { exact: true }).fill("maybe a point");
-  await nav(page, "Interpret text");
-  await expect(page.locator("[data-vm-confirm]")).toHaveCount(0);
-  expect((await state(page)).events).toHaveLength(1);
-  await page.getByLabel("Commentary", { exact: true }).fill("22 for 6");
-  await nav(page, "Interpret text");
-  await nav(page, "Confirm & record event");
-  expect((await state(page)).events[1]).toMatchObject({
-    event: "substitution",
-    playerOn: "22",
-    playerOff: "6",
-  });
+  expect(await page.evaluate(() => window.voiceConstructed)).toBe(0);
+  expect(await state(page)).toEqual(before);
+  await expect(
+    page.locator("[data-vm-confirm], [data-vm-listen], #voice-match-panel"),
+  ).toHaveCount(0);
   await nav(page, "Point +1 point");
-  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
-    "(4)",
-  );
+  expect((await state(page)).events).toHaveLength(1);
 });
 
 test("first-half direction and half/team reversals transform display without mutating normalized locations", async ({
@@ -219,7 +197,7 @@ test("dictated notes autosave to the event being edited even if editor is closed
   );
 });
 
-test("offline tap mode survives speech network failure and new blank match preserves old snapshot", async ({
+test("offline tap mode survives roadmap taps and new blank match preserves old snapshot", async ({
   page,
   context,
 }) => {
@@ -239,10 +217,10 @@ test("offline tap mode survives speech network failure and new blank match prese
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   await context.setOffline(true);
   await page.locator("[data-action=voice-mode]").click();
-  await nav(page, "Start voice capture");
-  await expect(page.locator("#voice-match-panel")).toContainText(
-    "Voice capture failed (network)",
+  await expect(page.locator("#toast")).toContainText(
+    "Coming in a future Sideline update",
   );
+  await expect(page.locator("#voice-match-panel")).toHaveCount(0);
   await nav(page, "2 Point +2 points");
   await page.reload();
   await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
@@ -268,38 +246,25 @@ test("offline tap mode survives speech network failure and new blank match prese
   ).toBe(1);
 });
 
-test("low-confidence speech requires transcript review and new capture clears previous unconfirmed proposals", async ({
+test("voice roadmap remains visible and keyboard-operable without speech support", async ({
   page,
 }) => {
   await page.addInitScript(() => {
-    window.SpeechRecognition = class {
-      start() {
-        this.onresult({
-          resultIndex: 0,
-          results: [
-            Object.assign([{ transcript: "Goal number 11", confidence: 0.2 }], {
-              isFinal: true,
-            }),
-          ],
-        });
-      }
-      abort() {}
-    };
+    delete window.SpeechRecognition;
+    delete window.webkitSpeechRecognition;
   });
   await setup(page);
   await nav(page, "Live match");
-  await page.locator("[data-action=voice-mode]").click();
-  await nav(page, "Start voice capture");
-  await expect(page.locator("#voice-match-panel")).toContainText(
-    "Low recognition confidence",
+  const before = await state(page);
+  const button = page.locator("[data-action=voice-mode]");
+  await expect(button).toContainText("COMING SOON");
+  await expect(button).toBeEnabled();
+  await button.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#toast")).toContainText(
+    "Coming in a future Sideline update",
   );
-  await expect(page.locator("[data-vm-confirm]")).toHaveCount(0);
-  await expect(page.locator(".score-team.our .score-calculated")).toHaveText(
-    "(0)",
-  );
-  await nav(page, "Interpret text");
-  await expect(page.locator("[data-vm-confirm]")).toHaveCount(1);
-  await nav(page, "Start voice capture");
+  expect(await state(page)).toEqual(before);
   await expect(page.locator("[data-vm-confirm]")).toHaveCount(0);
   await nav(page, "Point +1 point");
   expect((await state(page)).events).toHaveLength(1);

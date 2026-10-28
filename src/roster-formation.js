@@ -144,6 +144,16 @@ function distance(a, b) {
   }
   return prev[b.length];
 }
+function adjacentSwap(a, b) {
+  if (a.length !== b.length) return false;
+  const changed = [...a].flatMap((c, i) => (c === b[i] ? [] : [i]));
+  return (
+    changed.length === 2 &&
+    changed[1] === changed[0] + 1 &&
+    a[changed[0]] === b[changed[1]] &&
+    a[changed[1]] === b[changed[0]]
+  );
+}
 // Matching is constrained to names actually read on THIS sheet. No dictionary,
 // positional names, expected surnames or visual-test answers enter production.
 export function associateRosterClue(reads, roster) {
@@ -158,18 +168,27 @@ export function associateRosterClue(reads, roster) {
       // longer first name sharing a distinctive prefix must not be hidden by
       // a shorter exact candidate. Matching uses this photograph's roster only.
       const matches = roster.flatMap((r) => {
-        const parts = r.name.split(/\s+/).slice(0, -1).map(letters);
+        const parts = r.name.split(/\s+/).map(letters);
         const exact = parts.includes(token);
         const first = parts[0] || "";
-        const fuzzy =
-          Math.min(first.length, token.length) >= 4 &&
-          Math.max(first.length, token.length) >= 5 &&
-          distance(token, first) === 1;
-        const boundedFragment =
-          token.length >= 4 &&
-          token.length < first.length &&
-          token.length / first.length >= 0.65 &&
-          (first.startsWith(token) || first.endsWith(token));
+        const fuzzy = parts.some(
+          (part) =>
+            Math.min(part.length, token.length) >= 4 &&
+            Math.max(part.length, token.length) >= 5 &&
+            (distance(token, part) === 1 || adjacentSwap(token, part)),
+        );
+        const joinedInitial =
+          parts.length >= 3 &&
+          parts
+            .slice(1, -1)
+            .some((part) => part.length >= 3 && token === parts[0][0] + part);
+        const boundedFragment = parts.some(
+          (part) =>
+            token.length >= 4 &&
+            token.length < part.length &&
+            token.length / part.length >= 0.65 &&
+            (part.startsWith(token) || part.endsWith(token)),
+        );
         // Joined cursive can lose vowels. A short clue is useful only when
         // its boundary letters and >=2 consonants survive in order, and the
         // only missing characters are vowels or joined repeated letters. This still requires the strict
@@ -191,15 +210,16 @@ export function associateRosterClue(reads, roster) {
           missing.length <= 2 &&
           missing.every((c) => /[aeiou]/.test(c));
         const partial = boundedFragment || vowelOmission;
-        const kind = exact
-          ? "exact"
-          : fuzzy
-            ? "fuzzy"
-            : partial
-              ? token.length < 4
-                ? "fragment"
-                : "partial"
-              : "";
+        const kind =
+          exact || joinedInitial
+            ? "exact"
+            : fuzzy
+              ? "fuzzy"
+              : partial
+                ? token.length < 4
+                  ? "fragment"
+                  : "partial"
+                : "";
         return kind ? [{ player: r, kind }] : [];
       });
       const score =
@@ -213,10 +233,33 @@ export function associateRosterClue(reads, roster) {
           possible: matches.map((m) => m.player),
           kind: matches[0].kind,
           score,
+          readIndex: reads.indexOf(read),
         });
     }
   }
-  const candidates = [...new Set(evidence.flatMap((e) => e.possible))];
+  let candidates = [...new Set(evidence.flatMap((e) => e.possible))];
+  // Two independently strong words on the same spatial line can disambiguate
+  // a shared first name/surname. Conflicting strong reads never get outvoted.
+  const joint = [];
+  for (let i = 0; i < reads.length; i++) {
+    const strong = evidence.filter(
+      (e) => e.readIndex === i && e.score >= 75 && e.kind === "exact",
+    );
+    if (new Set(strong.map((e) => e.token)).size < 2) continue;
+    const intersection = strong[0].possible.filter((p) =>
+      strong.every((e) => e.possible.includes(p)),
+    );
+    if (intersection.length === 1) joint.push(intersection[0]);
+  }
+  if (new Set(joint).size === 1) {
+    const chosen = joint[0];
+    if (
+      evidence
+        .filter((e) => e.score >= 75)
+        .every((e) => e.possible.includes(chosen))
+    )
+      candidates = [chosen];
+  }
   if (
     candidates.length === 1 &&
     evidence.some(
@@ -260,17 +303,43 @@ export function associateRosterClue(reads, roster) {
 }
 export function referencePlayers(roster, formation) {
   const used = new Set();
+  const associations = formation.map(({ reads }) =>
+    associateRosterClue(reads, roster),
+  );
   const players = formation.map(({ number, reads }, i) => {
-    const result = associateRosterClue(reads, roster);
+    let result = associations[i];
+    if (
+      result.matched &&
+      associations.filter((r) => r.matched === result.matched).length > 1
+    ) {
+      result = {
+        name: "",
+        warning: `One printed player (${result.matched.name}) matches multiple formation positions; verify the assignment`,
+        evidence: result.evidence,
+      };
+    }
     if (result.matched) used.add(result.matched);
+    const clue =
+      reads
+        .map((r) =>
+          r.words
+            .filter((w) => w.confidence >= 50 && letters(w.text).length >= 3)
+            .map((w) => w.text)
+            .join(" "),
+        )
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length)[0] || "";
+    const warning = `${result.name ? "Printed reference: " + result.name : "Review name"} · ${result.warning}${clue ? " · Formation clue: " + clue : ""}`;
     const row = candidate(
       number,
       result.name,
       "starter",
-      POSITIONS[i],
-      `Review required · ${result.warning}${!number ? " · jersey unreadable; left blank" : ""} · formation position suggestion; editable`,
+      /^[1-9]$|^1[0-5]$/.test(String(number))
+        ? POSITIONS[Number(number) - 1]
+        : "",
+      `Review required · ${warning}${!number ? " · jersey unreadable; left blank" : ""} · formation position suggestion; editable`,
     );
-    row.notes = result.warning;
+    row.notes = warning;
     return row;
   });
   for (const r of roster.filter((r) => !used.has(r)))

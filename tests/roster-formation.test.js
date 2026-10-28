@@ -74,7 +74,7 @@ test("bottom formation determines starters; unused roster is panel with no inven
   assert.equal(result[8].name, "");
   assert.deepEqual(
     result.slice(0, 15).map((r) => r.position),
-    POSITIONS,
+    POSITIONS.map((p, i) => (i === 5 ? "" : p)),
   );
   const panel = result.filter((r) => r.role === "panel");
   assert.equal(panel.length, 5);
@@ -163,4 +163,107 @@ test("short vowel/joined-letter fragments expose alternatives but cannot automat
     associateRosterClue([read("Nla", 99), read("Nla", 99)], pool.slice(1)).name,
     "",
   );
+});
+
+test("unique exact surname expands to the full printed name; shared surname stays ambiguous", () => {
+  const pool = [
+    { name: "Nora Blackwell", score: 96 },
+    { name: "Orla Byrne", score: 96 },
+    { name: "Ciara Byrne", score: 96 },
+  ];
+  assert.equal(
+    associateRosterClue([read("Blackwell")], pool).name,
+    "Nora Blackwell",
+  );
+  const ambiguous = associateRosterClue([read("Byrne")], pool);
+  assert.equal(ambiguous.name, "");
+  assert.match(ambiguous.warning, /Orla Byrne.*Ciara Byrne/);
+});
+test("a strong first name plus surname disambiguates only when both belong to one printed player", () => {
+  const result = associateRosterClue([read("Ciara Moore")], roster);
+  assert.equal(result.name, "Ciara Moore");
+  assert.equal(associateRosterClue([read("Ciara Orla")], roster).name, "");
+  assert.equal(
+    associateRosterClue([read("Ciara Moore"), read("Ciara Smith")], roster)
+      .name,
+    "",
+  );
+});
+test("one adjacent OCR letter transposition resolves only against a unique printed name at existing confidence", () => {
+  const pool = [
+    { name: "Marie Cronin", score: 96 },
+    { name: "Eabha Mai Tierney", score: 96 },
+  ];
+  assert.equal(
+    associateRosterClue([read("Maire", 85)], pool).name,
+    "Marie Cronin",
+  );
+  assert.equal(associateRosterClue([read("Maire", 40)], pool).name, "");
+  assert.equal(associateRosterClue([read("Maire", 85)], []).name, "");
+  assert.equal(
+    associateRosterClue([read("E Mai", 95)], pool).name,
+    "Eabha Mai Tierney",
+  );
+  assert.equal(
+    associateRosterClue([read("EMai", 95)], pool).name,
+    "Eabha Mai Tierney",
+  );
+});
+test("formation number, not printed-list index or array order, determines position; missing anchor stays blank", () => {
+  const result = referencePlayers(roster, [
+    { number: "6", reads: [read("Orla")] },
+    { number: "", reads: [read("")] },
+  ]);
+  assert.equal(result[0].number, "6");
+  assert.equal(result[0].position, "Centre Half Back");
+  assert.equal(result[0].name, "Orla Byrne");
+  assert.match(result[0].notes, /Printed reference: Orla Byrne/);
+  assert.equal(result[1].number, "");
+  assert.equal(result[1].position, "");
+  assert.match(result[1].confidence, /Review name/);
+  assert.ok(
+    result.filter((r) => r.role === "panel").every((r) => r.number === ""),
+  );
+});
+test("one printed player cannot be automatically assigned to two starting positions", () => {
+  const result = referencePlayers(roster, [
+    { number: "1", reads: [read("Orla")] },
+    { number: "2", reads: [read("Orla")] },
+  ]);
+  assert.equal(result[0].name, "");
+  assert.equal(result[1].name, "");
+  assert.match(result[0].confidence, /multiple formation positions/);
+  assert.ok(result.some((r) => r.role === "panel" && r.name === "Orla Byrne"));
+});
+test("an unmatched reliable clue is preserved for correction without inventing a full roster name", () => {
+  const result = referencePlayers(roster, [
+    { number: "4", reads: [read("UnknownSurname")] },
+  ]);
+  assert.equal(result[0].name, "");
+  assert.equal(result[0].number, "4");
+  assert.equal(result[0].role, "starter");
+  assert.match(result[0].notes, /Formation clue: UnknownSurname/);
+  assert.match(result[0].confidence, /Review name/);
+});
+
+test("distinctive surname fragments keep existing strict partial-match thresholds and ignore printed list indices", () => {
+  const pool = [
+    { name: "Nora Blackwell", score: 96, number: 42 },
+    { name: "Orla Byrne", score: 96, number: 3 },
+  ];
+  assert.equal(
+    associateRosterClue([read("Blackw", 95)], pool).name,
+    "Nora Blackwell",
+  );
+  assert.equal(
+    associateRosterClue([read("Blackw", 70), read("Blackw", 70)], pool).name,
+    "",
+  );
+  const rows = referencePlayers(pool, [
+    { number: "8", reads: [read("Blackwell", 95)] },
+  ]);
+  assert.equal(rows[0].number, "8");
+  assert.equal(rows[0].name, "Nora Blackwell");
+  assert.equal(rows[0].position, "Midfield");
+  assert.equal(rows.find((r) => r.name === "Orla Byrne").number, "");
 });
