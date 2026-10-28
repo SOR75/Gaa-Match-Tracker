@@ -17,7 +17,17 @@ function table(headers, rows, caption = "") {
 }
 const section = (title, body, extra = "") =>
   `<section class="card analysis-section ${extra}"><h2>${title}</h2>${body}</section>`;
-export function analysisScreen(match, filters = {}, report = false) {
+export function analysisScreen(
+  match,
+  filters = {},
+  report = false,
+  scopeHalf = null,
+) {
+  if (scopeHalf !== null)
+    match = {
+      ...match,
+      events: match.events.filter((e) => e.half === scopeHalf),
+    };
   const name = (team) =>
     team === "our"
       ? match.setup.ourTeam || "Our team"
@@ -82,7 +92,7 @@ export function analysisScreen(match, filters = {}, report = false) {
   const observations = match.events.filter(
     (event) => event.dictatedNote || event.coachObservation || event.notes,
   );
-  return `<div class="analysis-view ${report ? "report-view" : ""}"><div class="page-heading"><div><p class="eyebrow">05 — MATCH ANALYSIS</p><h1>${report ? "Match report" : "The game, in perspective."}</h1><p class="page-description">${report ? "A printable snapshot of the recorded match." : "Calculated from your event log. Corrections and undo update every figure."}</p></div><div class="report-actions">${report ? '<button class="button subtle" data-action="analysis-back">Back to analysis</button><button class="button primary" data-action="print-report">Print / Save as PDF</button>' : '<button class="button primary" data-action="match-report">Match Report</button>'}</div></div>
+  return `<div class="analysis-view ${report ? "report-view" : ""}">${scopeHalf !== null ? `<div class="inline-notice"><strong>FIRST HALF ONLY</strong> · All statistics below use H1 events. <button class="button subtle" data-view="halftime">Back to Half-Time Analysis</button></div>` : ""}<div class="page-heading"><div><p class="eyebrow">05 — MATCH ANALYSIS</p><h1>${report ? "Match report" : "The game, in perspective."}</h1><p class="page-description">${report ? "A printable snapshot of the recorded match." : "Calculated from your event log. Corrections and undo update every figure."}</p></div><div class="report-actions">${report ? '<button class="button subtle" data-action="analysis-back">Back to analysis</button><button class="button primary" data-action="print-report">Print / Save as PDF</button>' : '<button class="button primary" data-action="match-report">Match Report</button>'}</div></div>
   ${
     report
       ? section(

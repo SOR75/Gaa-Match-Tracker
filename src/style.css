@@ -3751,3 +3751,69 @@ dialog::backdrop {
     line-height: 1.4;
   }
 }
+
+/* V0.3.7: first-half coaching summary; existing Live Match styles stay unchanged. */
+#app[data-view="halftime"] .sidebar { display:none; }
+#app[data-view="halftime"] .main-shell { margin-left:0; }
+#app[data-view="halftime"] .topbar { height:56px; }
+#app[data-view="halftime"] #main { padding:16px 24px 24px; }
+#app[data-view="halftime"] .actionbar { left:0; }
+.half-time-view { max-width:1450px; margin:auto; }
+.ht-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px; }
+.ht-heading h1 { font-size:28px; margin:4px 0; }
+.ht-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.ht-actions .button { min-height:48px; }
+.ht-score { background:#123f32; color:#fffdf3; border-radius:14px; display:grid; grid-template-columns:1fr auto 1fr; gap:20px; align-items:center; padding:20px; text-align:center; }
+.ht-score > div { display:grid; gap:5px; min-width:0; }
+.ht-score span { font-weight:700; font-size:20px; overflow-wrap:anywhere; }
+.ht-score strong { font-size:32px; }
+.ht-score .ht-margin { border-inline:1px solid #ffffff50; padding:0 22px; }
+.ht-score small { font-size:11px; letter-spacing:1.5px; }
+.ht-kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:14px; }
+.ht-kpi { background:#fffdf6; border:1px solid #d9dfd2; border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:5px; }
+.ht-kpi h2 { font-size:12px; letter-spacing:1px; margin:0 0 6px; }
+.ht-kpi > strong { font-size:30px; color:#123f32; line-height:1.15; }
+.ht-kpi > b { font-size:16px; }
+.ht-kpi p { font-size:12px; line-height:1.5; margin:4px 0 0; color:#45564b; }
+.ht-method { font-size:12px; color:#45564b; margin:10px 0 14px; }
+.ht-body { display:grid; grid-template-columns:1.04fr 1fr; gap:14px; margin-bottom:14px; align-items:start; }
+.ht-body .card { padding:18px; margin:0; }
+.ht-body h2 { font-size:13px; letter-spacing:1px; margin:0 0 14px; }
+.ht-map-content { display:grid; grid-template-columns:minmax(140px,1.1fr) 1fr; gap:16px; }
+.ht-pitch .gaelic-pitch { display:block; width:100%; height:auto; max-height:360px; }
+.ht-map-details { min-width:0; }
+.ht-map-details .shot-legend { display:flex; flex-wrap:wrap; gap:6px 12px; padding:10px; margin-bottom:12px; }
+.ht-map-details .shot-legend span { gap:5px; font-size:11px; }
+.ht-map-details .shot-legend i { font-size:18px; width:16px; }
+.ht-zone { display:grid; gap:3px; margin-top:16px; padding-top:12px; border-top:1px solid #d9dfd2; }
+.ht-zone h3 { font-size:14px; margin:0; }
+.ht-zone strong { font-size:26px; color:#123f32; }
+.ht-zone span { font-size:13px; }
+.ht-coaching { display:grid; gap:14px; }
+.ht-observation { border-left:4px solid #28624a; padding:0 0 0 12px; margin:12px 0; }
+.ht-observation.watch { border-color:#a66d12; }
+.ht-observation.opportunity { border-color:#386b91; }
+.ht-observation > span { font-size:11px; font-weight:800; letter-spacing:1px; }
+.ht-observation h3 { font-size:15px; margin:4px 0; }
+.ht-observation p, .ht-neutral { font-size:13px; line-height:1.5; margin:0; color:#45564b; }
+.ht-contributors ul { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 14px; padding:0; margin:0; list-style:none; max-height:235px; overflow:auto; }
+.ht-contributors li { display:grid; gap:4px; padding:9px 0; border-bottom:1px solid #e1e4d9; font-size:13px; }
+.ht-contributors li span { color:#45564b; }
+@media (max-width:1100px) {
+  .ht-heading h1 { font-size:24px; }
+  .ht-kpi { padding:12px; }
+  .ht-kpi > strong { font-size:27px; }
+  .ht-map-content { grid-template-columns:minmax(130px,1fr) 1fr; gap:12px; }
+}
+@media (max-width:650px) {
+  #app[data-view="halftime"] #main { padding:16px 12px 24px; }
+  .ht-heading { align-items:stretch; flex-direction:column; }
+  .ht-kpis { grid-template-columns:1fr 1fr; }
+  .ht-body { grid-template-columns:1fr; }
+  .ht-score { gap:8px; padding:16px 10px; }
+  .ht-score span { font-size:15px; }
+  .ht-score strong { font-size:23px; }
+  .ht-score .ht-margin { padding:0 10px; }
+  .ht-kpi > strong { font-size:24px; }
+  .ht-contributors ul { grid-template-columns:1fr; }
+}
