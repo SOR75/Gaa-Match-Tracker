@@ -59,7 +59,7 @@ export function showFormationReview(
                   )
                   .join("")}</div>`
               : ""
-          }${!s.anchorConfirmed ? `<label><input type="checkbox" data-formation-anchor="${s.number}"> I verified printed position #${s.number}</label>` : ""}</div></section>`;
+          }</div></section>`;
         })
         .join(
           "",
@@ -133,20 +133,6 @@ export function showFormationReview(
     dialog
       .querySelector("[data-formation-clear]")
       ?.addEventListener("click", () => choose(selected, ""));
-    dialog.querySelectorAll("[data-formation-anchor]").forEach(
-      (b) =>
-        (b.onchange = () => {
-          state = {
-            ...state,
-            slots: state.slots.map((s) =>
-              s.number === +b.dataset.formationAnchor
-                ? { ...s, anchorConfirmed: b.checked }
-                : s,
-            ),
-          };
-          paint();
-        }),
-    );
     dialog
       .querySelector("[data-formation-confirm]")
       ?.addEventListener("click", () => {

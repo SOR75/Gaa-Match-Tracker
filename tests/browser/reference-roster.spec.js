@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { POSITIONS } from "../../src/import-parser.js";
 const photo = "tests/fixtures/Regression_Team_Sheet_3.jpeg";
 const state = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem("sideline.match.v1")));
@@ -39,6 +40,8 @@ test("real Sheet 3 photo → assisted fifteen-position review → roster selecti
     page.getByRole("heading", { name: "Formation Review", exact: true }),
   ).toBeVisible({ timeout: 95000 });
   await expect(page.locator("[data-formation-slot]")).toHaveCount(15);
+  await expect(page.locator("dialog input[type=checkbox]")).toHaveCount(0);
+  await expect(page.locator("dialog")).not.toContainText("I verified printed position");
   expect(await page.locator(".formation-number").allTextContents()).toEqual(
     Array.from({ length: 15 }, (_, i) => String(i + 1)),
   );
@@ -130,9 +133,16 @@ test("real Sheet 3 photo → assisted fifteen-position review → roster selecti
     [13, "Heidi Murray"],
     [14, "Sophie McDonagh"],
     [15, "Aoife Cronin"],
-  ])
+  ]) {
+    if (number === 15) {
+      await expect(page.locator(".formation-slot.assigned")).toHaveCount(14);
+      await expect(page.locator("[data-formation-confirm]")).toBeDisabled();
+    }
     await select(page, number, name);
+  }
   await expect(page.locator(".formation-slot.assigned")).toHaveCount(15);
+  await expect(page.locator(".formation-review-actions")).toContainText("15/15 assigned");
+  await expect(page.locator("dialog input[type=checkbox]")).toHaveCount(0);
   await expect(page.locator("[data-formation-confirm]")).toBeEnabled();
   expect((await state(page)).players).toEqual(before.players);
   await page.locator(".formation-review").screenshot({
@@ -143,6 +153,7 @@ test("real Sheet 3 photo → assisted fifteen-position review → roster selecti
   expect(saved.players).toHaveLength(27);
   expect(saved.players.filter((p) => p.role === "starter")).toHaveLength(15);
   expect(saved.players.filter((p) => p.role === "substitute")).toHaveLength(12);
+  expect(saved.players.filter((p) => p.role === "starter").map((p) => p.position)).toEqual(POSITIONS);
   expect(
     saved.players.filter((p) => p.role === "starter").map((p) => p.number),
   ).toEqual(Array.from({ length: 15 }, (_, i) => i + 1));

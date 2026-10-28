@@ -66,18 +66,20 @@ test("duplicate selection is rejected rather than silently moved to another posi
     /printed roster/,
   );
 });
-test("confirmation cannot invent unresolved assignments or missing formation anchors", () => {
-  const s = createFormationResolution(source());
+test("confirmation requires all 15 assignments, not separate position-anchor verification", () => {
+  const raw = source();
+  raw.formation[14].number = "";
+  const s = createFormationResolution(raw);
   assert.throws(() => confirmedFormationPlayers(s), /all 15/);
   const full = {
     ...s,
     slots: s.slots.map((slot, i) => ({
       ...slot,
       playerId: `roster-${i}`,
-      anchorConfirmed: i !== 0,
     })),
   };
-  assert.throws(() => confirmedFormationPlayers(full), /verify/);
+  assert.ok(formationReady(full));
+  assert.equal(confirmedFormationPlayers(full)[14].number, "15");
 });
 test("confirmed starters use formation numbers; remaining roster becomes substitutes with blank jerseys", () => {
   const raw = source();

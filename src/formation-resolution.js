@@ -27,7 +27,6 @@ export function createFormationResolution({ roster, formation }) {
     return {
       number: i + 1,
       position: POSITIONS[i],
-      anchorConfirmed: String(source.number) === String(i + 1),
       playerId: result.matched?.id || "",
       automatic: !!result.matched,
       alternatives: [...possible],
@@ -101,13 +100,13 @@ export function correctRosterName(state, id, name) {
 export function formationReady(state) {
   return (
     state.slots.length === 15 &&
-    state.slots.every((s) => s.anchorConfirmed && s.playerId)
+    state.slots.every((s) => s.playerId)
   );
 }
 export function confirmedFormationPlayers(state) {
   if (!formationReady(state))
     throw Error(
-      "Assign a printed-roster player to all 15 positions and verify every position number before confirming",
+      "Assign a printed-roster player to all 15 positions before confirming",
     );
   const used = new Set(),
     names = new Set();
