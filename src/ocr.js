@@ -1,3 +1,4 @@
+import { referenceFormationRoute } from "./formation-routing.js";
 import { detectNotebook, readNotebook } from "./notebook-programme.js";
 import {
   detectFoireannRows,
@@ -108,6 +109,21 @@ export async function recognizeImage(
         onProgress,
       });
     }
+    // A printed reference roster over a separate Gaelic formation is more
+    // specific than generic numbered rows. Consider it BEFORE list/notebook
+    // routing, using either pass's surviving anchors. Foireann stays first.
+    const formationRoute = referenceFormationRoute(scan, originalScan);
+    if (formationRoute)
+      return await readReferenceFormation({
+        ...formationRoute,
+        slots,
+        source,
+        normalized,
+        crop,
+        read,
+        worker,
+        onProgress,
+      });
     const listPlayers = readNumberedList(originalScan.words);
     if (listPlayers)
       return {
