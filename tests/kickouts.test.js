@@ -26,8 +26,8 @@ for (const type of ["our-kickout", "opposition-kickout"])
       assert.equal(event.markPlayerNumber, "");
       const stat = summarize([event], event.team).kickouts;
       assert.equal(stat.total, 1);
-      assert.equal(stat.won, Number(choice.outcome === "won"));
-      assert.equal(stat.lost, Number(choice.outcome === "lost"));
+      assert.equal(stat.won, Number(choice.outcome === "won" || (type === "opposition-kickout" && choice.outcome === "out-of-play")));
+      assert.equal(stat.lost, Number(choice.outcome === "lost" || (type === "our-kickout" && choice.outcome === "out-of-play")));
       assert.equal(stat.unknown, Number(choice.outcome === "unknown"));
       assert.equal(
         stat.marksWon,

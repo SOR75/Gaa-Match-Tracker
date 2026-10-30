@@ -36,6 +36,14 @@ export function kickoutDetails(event) {
       : {}),
   };
 }
+// Analysis only: OOP is a failure to retain by the kicking team. Preserve the
+// recorded outcome/reason and never infer a player credit or another event.
+export function kickoutAnalysisOutcome(event) {
+  const outcome = kickoutDetails(event)?.outcome;
+  return outcome === "out-of-play"
+    ? event.event === "our-kickout" ? "lost" : "won"
+    : outcome;
+}
 export function kickoutChoices(type) {
   return [
     { id: "won", label: "Won by us", outcome: "won", mark: false },

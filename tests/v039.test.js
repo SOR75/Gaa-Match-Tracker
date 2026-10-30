@@ -63,9 +63,9 @@ test("kickout fifth choice is out of play, legacy unknown remains separate", () 
   const k = summarize(m.events, "our").kickouts;
   assert.deepEqual(
     [k.total, k.won, k.lost, k.outOfPlay, k.unknown],
-    [1, 0, 0, 1, 0],
+    [1, 0, 1, 1, 0],
   );
-  assert.equal(k.retention, null);
+  assert.equal(k.retention, 0);
   add(m, "our-kickout", "our", { outcome: "unknown" });
   assert.equal(summarize(m.events, "our").kickouts.unknown, 1);
   assert.equal(validMatch(JSON.parse(JSON.stringify(m))), true);
@@ -180,7 +180,7 @@ test("goalkeeper kickout totals lengths Marks and out of play derived once", () 
       g.gkOutOfPlay,
       g.gkRetention,
     ],
-    [4, 2, 1, 1, 1, 3, 1, 1, 1, 50],
+    [4, 2, 2, 1, 1, 3, 1, 1, 1, 50],
   );
   assert.equal(m.events.length, 4);
 });

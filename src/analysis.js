@@ -5,7 +5,7 @@ import {
   matchesPlayerFilter,
 } from "./identity-analysis.js";
 import { isDefensiveBlock, defensiveBlockPlayer } from "./defensive-blocks.js";
-import { kickoutDetails } from "./kickouts.js";
+import { kickoutDetails, kickoutAnalysisOutcome } from "./kickouts.js";
 import { shotDetails, SHOT_SOURCES } from "./shots.js";
 import { totals, isShot, isKickout } from "./domain.js";
 export const percentage = (part, whole) =>
@@ -32,10 +32,10 @@ export function summarize(events, team) {
   const successful = shots.filter((event) => event.outcome === "scored").length;
   const kickouts = selected.filter(isKickout);
   const won = kickouts.filter(
-    (event) => kickoutDetails(event).outcome === "won",
+    (event) => kickoutAnalysisOutcome(event) === "won",
   ).length;
   const lost = kickouts.filter(
-    (event) => kickoutDetails(event).outcome === "lost",
+    (event) => kickoutAnalysisOutcome(event) === "lost",
   ).length;
   const lengths = {};
   for (const length of ["Short", "Long"]) {
@@ -43,10 +43,10 @@ export function summarize(events, team) {
       (event) => event.kickoutLength?.toLowerCase() === length.toLowerCase(),
     );
     const wins = group.filter(
-      (event) => kickoutDetails(event).outcome === "won",
+      (event) => kickoutAnalysisOutcome(event) === "won",
     ).length;
     const losses = group.filter(
-      (event) => kickoutDetails(event).outcome === "lost",
+      (event) => kickoutAnalysisOutcome(event) === "lost",
     ).length;
     lengths[length.toLowerCase()] = {
       total: group.length,

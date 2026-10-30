@@ -68,7 +68,7 @@ test("physical goalkeeper scenario: 4 kickouts then 3, one conceded goal each; k
       a.gkOutOfPlay,
       a.gkGoalsConceded,
     ],
-    [10 * 60000, 4, 2, 1, 1, 1, 1],
+    [10 * 60000, 4, 2, 2, 1, 1, 1],
   );
   assert.deepEqual(
     [b.gkTimeMs, b.gkKickouts, b.gkRetained, b.gkLost, b.gkGoalsConceded],

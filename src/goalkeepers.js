@@ -107,7 +107,7 @@ export function goalkeeperStatistics(
       if (g) {
         g.gkKickouts++;
         if (ko.outcome === retained) g.gkRetained++;
-        if (ko.outcome === lost) g.gkLost++;
+        if (ko.outcome === lost || ko.outcome === "out-of-play") g.gkLost++;
         if (ko.outcome === "out-of-play") g.gkOutOfPlay++;
         if (ko.mark) g.gkMarks++;
         if (e.kickoutLength === "Short") {

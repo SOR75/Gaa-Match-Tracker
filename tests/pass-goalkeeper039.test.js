@@ -133,7 +133,7 @@ for (const team of ["our", "opposition"])
         g.gkMarks,
         g.gkOutOfPlay,
       ],
-      [5, 2, 2, 40, 2, 1, 3, 1, 1, 1],
+      [5, 2, 3, 40, 2, 1, 3, 1, 1, 1],
     );
     assert.equal(m.events.length, 5);
   });

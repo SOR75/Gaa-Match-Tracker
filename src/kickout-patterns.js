@@ -1,4 +1,4 @@
-import { kickoutDetails } from "./kickouts.js";
+import { kickoutDetails, kickoutAnalysisOutcome } from "./kickouts.js";
 import {
   participantRef,
   participantKey,
@@ -97,7 +97,7 @@ export function enhanceKickoutObservations(observations, match, events) {
     if (p.team === "opposition") {
       const kickouts = events.filter((e) => e.event === "opposition-kickout"),
         known = kickouts.filter((e) =>
-          ["won", "lost"].includes(kickoutDetails(e).outcome),
+          ["won", "lost"].includes(kickoutAnalysisOutcome(e)),
         ),
         retained = known.filter((e) => kickoutDetails(e).outcome === "lost");
       const team = match.setup.opposition || "Opposition";
