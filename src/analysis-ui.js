@@ -75,6 +75,8 @@ export function analysisScreen(
       player.blockedAttempts,
       player.defensiveBlocks,
       player.kickoutMarks,
+      player.kickoutPossessionsWon || 0,
+      player.otherKickoutPossessionsWon || 0,
     ]),
   );
   const options = (values, current) =>
@@ -263,7 +265,7 @@ export function analysisScreen(
     ) +
       '<p class="small-note">Won/lost is always from our team’s perspective. Retention is the percentage retained by the kicking team (our wins on our kickouts, opposition wins on their kickouts), using known outcomes only. Older kicking-team results are translated on read. Marks are attributes of these kickouts, never additional events. Unrecorded or legacy Medium lengths are counted in total kickouts, not short/long. Player involvement below reflects attribution, not an inferred receiver.</p>',
   )}
-  ${section("Player shooting & event analysis", playerRows.length ? table(["Player", "Goals", "Points", "2P", "Total pts", "Attempts", "Wides", "Misses", "Conv.", "TO won", "TO lost", "Intercept.", "Kickouts", "Blocked attempts", "Defensive blocks", "Kickout Marks"], playerRows) : '<p class="small-note">Add players or record attributed events to populate this table.</p>')}
+  ${section("Player shooting & event analysis", playerRows.length ? table(["Player", "Goals", "Points", "2P", "Total pts", "Attempts", "Wides", "Misses", "Conv.", "TO won", "TO lost", "Intercept.", "Kickouts", "Blocked attempts", "Defensive blocks", "Kickout Marks", "Kickout possessions won", "Other kickout possessions won"], playerRows) : '<p class="small-note">Add players or record attributed events to populate this table.</p>')}
   ${section(
     "Half comparison",
     table(

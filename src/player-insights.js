@@ -22,6 +22,8 @@ const metrics = [
   "turnoversWon",
   "turnoversLost",
   "kickoutMarks",
+  "kickoutPossessionsWon",
+  "otherKickoutPossessionsWon",
   "possessions",
   "kickoutInvolvement",
 ];
@@ -75,6 +77,7 @@ export function playerReviews(records, squads = [], active = null) {
         "blocker",
         "markWinner",
         "receiver",
+        "kickoutWinner",
         "turnoverWinner",
         "turnoverLoser",
       ]) {

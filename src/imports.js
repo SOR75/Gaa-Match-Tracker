@@ -59,13 +59,28 @@ export async function extractCandidates(file, options = {}) {
     };
   }
   if (extension === "xlsx") {
-    const { readSheet } = await import("read-excel-file/browser");
+    const { default: readWorkbook } = await import("read-excel-file/browser");
+    const sheets = await readWorkbook(file);
+    if (
+      sheets.some((s) => s.sheet === "Squad Setup") ||
+      sheets.some((s) => s.sheet === "Players")
+    ) {
+      const { parseOfficialSquad } = await import("./squad-excel.js");
+      const draft = parseOfficialSquad(sheets); // malformed official files fail safely; never use first sheet fallback
+      return {
+        officialSquad: true,
+        draft,
+        players: [],
+        message: "Official Sideline Squad workbook detected.",
+      };
+    }
     return {
-      players: parseTablePlayers(await readSheet(file), options),
+      players: parseTablePlayers(sheets[0].data, options),
       message:
         "First worksheet extracted locally. Review positions, blank jerseys and selection status.",
     };
   }
+
   if (extension === "pdf") {
     const pdfjs = await import("pdfjs-dist/build/pdf.mjs");
     const { default: workerUrl } = await import(

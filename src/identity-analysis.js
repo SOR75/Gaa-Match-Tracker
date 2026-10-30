@@ -29,10 +29,19 @@ export function identityPlayerStatistics(match, team, summarize) {
         wins: [],
         losses: [],
         passesReceived: [],
+        kickoutWins: [],
       });
     return groups.get(key);
   }
   for (const e of match.events) {
+    const kickout = kickoutDetails(e);
+    if (kickout?.kickoutWinnerNumber && roleTeam(e, "kickoutWinner") === team) {
+      const g = group(e, "kickoutWinner");
+      if (g) {
+        g.kickoutWins.push(e);
+        if (kickout.mark) g.marks.push(e);
+      }
+    }
     if (e.event === "pass" && e.team === team) {
       const g = group(e, "receiver");
       if (g) g.passesReceived.push(e);
@@ -63,9 +72,15 @@ export function identityPlayerStatistics(match, team, summarize) {
         const g = group(e, "blocker");
         if (g) g.blocks.push(e);
       }
-      if (kickoutDetails(e)?.markPlayerNumber) {
+      if (
+        kickoutDetails(e)?.markPlayerNumber &&
+        !kickoutDetails(e)?.kickoutWinnerNumber
+      ) {
         const g = group(e, "markWinner");
-        if (g) g.marks.push(e);
+        if (g) {
+          g.marks.push(e);
+          g.kickoutWins.push(e);
+        }
       }
     }
   }
@@ -85,6 +100,7 @@ export function identityPlayerStatistics(match, team, summarize) {
         wins: [],
         losses: [],
         passesReceived: [],
+        kickoutWins: [],
       });
   }
   return [...groups.values()]
@@ -107,15 +123,29 @@ export function identityPlayerStatistics(match, team, summarize) {
       passes: g.main.filter((e) => e.event === "pass").length,
       passesReceived: g.passesReceived.length,
       defensiveBlocks: team === "our" ? g.blocks.length : 0,
-      kickoutMarks: team === "our" ? g.marks.length : 0,
-      kickoutInvolvement: g.main.filter((e) =>
-        ["our-kickout", "opposition-kickout"].includes(e.event),
+      kickoutPossessionsWon: g.kickoutWins.length,
+      otherKickoutPossessionsWon: g.kickoutWins.filter(
+        (e) => !kickoutDetails(e).mark,
       ).length,
+      kickoutMarks: g.marks.length,
+      kickoutInvolvement: new Set(
+        [
+          ...g.main.filter((e) =>
+            ["our-kickout", "opposition-kickout"].includes(e.event),
+          ),
+          ...g.kickoutWins,
+        ].map((e) => e.id),
+      ).size,
     }));
 }
 export function hasIdentityAttribution(match, team) {
   const roster = team === "our" ? match.players : match.oppositionPlayers;
   return (
+    match.events.some(
+      (e) =>
+        kickoutDetails(e)?.kickoutWinnerNumber &&
+        roleTeam(e, "kickoutWinner") === team,
+    ) ||
     roster.some((p) => p.matchPlayerId) ||
     match.events.some((e) =>
       [
@@ -123,6 +153,7 @@ export function hasIdentityAttribution(match, team) {
         "blocker",
         "markWinner",
         "receiver",
+        "kickoutWinner",
         "turnoverWinner",
         "turnoverLoser",
       ].some((role) => participantRef(e, role)?.team === team),

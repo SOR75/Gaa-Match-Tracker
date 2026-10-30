@@ -151,6 +151,7 @@ test("legacy turnover attribution still readable without permanent linking", () 
 test("goalkeeper not assumed from jersey 1 in legacy matches", () => {
   const m = fixture();
   delete m.goalkeepers;
+  delete m.goalkeeperTrackingVersion;
   add(m, "goal", "opposition");
   add(m, "miss", "opposition", { missReason: "short" });
   add(m, "our-kickout", "our", { outcome: "won" });
@@ -305,7 +306,8 @@ test("editing kickout outcome, length and keeper change recalculates without dup
   assert.equal(keep(m, 1).gkMarks, 1);
   assert.equal(m.events.length, 1);
   m.events = undoEvent(m.events);
-  assert.equal(goalkeeperStatistics(m).length, 0);
+  assert.equal(goalkeeperStatistics(m).length, 2);
+  assert.equal(keep(m, 1).gkKickouts, 0);
 });
 test("legacy Unknown edit never changes to won without an explicit choice", async () => {
   const { kickoutFieldsMarkup, kickoutFormFields } = await import(

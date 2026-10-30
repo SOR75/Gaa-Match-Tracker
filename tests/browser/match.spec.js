@@ -41,6 +41,7 @@ test("mobile match workflow: squad, scoring, edits, undo, timeline and refresh",
   ).toHaveText("(1)");
   await page.getByRole("button", { name: "Our Kickout", exact: true }).click();
   await page.getByRole("button", { name: "Won by us", exact: true }).click();
+  await page.keyboard.press("Escape");
   await page
     .getByRole("button", { name: "Edit last event", exact: true })
     .click();

@@ -45,6 +45,8 @@ export function roleNumber(event, role) {
       : event.team === "opposition"
         ? shotDetails(event)?.blockedByNumber || ""
         : "";
+  if (role === "kickoutWinner")
+    return kickoutDetails(event)?.kickoutWinnerNumber || "";
   if (role === "receiver")
     return event.event === "pass" ? String(event.receiverNumber || "") : "";
   if (["turnoverWinner", "turnoverLoser"].includes(role))
@@ -54,6 +56,8 @@ export function roleNumber(event, role) {
   return event.event === "substitution" ? String(event[role] || "") : "";
 }
 export const roleTeam = (event, role) => {
+  if (role === "kickoutWinner")
+    return kickoutDetails(event)?.outcome === "won" ? "our" : "opposition";
   if (["markWinner", "blocker"].includes(role)) return "our";
   if (role === "turnoverWinner")
     return event.event === "turnover-won"
@@ -76,6 +80,7 @@ export const participantRoles = [
   "playerOn",
   "playerOff",
   "receiver",
+  "kickoutWinner",
   "turnoverWinner",
   "turnoverLoser",
 ];
@@ -102,7 +107,12 @@ export function validEventIdentity(event) {
     roles.every(
       (role) =>
         event.participants[role] === null ||
-        (["receiver", "turnoverWinner", "turnoverLoser"].includes(role) &&
+        ([
+          "receiver",
+          "turnoverWinner",
+          "turnoverLoser",
+          "kickoutWinner",
+        ].includes(role) &&
           event.participants[role] === undefined) ||
         validRef(event.participants[role], event, role),
     )

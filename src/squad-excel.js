@@ -72,7 +72,14 @@ export function parseOfficialSquad(sheets) {
     const name = text(row[0]);
     // Deprecated position/status cells are deliberately ignored, including on
     // unused rows. They are not Squad membership or availability information.
-    if (!name) return;
+    if (
+      !name ||
+      heading(name) === "player name" ||
+      /^(?:complete the squad details|player name only\b|default no[. :]|sideline will create\b)/i.test(
+        name,
+      )
+    )
+      return;
     players.push({ sourceRow: index + i + 2, name, number: "" });
   });
   return { metadata, players };

@@ -36,6 +36,18 @@ export function kickoutPlayerPatterns(match, events = match.events) {
   for (const e of events) {
     const k = kickoutDetails(e);
     if (!k) continue;
+    if (k.kickoutWinnerNumber) {
+      // Opposition concentration describes their retained kickouts, not their
+      // wins on our restart. Those still count in individual possession totals.
+      if (k.outcome === "won" || e.event === "opposition-kickout")
+        credit(
+          e,
+          "kickoutWinner",
+          k.outcome === "won" ? "our" : "opposition",
+          k.mark,
+        );
+      continue;
+    }
     if (k.outcome === "won") {
       if (e.team === "our")
         credit(
@@ -84,7 +96,9 @@ export function enhanceKickoutObservations(observations, match, events) {
       label = `${jersey}${p.name ? " " + p.name : ""}`;
     if (p.team === "opposition") {
       const kickouts = events.filter((e) => e.event === "opposition-kickout"),
-        known = kickouts.filter((e) => kickoutDetails(e).outcome !== "unknown"),
+        known = kickouts.filter((e) =>
+          ["won", "lost"].includes(kickoutDetails(e).outcome),
+        ),
         retained = known.filter((e) => kickoutDetails(e).outcome === "lost");
       const team = match.setup.opposition || "Opposition";
       const detail = `${team} retained ${retained.length} of ${known.length} opposition kickouts with a known outcome. ${label} was credited on ${p.count} of those.`;

@@ -32,13 +32,28 @@ export function goalkeeperRef(match, team, id) {
       }
     : null;
 }
-// Replay the same chronological substitution log as Active XV. Never infer a
-// legacy goalkeeper from jersey/name/roster order. Explicit match selection only.
+// New matches opt into initial #1 inference. Never retroactively enable it on
+// existing archives. A candidate's explicit keeper snapshots remain readable.
+export function startingGoalkeepers(match) {
+  if (match.goalkeepers) return { ...match.goalkeepers };
+  if (match.goalkeeperTrackingVersion !== 1) return {};
+  return Object.fromEntries(
+    ["our", "opposition"].map((team) => {
+      const roster = team === "our" ? match.players : match.oppositionPlayers;
+      const candidates = roster.filter(
+        (p) => p.number === 1 && p.role === "starter" && p.matchPlayerId,
+      );
+      return [
+        team,
+        candidates.length === 1
+          ? goalkeeperRef(match, team, candidates[0].matchPlayerId)
+          : null,
+      ];
+    }),
+  );
+}
 export function goalkeeperStatistics(match, { half = null } = {}) {
-  const active = {
-      our: match.goalkeepers?.our || null,
-      opposition: match.goalkeepers?.opposition || null,
-    },
+  const active = startingGoalkeepers(match),
     groups = new Map();
   const group = (ref) => {
     if (!ref?.matchPlayerId || !["our", "opposition"].includes(ref.team))
@@ -51,6 +66,7 @@ export function goalkeeperStatistics(match, { half = null } = {}) {
       });
     return groups.get(key);
   };
+  Object.values(active).forEach(group);
   const seen = new Set();
   for (const { e } of match.events
     .map((e, i) => ({ e, i }))
@@ -114,7 +130,7 @@ export function goalkeeperStatistics(match, { half = null } = {}) {
   }));
 }
 export function activeGoalkeepers(match) {
-  const active = { ...match.goalkeepers };
+  const active = startingGoalkeepers(match);
   for (const { e } of match.events
     .map((e, i) => ({ e, i }))
     .sort(
@@ -131,4 +147,62 @@ export function activeGoalkeepers(match) {
     }
   }
   return active;
+}
+
+// Objective keeper periods, derived from the existing match clock/substitutions.
+// Cross-half duration stays unknown: the archive does not retain the exact H1
+// end clock, so nominal half length must not manufacture minutes in goal.
+export function goalkeeperPeriods(match, now = Date.now()) {
+  const ordered = match.events
+    .map((e, i) => ({ e, i }))
+    .sort(
+      (a, b) => a.e.half - b.e.half || a.e.timeMs - b.e.timeMs || a.i - b.i,
+    );
+  const current = startingGoalkeepers(match),
+    starts = {
+      our: { half: 1, timeMs: 0 },
+      opposition: { half: 1, timeMs: 0 },
+    },
+    periods = [];
+  const close = (team, to) => {
+    const ref = current[team],
+      from = starts[team];
+    if (ref)
+      periods.push({
+        ...ref,
+        from: { ...from },
+        to: { ...to },
+        durationMs:
+          from.half === to.half ? Math.max(0, to.timeMs - from.timeMs) : null,
+      });
+  };
+  const prefix = [];
+  for (const { e } of ordered) {
+    prefix.push(e);
+    if (!["substitution", "goalkeeper-change"].includes(e.event)) continue;
+    const next =
+      activeGoalkeepers({ ...match, events: prefix })[e.team] || null;
+    if (next?.matchPlayerId === current[e.team]?.matchPlayerId) continue;
+    const boundary = { half: e.half, timeMs: e.timeMs };
+    close(e.team, boundary);
+    current[e.team] = next;
+    starts[e.team] = boundary;
+  }
+  const latest = ordered.at(-1)?.e;
+  const clock = {
+    half: match.clock.half,
+    timeMs:
+      match.clock.elapsedMs +
+      (match.clock.startedAt === null
+        ? 0
+        : Math.max(0, now - match.clock.startedAt)),
+  };
+  const end =
+    latest &&
+    (latest.half > clock.half ||
+      (latest.half === clock.half && latest.timeMs > clock.timeMs))
+      ? { half: latest.half, timeMs: latest.timeMs }
+      : clock;
+  for (const team of ["our", "opposition"]) close(team, end);
+  return periods;
 }

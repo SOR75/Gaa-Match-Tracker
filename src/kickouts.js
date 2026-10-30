@@ -20,7 +20,21 @@ export function kickoutDetails(event) {
     /^[1-9]\d?$/.test(String(event.markPlayerNumber || ""))
       ? String(event.markPlayerNumber)
       : "";
-  return { outcome, kickoutPerspective: "our", mark, markPlayerNumber };
+  return {
+    outcome,
+    kickoutPerspective: "our",
+    mark,
+    markPlayerNumber,
+    ...(event.kickoutWinnerNumber !== undefined
+      ? {
+          kickoutWinnerNumber:
+            ["won", "lost"].includes(outcome) &&
+            /^[1-9]\d?$/.test(String(event.kickoutWinnerNumber || ""))
+              ? String(event.kickoutWinnerNumber)
+              : "",
+        }
+      : {}),
+  };
 }
 export function kickoutChoices(type) {
   return [

@@ -242,6 +242,12 @@ export async function openImportReview(dialog, file, existing, onConfirmed) {
     };
   }
   if (canceled) return;
+  if (result.officialSquad) {
+    cancel();
+    dialog.close();
+    const { openOfficialSquadImport } = await import("./squad-excel-ui.js");
+    return openOfficialSquadImport(dialog, file, () => {});
+  }
   if (/image\/(jpeg|png|webp)/.test(file.type) && file.size <= 15 * 1024 * 1024)
     objectUrl = URL.createObjectURL(file);
   showReview(dialog, result, existing, onConfirmed, {

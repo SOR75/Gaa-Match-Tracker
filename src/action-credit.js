@@ -3,14 +3,9 @@ import { eventType } from "./domain.js";
 import { esc } from "./ui.js";
 export const actionCreditEvent = (e) =>
   e &&
-  [
-    "interception",
-    "turnover-won",
-    "turnover-lost",
-    "possession",
-    "our-kickout",
-    "opposition-kickout",
-  ].includes(e.event);
+  ["interception", "turnover-won", "turnover-lost", "possession"].includes(
+    e.event,
+  );
 export function actionCreditMarkup(match) {
   const e = match.events.at(-1);
   if (!actionCreditEvent(e)) return "";

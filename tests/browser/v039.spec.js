@@ -28,21 +28,10 @@ async function seed(page) {
   await nav(page, "Live match");
   return m;
 }
-async function keeper(page, team = "Our", number = 1) {
-  await page
-    .getByText(
-      "Goalkeepers · optional · set once, substitutions follow automatically",
-      { exact: true },
-    )
-    .click();
-  const m = await state(page);
-  const p = (team === "Our" ? m.players : m.oppositionPlayers).find(
-    (p) => p.number === number,
-  );
-  await page
-    .getByLabel(`${team} goalkeeper`, { exact: true })
-    .selectOption(p.id);
+async function keeper(page) {
+  await expect(page.locator('[data-goalkeeper]')).toHaveCount(0);
 }
+
 test("real live kickout out of play persists, edits and undo, no unknown choice", async ({
   page,
 }) => {
@@ -131,13 +120,14 @@ test("one turnover stores winner and loser from opposite squads", async ({
     page.getByText("Home · #8 Home Eight", { exact: true }),
   ).toBeVisible();
 });
-test("goalkeeper selection and actual substitution drive kickouts, saves and conceded goals", async ({
+test("automatic goalkeeper and actual substitution drive kickouts, saves and conceded goals", async ({
   page,
 }) => {
   await seed(page);
   await keeper(page);
   await page.locator('[data-event="our-kickout"]').click();
   await nav(page, "Won by us");
+  await page.locator('[data-ko-player="8"]').click();
   await page.locator('[data-team="opposition"]').click();
   await page.locator('[data-event="miss"]').click();
   await page.getByLabel("Miss reason", { exact: true }).selectOption("short");
@@ -229,6 +219,7 @@ test("Player Review exposes linked goalkeeper career and safe season grouping", 
   await keeper(page);
   await page.locator('[data-event="our-kickout"]').click();
   await nav(page, "Won by us");
+  await page.locator('[data-ko-player="8"]').click();
   await nav(page, "Player Review");
   await page.locator("#review-player").selectOption(m.players[0].playerId);
   await expect(page.locator('[data-review-metric="gkKickouts"]')).toHaveText(

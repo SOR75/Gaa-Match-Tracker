@@ -144,7 +144,7 @@ test("active XV: off player disappears from shot, Mark, block and turnover/inter
   await nav(page, "Mark won by us");
   await expect(page.locator('[data-mark-player="8"]')).toHaveCount(0);
   await expect(page.locator('[data-mark-player="22"]')).toBeVisible();
-  await nav(page, "Skip player / Close");
+  await nav(page, "Close kickout");
   await nav(page, "Undo last event");
   await page.locator(".event-controls [data-event=defensive-block]").click();
   await expect(page.locator('button[data-defensive-player="8"]')).toHaveCount(

@@ -19,6 +19,13 @@ const expectedChoices = {
 };
 const state = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem("sideline.match.v1")));
+async function markCell(row) {
+  const headers = await row
+    .locator("xpath=ancestor::table")
+    .getByRole("columnheader")
+    .allTextContents();
+  return row.getByRole("cell").nth(headers.indexOf("Kickout Marks") - 1);
+}
 const nav = (page, name) =>
   page.getByRole("button", { name, exact: true }).click();
 async function setup(page) {
@@ -88,7 +95,7 @@ for (const type of ["our-kickout", "opposition-kickout"])
         half: 1,
         timeMs: 0,
       });
-      if (choice.mark && choice.outcome === "won") {
+      if (choice.outcome !== "out-of-play") {
         await expect(page.locator("[data-ko-saved]")).toBeVisible();
         await page.keyboard.press("Escape");
       }
@@ -123,7 +130,7 @@ test("Mark on opposition kickout credits our player; editing player/result and u
       exact: true,
     }),
   });
-  await expect(row.getByRole("cell").last()).toHaveText("1");
+  await expect(await markCell(row)).toHaveText("1");
   await nav(page, "Edit last event");
   await expect(page.getByLabel("Kickout result", { exact: true })).toHaveValue(
     "mark-won",
@@ -136,7 +143,7 @@ test("Mark on opposition kickout credits our player; editing player/result and u
       exact: true,
     }),
   });
-  await expect(row.getByRole("cell").last()).toHaveText("1");
+  await expect(await markCell(row)).toHaveText("1");
   await nav(page, "Edit last event");
   await page
     .getByLabel("Kickout result", { exact: true })
@@ -148,7 +155,7 @@ test("Mark on opposition kickout credits our player; editing player/result and u
     mark: true,
     markPlayerNumber: "",
   });
-  await expect(row.getByRole("cell").last()).toHaveText("0");
+  await expect(await markCell(row)).toHaveText("0");
   const kickouts = page.getByRole("row").filter({
     has: page.getByRole("rowheader", {
       name: "Opposition Kickouts · Away",
@@ -313,8 +320,8 @@ test("Our Kickout Mark visibly offers our populated squad and credits one event;
       exact: true,
     }),
   });
-  await expect(row8.getByRole("cell").last()).toHaveText("1");
-  await expect(row9.getByRole("cell").last()).toHaveText("0");
+  await expect(await markCell(row8)).toHaveText("1");
+  await expect(await markCell(row9)).toHaveText("0");
   for (const [number, eight, nine] of [
     ["9", "0", "1"],
     ["", "0", "0"],
@@ -329,8 +336,8 @@ test("Our Kickout Mark visibly offers our populated squad and credits one event;
       mark: true,
       markPlayerNumber: number,
     });
-    await expect(row8.getByRole("cell").last()).toHaveText(eight);
-    await expect(row9.getByRole("cell").last()).toHaveText(nine);
+    await expect(await markCell(row8)).toHaveText(eight);
+    await expect(await markCell(row9)).toHaveText(nine);
   }
   await page.reload();
   expect((await state(page)).events).toHaveLength(1);
@@ -366,16 +373,18 @@ test("empty OUR squad explicitly says No players loaded, allows skipping and nev
   await expect(modal.locator("[data-mark-player]")).toHaveCount(15);
   await expect(modal).not.toContainText("Opposition Eight");
   await expect(
-    modal.getByRole("button", { name: "Skip player / Close", exact: true }),
+    modal.getByRole("button", { name: "Close kickout", exact: true }),
   ).toBeVisible();
   expect((await state(page)).events).toHaveLength(1);
-  await nav(page, "Skip player / Close");
+  await nav(page, "Close kickout");
   expect((await state(page)).events[0]).toMatchObject({
     mark: true,
     markPlayerNumber: "",
   });
   await nav(page, "Opposition Kickout");
   await nav(page, "Mark won by opposition");
+  await expect(page.locator("[data-ko-player]")).toHaveCount(1);
+  await nav(page, "Close kickout");
   await expect(modal).not.toBeVisible();
   expect((await state(page)).events).toHaveLength(2);
   expect((await state(page)).events[1]).toMatchObject({
@@ -415,7 +424,7 @@ test("numberless loaded squad is explained rather than rendered as a blank Mark 
   await expect(page.getByRole("dialog")).toContainText(
     "add jersey numbers in Squad",
   );
-  await nav(page, "Skip player / Close");
+  await nav(page, "Close kickout");
   expect((await state(page)).events).toHaveLength(1);
   expect((await state(page)).events[0].markPlayerNumber).toBe("");
 });

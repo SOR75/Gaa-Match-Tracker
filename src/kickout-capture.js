@@ -1,5 +1,5 @@
 import {
-  ourCreditRoster,
+  attributionRoster,
   bindOtherCredit,
   emptyCreditRosterMarkup,
   playerCreditPicker,
@@ -8,7 +8,6 @@ import { kickoutChoices, kickoutDetails } from "./kickouts.js";
 import { eventType, formatTime } from "./domain.js";
 import { esc } from "./ui.js";
 import { noteMarkup, bindSpeech } from "./speech.js";
-
 export function kickoutFieldsMarkup(event, match) {
   const data = kickoutDetails(event);
   if (!data) return "";
@@ -16,12 +15,14 @@ export function kickoutFieldsMarkup(event, match) {
     kickoutChoices(event.event).find(
       (c) => c.outcome === data.outcome && c.mark === data.mark,
     )?.id || "unknown";
-  const roster = ourCreditRoster(match, { includeInactive: true });
-  const { players, guidance } = roster;
+  const team = data.outcome === "won" ? "our" : "opposition";
+  const ownMark = data.mark && team === "our";
+  const number =
+    data.kickoutWinnerNumber || (ownMark ? data.markPlayerNumber : "");
+  const roster = attributionRoster(match, team, { includeInactive: true });
   const retained =
-    data.markPlayerNumber &&
-    !players.some((p) => String(p.number) === data.markPlayerNumber)
-      ? `<option value="${data.markPlayerNumber}" selected>#${data.markPlayerNumber} · recorded player</option>`
+    number && !roster.players.some((p) => String(p.number) === number)
+      ? `<option selected value="${esc(number)}">#${esc(number)} · recorded player</option>`
       : "";
   return `<div class="kickout-fields"><label class="field"><span>Kickout result · our perspective</span><select name="kickoutResult" aria-label="Kickout result">${data.outcome === "unknown" ? '<option value="unknown" selected>Unknown · legacy / unrecorded</option>' : ""}${kickoutChoices(
     event.event,
@@ -32,33 +33,37 @@ export function kickoutFieldsMarkup(event, match) {
     )
     .join(
       "",
-    )}</select></label><label class="field" ${!data.mark || data.outcome !== "won" ? "hidden" : ""}><span>Mark catcher · our player · optional</span><select name="markPlayerNumber" aria-label="Mark catcher"><option value="">No player selected</option>${retained}${players.map((p) => `<option value="${p.number}" ${data.markPlayerNumber === String(p.number) ? "selected" : ""}>#${p.number} ${esc(p.name)}</option>`).join("")}</select>${emptyCreditRosterMarkup(guidance)}</label></div>`;
+    )}</select></label>${["won", "lost"].includes(data.outcome) ? `<input type="hidden" name="kickoutWinnerTeam" value="${team}"><label class="field"><span>${ownMark ? "Mark catcher" : "Possession winner"} · ${team === "our" ? esc(match.setup.ourTeam || "Our team") : esc(match.setup.opposition || "Opposition")} · optional</span><select name="${ownMark ? "markPlayerNumber" : "kickoutWinnerNumber"}" aria-label="${ownMark ? "Mark catcher" : "Kickout winner"}"><option value="">No player selected</option>${retained}${roster.players.map((p) => `<option value="${p.number}" ${number === String(p.number) ? "selected" : ""}>#${p.number} ${esc(p.name)}</option>`).join("")}</select>${emptyCreditRosterMarkup(roster.guidance)}</label>` : ""}</div>`;
 }
 export function kickoutFormFields(data, event) {
   const choice = kickoutChoices(event.event).find(
     (c) => c.id === data.kickoutResult,
   );
-  return choice
-    ? {
-        outcome: choice.outcome,
-        mark: choice.mark,
-        kickoutPerspective: "our",
-        markPlayerNumber:
-          choice.mark && choice.outcome === "won"
-            ? data.markPlayerNumber || ""
-            : "",
-      }
-    : {};
+  if (!choice) return {};
+  const number =
+    ["won", "lost"].includes(choice.outcome) &&
+    (!data.kickoutWinnerTeam ||
+      data.kickoutWinnerTeam ===
+        (choice.outcome === "won" ? "our" : "opposition"))
+      ? (choice.mark && choice.outcome === "won"
+          ? (data.markPlayerNumber ?? data.kickoutWinnerNumber)
+          : (data.kickoutWinnerNumber ?? data.markPlayerNumber)) || ""
+      : "";
+  return {
+    outcome: choice.outcome,
+    mark: choice.mark,
+    kickoutPerspective: "our",
+    kickoutWinnerNumber: number,
+    markPlayerNumber: choice.mark && choice.outcome === "won" ? number : "",
+  };
 }
-// One result tap records the kickout. An own-team Mark exposes optional credit
-// inline on the same dialog; dismissing it never removes the recorded event.
+// Outcome saves once. All successful possession outcomes immediately open the
+// proven one-tap grid, updating that same event ID. Close never deletes the event.
 export function openKickoutCapture(dialog, event, match, onSave, onClose) {
   let draft = { ...event },
     recorded = false,
     finished = false;
-  const roster = ourCreditRoster(match);
-  const { players, guidance } = roster;
-  dialog.innerHTML = `<div class="dialog-heading"><div><p class="eyebrow">KICKOUT · H${event.half} · ${formatTime(event.timeMs)}</p><h2 id="event-dialog-title">${esc(eventType(event.event).label)}</h2></div><button type="button" class="icon-button" data-kickout-close aria-label="Close kickout">×</button></div><p class="capture-instruction">Who secured possession?</p><p class="small-note">WON means our team secured possession. LOST means opposition secured possession.</p><div class="quick-length" role="group" aria-label="Optional kickout length"><span>Length · optional</span><button type="button" class="button subtle" data-ko-length="Short" aria-pressed="false">SHORT</button><button type="button" class="button subtle" data-ko-length="Long" aria-pressed="false">LONG</button></div><div class="kickout-outcomes">${kickoutChoices(
+  dialog.innerHTML = `<div class="dialog-heading"><div><p class="eyebrow">KICKOUT · H${event.half} · ${formatTime(event.timeMs)}</p><h2 id="event-dialog-title">${esc(eventType(event.event).label)}</h2></div><button type="button" class="icon-button" data-kickout-close aria-label="Close kickout">×</button></div><p class="capture-instruction">Who secured possession?</p><p class="small-note">WON means our team secured possession. LOST means opposition secured possession.</p><div class="quick-length" role="group" aria-label="Optional kickout length"><span>Length · optional</span>${["Short", "Long"].map((l) => `<button type="button" class="button subtle" data-ko-length="${l}" aria-pressed="false">${l.toUpperCase()}</button>`).join("")}</div><div class="kickout-outcomes">${kickoutChoices(
     event.event,
   )
     .map(
@@ -67,18 +72,13 @@ export function openKickoutCapture(dialog, event, match, onSave, onClose) {
     )
     .join(
       "",
-    )}</div><p data-ko-saved role="status" hidden>Mark recorded. Player credit is optional; close to continue.</p><div data-ko-credit hidden><p class="small-note">Who caught our Mark? · optional</p>${playerCreditPicker(roster, { groupLabel: "Our Mark winner", attribute: "data-mark-player", actionLabel: "Credit Mark to" })}<button type="button" class="button subtle full-width" data-kickout-close>Skip player / Close</button></div><details class="optional-note"><summary>● Add typed / dictated note <span>Optional</span></summary>${noteMarkup(draft)}</details>`;
-  const collectNotes = () => {
+    )}</div><p data-ko-saved role="status" hidden></p><div data-ko-credit hidden></div><details class="optional-note"><summary>● Add typed / dictated note <span>Optional</span></summary>${noteMarkup(draft)}</details>`;
+  const save = () => {
     for (const key of ["notes", "dictatedNote"])
       draft[key] = dialog.querySelector(`[name="${key}"]`)?.value || "";
-  };
-  const save = () => {
-    collectNotes();
     onSave({ ...draft });
   };
-  dialog
-    .querySelectorAll("[data-kickout-close]")
-    .forEach((b) => (b.onclick = () => dialog.close()));
+  dialog.querySelector("[data-kickout-close]").onclick = () => dialog.close();
   dialog.querySelectorAll("[data-ko-length]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -94,6 +94,15 @@ export function openKickoutCapture(dialog, event, match, onSave, onClose) {
           );
       }),
   );
+  const credit = (number) => {
+    if (finished || !recorded) return;
+    finished = true;
+    draft.kickoutWinnerNumber = number;
+    draft.markPlayerNumber =
+      draft.mark && draft.outcome === "won" ? number : "";
+    save();
+    dialog.close();
+  };
   dialog.querySelectorAll("[data-ko-result]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -104,37 +113,34 @@ export function openKickoutCapture(dialog, event, match, onSave, onClose) {
         Object.assign(draft, {
           outcome: c.outcome,
           mark: c.mark,
+          kickoutWinnerNumber: "",
           markPlayerNumber: "",
           kickoutPerspective: "our",
         });
         recorded = true;
         save();
-        if (c.mark && c.outcome === "won") {
-          dialog
-            .querySelectorAll("[data-ko-result],[data-ko-length]")
-            .forEach((n) => (n.disabled = true));
-          dialog.querySelector("[data-ko-saved]").hidden = false;
-          const credit = dialog.querySelector("[data-ko-credit]");
-          credit.hidden = false;
-          credit.scrollIntoView({ block: "nearest" });
-        } else dialog.close();
-      }),
-  );
-  bindOtherCredit(dialog, (_, number) => {
-    if (finished || !recorded) return;
-    finished = true;
-    draft.markPlayerNumber = number;
-    save();
-    dialog.close();
-  });
-  dialog.querySelectorAll("[data-mark-player]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        if (finished || !recorded) return;
-        finished = true;
-        draft.markPlayerNumber = b.dataset.markPlayer;
-        save();
-        dialog.close();
+        if (c.outcome === "out-of-play") {
+          finished = true;
+          dialog.close();
+          return;
+        }
+        const team = c.outcome === "won" ? "our" : "opposition",
+          ownMark = c.mark && team === "our";
+        dialog
+          .querySelectorAll("[data-ko-result],[data-ko-length]")
+          .forEach((n) => (n.disabled = true));
+        const status = dialog.querySelector("[data-ko-saved]");
+        status.hidden = false;
+        status.textContent = `${c.mark ? "Mark" : "Kickout"} recorded. Tap the player who won possession.`;
+        const area = dialog.querySelector("[data-ko-credit]");
+        area.hidden = false;
+        area.innerHTML = `<p class="capture-instruction">${ownMark ? "Who caught our Mark?" : "Who won possession?"} · ${esc(team === "our" ? match.setup.ourTeam || "Our team" : match.setup.opposition || "Opposition")}</p>${playerCreditPicker(attributionRoster(match, team), { groupLabel: ownMark ? "Our Mark winner" : "Kickout possession winner", attribute: "data-ko-player", actionLabel: ownMark ? "Credit Mark to" : "Credit possession to" })}`;
+        area.querySelectorAll("[data-ko-player]").forEach((n) => {
+          if (ownMark) n.dataset.markPlayer = n.dataset.koPlayer;
+          n.onclick = () => credit(n.dataset.koPlayer);
+        });
+        bindOtherCredit(area, (_, number) => credit(number));
+        area.scrollIntoView({ block: "nearest" });
       }),
   );
   dialog.querySelectorAll('[name="notes"],[name="dictatedNote"]').forEach(

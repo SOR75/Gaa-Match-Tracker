@@ -76,6 +76,7 @@ export { uid };
 export function blankMatch() {
   return {
     schemaVersion: 2,
+    goalkeeperTrackingVersion: 1,
     id: uid(),
     setup: {
       ourTeam: "",
@@ -157,7 +158,12 @@ export function createEvent(match, typeId, team, now = Date.now()) {
         }
       : {}),
     ...(isKickoutEvent({ event: typeId })
-      ? { kickoutPerspective: "our", mark: false, markPlayerNumber: "" }
+      ? {
+          kickoutPerspective: "our",
+          mark: false,
+          markPlayerNumber: "",
+          kickoutWinnerNumber: "",
+        }
       : {}),
     ...(typeId === "pass"
       ? { passType: "kick", receiverNumber: "", buildUpLink: "" }
@@ -262,19 +268,16 @@ export function saveEvent(events, event, match = null) {
 export function undoEvent(events) {
   // Recording order stays stable when an event is edited or its match time changes.
   const removed = events.at(-1);
-  return events
-    .slice(0, -1)
-    .map((item) =>
-      item.directScoreLink === removed?.id || item.buildUpLink === removed?.id
-        ? {
-            ...item,
-            directScoreLink:
-              item.directScoreLink === removed?.id ? "" : item.directScoreLink,
-            buildUpLink:
-              item.buildUpLink === removed?.id ? "" : item.buildUpLink,
-          }
-        : item,
-    );
+  return events.slice(0, -1).map((item) =>
+    item.directScoreLink === removed?.id || item.buildUpLink === removed?.id
+      ? {
+          ...item,
+          directScoreLink:
+            item.directScoreLink === removed?.id ? "" : item.directScoreLink,
+          buildUpLink: item.buildUpLink === removed?.id ? "" : item.buildUpLink,
+        }
+      : item,
+  );
 }
 export function validMatch(value) {
   return (

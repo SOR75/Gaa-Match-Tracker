@@ -92,6 +92,7 @@ export function participationFor(match, player, team = "our") {
       "markWinner",
       "blocker",
       "receiver",
+      "kickoutWinner",
       "turnoverWinner",
       "turnoverLoser",
     ].some((role) => {

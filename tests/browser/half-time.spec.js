@@ -122,6 +122,7 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
   await page.locator('[data-team="our"]').click();
   const firstShot = (await state(page)).events[0];
   for (let i = 0; i < 5; i++) {
+    await page.waitForTimeout(700);
     await page.locator('[data-event="our-kickout"]').click();
     await page
       .locator(
@@ -129,10 +130,12 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
       )
       .click();
     if (i === 0) await page.locator('[data-mark-player="4"]').click();
+    else await page.keyboard.press("Escape");
     await page.locator('[data-event="opposition-kickout"]').click();
     await page
       .locator(`[data-ko-result="${i === 0 ? "won" : "lost"}"]`)
       .click();
+    await page.keyboard.press("Escape");
   }
   for (const type of ["turnover-won", "turnover-lost", "turnover-won"]) {
     await page.locator(`[data-event="${type}"]`).click();

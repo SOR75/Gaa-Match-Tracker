@@ -4,7 +4,7 @@ import { esc } from "./ui.js";
 export function openSubstitution(dialog, draft, match, onSaved) {
   let saved = false;
   const choices = substitutionChoices(match, draft);
-  dialog.innerHTML = `<form id="substitution-form"><div class="dialog-heading"><div><p class="eyebrow">H${draft.half} · ${Math.floor(draft.timeMs / 60000)}:${String(Math.floor(draft.timeMs / 1000) % 60).padStart(2, "0")}</p><h2 id="event-dialog-title">Substitution</h2></div><button type="button" class="icon-button" data-sub-cancel aria-label="Cancel substitution">×</button></div><p class="small-note">${esc(draft.team === "our" ? match.setup.ourTeam : match.setup.opposition)} · choose player ON, then OFF. Jersey numbers can also be entered.</p><div class="sub-grid">${[
+  dialog.innerHTML = `<form id="substitution-form"><div class="dialog-heading"><div><p class="eyebrow">H${draft.half} · ${Math.floor(draft.timeMs / 60000)}:${String(Math.floor(draft.timeMs / 1000) % 60).padStart(2, "0")}</p><h2 id="event-dialog-title">Substitution</h2></div><button type="button" class="icon-button" data-sub-cancel aria-label="Cancel substitution">×</button></div><p class="small-note">${esc(draft.team === "our" ? match.setup.ourTeam : match.setup.opposition)} · choose player ON, then OFF. Jersey numbers can also be entered.</p>${!choices.on.length && !choices.off.length ? `<p class="warning" role="status">No numbered players loaded for ${esc(draft.team === "our" ? match.setup.ourTeam : match.setup.opposition)}. Load this team or set today’s jersey numbers in Squad; the other team’s squad is separate.</p>` : ""}<div class="sub-grid">${[
     "On",
     "Off",
   ]

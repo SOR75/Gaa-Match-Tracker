@@ -40,6 +40,7 @@ test("quick kickouts capture known outcome and optional length at initial tap ti
   await page.waitForTimeout(1200);
   await nav(page, "SHORT");
   await nav(page, "Won by us");
+  await page.keyboard.press("Escape");
   let match = await state(page);
   expect(match.events).toHaveLength(1);
   expect(match.events[0]).toMatchObject({
@@ -51,6 +52,7 @@ test("quick kickouts capture known outcome and optional length at initial tap ti
   });
   await nav(page, "Opposition Kickout");
   await nav(page, "Retained by opposition");
+  await page.keyboard.press("Escape");
   match = await state(page);
   expect(match.events[1]).toMatchObject({
     team: "opposition",
