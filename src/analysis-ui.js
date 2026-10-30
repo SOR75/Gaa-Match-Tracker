@@ -1,4 +1,4 @@
-import { goalkeeperStatistics } from "./goalkeepers.js";
+import { goalkeeperCards } from "./goalkeeper-ui.js";
 import { isDefensiveBlockEvent } from "./defensive-blocks.js";
 import { SHOT_SOURCES, gaelicScore } from "./shots.js";
 import {
@@ -24,7 +24,7 @@ export function analysisScreen(
   report = false,
   scopeHalf = null,
 ) {
-  const keepers = goalkeeperStatistics(match, { half: scopeHalf });
+  const keepersMarkup = goalkeeperCards(match, { half: scopeHalf });
   if (scopeHalf !== null)
     match = {
       ...match,
@@ -185,43 +185,7 @@ export function analysisScreen(
     }<div class="analysis-map-layout"><div class="analysis-pitch">${pitchMarkup(shots)}</div><div><div class="shot-legend"><span><i class="legend-goal">●</i> Goal</span><span><i class="legend-point">●</i> Point</span><span><i class="legend-two">◎</i> 2 Point</span><span><i class="legend-miss">×</i> Wide / Miss</span><span><i class="legend-blocked">▣</i> Blocked shot</span></div><p class="small-note" data-map-count>${mapped.length} plotted / ${shots.length} attempts in this selection.</p><p class="small-note">${shots.length - mapped.length} attempts have no recorded location. Legacy events remain in all statistics; no location is invented. Attacking goal is at top for both halves.</p><p class="small-note">Filters affect the shot map only. Overlapping marks may hide shots taken at the same location.</p></div></div>`,
   )}
   ${section("Defensive block locations", `<details class="defensive-map"><summary>Show recorded defensive blocks · ${match.events.filter(isDefensiveBlockEvent).length}</summary><div class="analysis-pitch">${pitchMarkup(match.events.filter(isDefensiveBlockEvent), false, { mapLabel: "Defensive block map", teamName: name("opposition") })}</div><p class="small-note">Purple D = Defensive Block. Locations are normalized toward the opposition attacking goal. These actions are not shot attempts or possession changes. Legacy defensive credits on opposition shots remain in the shooting map and analysis.</p></details>`)}
-  ${section(
-    "Goalkeepers",
-    keepers.length
-      ? table(
-          [
-            "Goalkeeper",
-            "Taken",
-            "Retained",
-            "Lost",
-            "Retention %",
-            "Short retained / taken",
-            "Short %",
-            "Long retained / taken",
-            "Long %",
-            "Marks generated",
-            "Out of Play / Sideline",
-            "Saves",
-            "Goals conceded",
-          ],
-          keepers.map((g) => [
-            `${name(g.team)} · #${g.jerseyNumber ?? "—"} ${g.nameSnapshot}`,
-            g.gkKickouts,
-            g.gkRetained,
-            g.gkLost,
-            pct(g.gkRetention),
-            `${g.gkShortRetained}/${g.gkShort}`,
-            pct(g.gkShortRetention),
-            `${g.gkLongRetained}/${g.gkLong}`,
-            pct(g.gkLongRetention),
-            g.gkMarks,
-            g.gkOutOfPlay,
-            g.gkSaves,
-            g.gkGoalsConceded,
-          ]),
-        )
-      : '<p class="small-note">No goalkeeper identified. Legacy goalkeeper identity is never inferred.</p>',
-  )}
+  ${keepersMarkup}
   ${section(
     "Kickout analysis",
     table(

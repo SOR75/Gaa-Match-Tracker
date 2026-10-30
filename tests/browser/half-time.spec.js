@@ -274,6 +274,7 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
     half: 2,
     elapsedMs: 0,
     startedAt: null,
+    completedHalves: { 1: 0 },
   });
   expect((await state(page)).id).toBe(before.id);
   expect((await state(page)).events).toEqual(h1Events);

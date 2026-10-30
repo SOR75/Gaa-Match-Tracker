@@ -1,3 +1,4 @@
+import { goalkeeperCards } from "./goalkeeper-ui.js";
 import { analysisForScope, periodComparison } from "./half-time.js";
 import { coachingDashboard } from "./coaching-dashboard.js";
 
@@ -26,5 +27,5 @@ export function fullTimeScreen(match, { actions, historical = false } = {}) {
         primary: true,
       },
     ],
-  })}</div>`;
+  })}${goalkeeperCards(match)}</div>`;
 }

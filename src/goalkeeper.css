@@ -1,0 +1,39 @@
+.goalkeeper-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+}
+.goalkeeper-card {
+  border: 1px solid var(--border, #dce2e8);
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 0;
+}
+.goalkeeper-card h3 {
+  margin: 0 0 6px;
+}
+.goalkeeper-card dl {
+  margin: 12px 0 0;
+  display: grid;
+  gap: 8px;
+}
+.goalkeeper-card dl > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+}
+.goalkeeper-card dt {
+  font-size: 13px;
+}
+.goalkeeper-card dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+@media print {
+  .goalkeeper-card {
+    break-inside: avoid;
+  }
+}

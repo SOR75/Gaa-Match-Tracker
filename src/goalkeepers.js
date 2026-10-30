@@ -1,3 +1,4 @@
+import { elapsedMs } from "./domain.js";
 import { participantRef, rowId, validPlayerId } from "./identity.js";
 import { kickoutDetails } from "./kickouts.js";
 import { shotDetails } from "./shots.js";
@@ -52,7 +53,10 @@ export function startingGoalkeepers(match) {
     }),
   );
 }
-export function goalkeeperStatistics(match, { half = null } = {}) {
+export function goalkeeperStatistics(
+  match,
+  { half = null, now = Date.now() } = {},
+) {
   const active = startingGoalkeepers(match),
     groups = new Map();
   const group = (ref) => {
@@ -96,21 +100,23 @@ export function goalkeeperStatistics(match, { half = null } = {}) {
       if (g) g.goalkeeperAppearances = 1;
     }
     const ko = kickoutDetails(e);
-    if (ko && e.team === "our") {
-      const g = group(active.our);
+    if (ko) {
+      const g = group(active[e.team]);
+      const retained = e.team === "our" ? "won" : "lost";
+      const lost = e.team === "our" ? "lost" : "won";
       if (g) {
         g.gkKickouts++;
-        if (ko.outcome === "won") g.gkRetained++;
-        if (ko.outcome === "lost") g.gkLost++;
+        if (ko.outcome === retained) g.gkRetained++;
+        if (ko.outcome === lost) g.gkLost++;
         if (ko.outcome === "out-of-play") g.gkOutOfPlay++;
         if (ko.mark) g.gkMarks++;
         if (e.kickoutLength === "Short") {
           g.gkShort++;
-          if (ko.outcome === "won") g.gkShortRetained++;
+          if (ko.outcome === retained) g.gkShortRetained++;
         }
         if (e.kickoutLength === "Long") {
           g.gkLong++;
-          if (ko.outcome === "won") g.gkLongRetained++;
+          if (ko.outcome === retained) g.gkLongRetained++;
         }
       }
     }
@@ -122,12 +128,24 @@ export function goalkeeperStatistics(match, { half = null } = {}) {
       if (g && e.event === "miss" && shot.missReason === "short") g.gkSaves++;
     }
   }
-  return [...groups.values()].map((g) => ({
-    ...g,
-    gkRetention: keeperPercent(g.gkRetained, g.gkKickouts),
-    gkShortRetention: keeperPercent(g.gkShortRetained, g.gkShort),
-    gkLongRetention: keeperPercent(g.gkLongRetained, g.gkLong),
-  }));
+  const periods = goalkeeperPeriods(match, now, { half });
+  return [...groups.values()].map((g) => {
+    const ownPeriods = periods.filter(
+      (p) => p.team === g.team && p.matchPlayerId === g.matchPlayerId,
+    );
+    const timeMs = ownPeriods.some((p) => p.durationMs === null)
+      ? null
+      : ownPeriods.reduce((n, p) => n + p.durationMs, 0);
+    return {
+      ...g,
+      goalkeeperAppearances: g.goalkeeperAppearances || Number(timeMs > 0),
+      gkTimeMs: timeMs,
+      periods: ownPeriods,
+      gkRetention: keeperPercent(g.gkRetained, g.gkKickouts),
+      gkShortRetention: keeperPercent(g.gkShortRetained, g.gkShort),
+      gkLongRetention: keeperPercent(g.gkLongRetained, g.gkLong),
+    };
+  });
 }
 export function activeGoalkeepers(match) {
   const active = startingGoalkeepers(match);
@@ -139,11 +157,13 @@ export function activeGoalkeepers(match) {
     if (e.event === "goalkeeper-change") active[e.team] = participantRef(e);
     if (e.event === "substitution" && active[e.team]) {
       const off = participantRef(e, "playerOff");
-      if (
-        off?.matchPlayerId === active[e.team].matchPlayerId ||
-        (!off && String(e.playerOff) === String(active[e.team].jerseyNumber))
-      )
+      if (off?.matchPlayerId === active[e.team].matchPlayerId)
         active[e.team] = participantRef(e, "playerOn");
+      else if (
+        !off &&
+        String(e.playerOff) === String(active[e.team].jerseyNumber)
+      )
+        active[e.team] = null;
     }
   }
   return active;
@@ -152,7 +172,11 @@ export function activeGoalkeepers(match) {
 // Objective keeper periods, derived from the existing match clock/substitutions.
 // Cross-half duration stays unknown: the archive does not retain the exact H1
 // end clock, so nominal half length must not manufacture minutes in goal.
-export function goalkeeperPeriods(match, now = Date.now()) {
+export function goalkeeperPeriods(
+  match,
+  now = Date.now(),
+  { half = null } = {},
+) {
   const ordered = match.events
     .map((e, i) => ({ e, i }))
     .sort(
@@ -164,17 +188,27 @@ export function goalkeeperPeriods(match, now = Date.now()) {
       opposition: { half: 1, timeMs: 0 },
     },
     periods = [];
+  const halfEnd = (h) => {
+    const value = match.clock.completedHalves?.[h];
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  };
   const close = (team, to) => {
     const ref = current[team],
       from = starts[team];
-    if (ref)
-      periods.push({
-        ...ref,
-        from: { ...from },
-        to: { ...to },
-        durationMs:
-          from.half === to.half ? Math.max(0, to.timeMs - from.timeMs) : null,
-      });
+    if (!ref) return;
+    let start = { ...from },
+      end = { ...to };
+    if (half !== null) {
+      if (start.half > half || end.half < half) return;
+      if (start.half < half) start = { half, timeMs: 0 };
+      if (end.half > half) end = { half, timeMs: halfEnd(half) };
+    }
+    let durationMs = null;
+    if (end.timeMs !== null && start.half === end.half)
+      durationMs = Math.max(0, end.timeMs - start.timeMs);
+    else if (end.timeMs !== null && halfEnd(start.half) !== null)
+      durationMs = Math.max(0, halfEnd(start.half) - start.timeMs) + end.timeMs;
+    periods.push({ ...ref, from: start, to: end, durationMs });
   };
   const prefix = [];
   for (const { e } of ordered) {
@@ -205,4 +239,12 @@ export function goalkeeperPeriods(match, now = Date.now()) {
       : clock;
   for (const team of ["our", "opposition"]) close(team, end);
   return periods;
+}
+
+// Preserve the established reset/pause behaviour, retaining only the measured
+// outgoing-half duration for derived periods. No nominal minutes are inferred.
+export function advanceHalfClock(clock, half, now = Date.now()) {
+  const completedHalves = { ...clock.completedHalves };
+  if (half > clock.half) completedHalves[clock.half] = elapsedMs(clock, now);
+  return { ...clock, half, elapsedMs: 0, startedAt: null, completedHalves };
 }

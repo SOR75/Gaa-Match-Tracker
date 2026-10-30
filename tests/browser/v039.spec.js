@@ -29,7 +29,7 @@ async function seed(page) {
   return m;
 }
 async function keeper(page) {
-  await expect(page.locator('[data-goalkeeper]')).toHaveCount(0);
+  await expect(page.locator("[data-goalkeeper]")).toHaveCount(0);
 }
 
 test("real live kickout out of play persists, edits and undo, no unknown choice", async ({
@@ -61,11 +61,11 @@ for (const team of ["our", "opposition"])
     await seed(page);
     await page.locator(`[data-team="${team}"]`).click();
     await page.locator('[data-event="pass"]').click();
-    expect((await state(page)).events).toHaveLength(1);
+    expect((await state(page)).events).toHaveLength(0);
     await page.getByLabel("Passer", { exact: true }).selectOption("1");
     await page.getByLabel("Receiver", { exact: true }).selectOption("8");
     await page.getByLabel("Pass type", { exact: true }).selectOption("hand");
-    await nav(page, "Save changes");
+    await nav(page, "Record pass");
     const e = (await state(page)).events[0];
     expect(e.participants.player.playerId).toBeTruthy();
     expect(e.participants.receiver.team).toBe(team);
@@ -78,25 +78,29 @@ for (const team of ["our", "opposition"])
     await nav(page, "Save changes");
     expect((await state(page)).events[0].passType).toBe("kick");
   });
-test("score saved first, retrospective passes link to same shot without scoreboard changes", async ({
+test("one simple optional Pass after a shot has no build-up decisions and preserves the shot", async ({
   page,
 }) => {
   await seed(page);
   await page.locator('[data-event="point"]').click();
   await page.keyboard.press("Escape");
   const shot = (await state(page)).events[0];
-  await page.locator("[data-add-build-up]").click();
+  await expect(page.locator("[data-add-build-up]")).toHaveCount(0);
+  await page.locator('[data-event="pass"]').click();
+  await expect(
+    page.getByLabel("Build-up to shot", { exact: true }),
+  ).toHaveCount(0);
   await page.getByLabel("Passer", { exact: true }).selectOption("8");
   await page.getByLabel("Receiver", { exact: true }).selectOption("1");
-  await nav(page, "Save changes");
+  await nav(page, "Record pass");
   const m = await state(page);
   expect(m.events).toHaveLength(2);
-  expect(m.events[1].buildUpLink).toBe(shot.id);
   expect(m.events[0]).toEqual(shot);
+  expect(m.events[1].buildUpLink || "").toBe("");
   await nav(page, "Timeline");
   await expect(
-    page.locator(".event-row").filter({ hasText: "linked build-up" }),
-  ).toBeVisible();
+    page.locator(".event-row").filter({ hasText: "Kick Pass" }),
+  ).toContainText("#8 → #1");
 });
 test("one turnover stores winner and loser from opposite squads", async ({
   page,
@@ -141,20 +145,18 @@ test("automatic goalkeeper and actual substitution drive kickouts, saves and con
   await page.locator('[data-event="goal"]').click();
   await page.keyboard.press("Escape");
   await nav(page, "Match analysis");
-  const section = page.locator("section").filter({
-    has: page.getByRole("heading", { name: "Goalkeepers", exact: true }),
-  });
-  await expect(
-    section.getByRole("row").filter({ hasText: "First Keeper" }),
-  ).toContainText("1");
-  await expect(
-    section.getByRole("row").filter({ hasText: "Next Keeper" }),
-  ).toBeVisible();
+  const first = page.locator(
+    '[data-gk-card="our:' + (await state(page)).players[0].id + '"]',
+  );
+  const next = page.locator(
+    '[data-gk-card="our:' + (await state(page)).players[1].id + '"]',
+  );
+  await expect(first.locator('[data-gk-metric="taken"]')).toHaveText("1");
+  await expect(first.locator('[data-gk-metric="saves"]')).toHaveText("1");
+  await expect(next.locator('[data-gk-metric="conceded"]')).toHaveText("1");
   await page.reload();
   await nav(page, "Match analysis");
-  await expect(
-    section.getByText("Home · #16 Next Keeper", { exact: true }),
-  ).toBeVisible();
+  await expect(next).toContainText("Next Keeper");
 });
 test("new participant metadata and GK analysis survive native History and offline reopening", async ({
   page,
@@ -167,7 +169,7 @@ test("new participant metadata and GK analysis survive native History and offlin
   await page.locator('[data-event="pass"]').click();
   await page.getByLabel("Passer", { exact: true }).selectOption("8");
   await page.getByLabel("Receiver", { exact: true }).selectOption("1");
-  await nav(page, "Save changes");
+  await nav(page, "Record pass");
   const archived = await state(page);
   await page.evaluate((m) => {
     localStorage.setItem("sideline.match.archive." + m.id, JSON.stringify(m));

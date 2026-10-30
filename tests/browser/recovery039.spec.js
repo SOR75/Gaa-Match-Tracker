@@ -92,8 +92,9 @@ test("real #18 on/#10 off uses roster buttons and every live our selector follow
     ).toHaveCount(0);
   }
   await page.getByLabel("Passer", { exact: true }).selectOption("18");
+  await page.getByLabel("Receiver", { exact: true }).selectOption("1");
   await page.getByLabel("Pass type", { exact: true }).selectOption("hand");
-  await nav(page, "Save changes");
+  await nav(page, "Record pass");
 });
 for (const type of ["our-kickout", "opposition-kickout"])
   for (const outcome of [
@@ -146,15 +147,11 @@ test("automatic #1 keeper; outfield replacement sequence attributes goals to cor
   await page.locator('[data-event="goal"]').click();
   await page.keyboard.press("Escape");
   await nav(page, "Match analysis");
-  const table = page.locator("section").filter({
-    has: page.getByRole("heading", { name: "Goalkeepers", exact: true }),
-  });
   for (const n of [1, 4]) {
-    const row = table
-      .getByRole("row")
-      .filter({ hasText: `Home · #${n} Player ${n}` });
-    await expect(row).toBeVisible();
-    await expect(row.getByRole("cell").last()).toHaveText("1");
+    const m = await state(page);
+    const card = page.locator(`[data-gk-card="our:${m.players[n - 1].id}"]`);
+    await expect(card).toBeVisible();
+    await expect(card.locator('[data-gk-metric="conceded"]')).toHaveText("1");
   }
 });
 test("substitution survives native History resume; editing and undo recalculate live players", async ({
