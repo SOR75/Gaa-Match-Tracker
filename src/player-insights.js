@@ -1,7 +1,13 @@
+import {
+  goalkeeperStatistics,
+  goalkeeperMetrics,
+  keeperPercent,
+} from "./goalkeepers.js";
 import { validPlayerId, participantRef } from "./identity.js";
 import { playerStatistics, percentage } from "./analysis.js";
 import { participationFor, hasMatchEvidence } from "./participation.js";
 const metrics = [
+  ...goalkeeperMetrics,
   "goals",
   "points",
   "twoPointers",
@@ -64,7 +70,14 @@ export function playerReviews(records, squads = [], active = null) {
     for (const p of m.players)
       if (validPlayerId(p.playerId)) roster.set(p.playerId, p);
     for (const e of m.events)
-      for (const role of ["player", "blocker", "markWinner"]) {
+      for (const role of [
+        "player",
+        "blocker",
+        "markWinner",
+        "receiver",
+        "turnoverWinner",
+        "turnoverLoser",
+      ]) {
         const ref = participantRef(e, role);
         if (
           ref?.team === "our" &&
@@ -82,6 +95,7 @@ export function playerReviews(records, squads = [], active = null) {
           });
       }
     const stats = playerStatistics(m, "our");
+    const keepers = goalkeeperStatistics(m).filter((g) => g.team === "our");
     for (const [id, p] of roster) {
       const q = profile(id, p.name),
         participation = participationFor(m, p);
@@ -93,8 +107,13 @@ export function playerReviews(records, squads = [], active = null) {
             .reduce((n, s) => n + (s[key] || 0), 0),
         ]),
       );
+      for (const key of goalkeeperMetrics)
+        total[key] = keepers
+          .filter((g) => g.playerId === id)
+          .reduce((n, g) => n + g[key], 0);
       q.matches.push({
         matchId: m.id,
+        seasonId: m.seasonId || null,
         nameSnapshot: p.name,
         opponent: m.setup.opposition || "Opposition",
         date: m.setup.date || "",
@@ -124,8 +143,46 @@ export function playerReviews(records, squads = [], active = null) {
       return {
         ...q,
         squads: [...q.squads],
+        goalkeeperSeasons: [
+          ...new Set(
+            q.matches
+              .filter((m) => m.goalkeeperAppearances)
+              .map((m) => m.seasonId),
+          ),
+        ].map((seasonId) => {
+          const entries = q.matches.filter((m) => m.seasonId === seasonId);
+          const counters = Object.fromEntries(
+            goalkeeperMetrics.map((k) => [
+              k,
+              entries.reduce((n, m) => n + m[k], 0),
+            ]),
+          );
+          return {
+            seasonId,
+            label: seasonId
+              ? squads.find((s) => s.seasonId === seasonId)?.seasonLabel ||
+                seasonId
+              : "Season not recorded",
+            ...counters,
+            gkRetention: keeperPercent(
+              counters.gkRetained,
+              counters.gkKickouts,
+            ),
+            gkShortRetention: keeperPercent(
+              counters.gkShortRetained,
+              counters.gkShort,
+            ),
+            gkLongRetention: keeperPercent(
+              counters.gkLongRetained,
+              counters.gkLong,
+            ),
+          };
+        }),
         ...total,
         conversion: percentage(total.successful, total.attempts),
+        gkRetention: keeperPercent(total.gkRetained, total.gkKickouts),
+        gkShortRetention: keeperPercent(total.gkShortRetained, total.gkShort),
+        gkLongRetention: keeperPercent(total.gkLongRetained, total.gkLong),
         named: q.matches.filter((m) => m.named).length,
         appearances: q.matches.filter((m) => m.appeared).length,
         starts: q.matches.filter((m) => m.started).length,

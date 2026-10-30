@@ -215,7 +215,7 @@ test("every existing fast event preserves selected team, including fixed-team ki
     if (type.includes("kickout"))
       await page
         .getByRole("dialog")
-        .getByRole("button", { name: "Unknown", exact: true })
+        .getByRole("button", { name: "Out of Play / Sideline", exact: true })
         .click();
     const m = await state(page);
     expect(m.events).toHaveLength(index + 1);

@@ -1,3 +1,4 @@
+import { roleTeam } from "./identity.js";
 import {
   identityPlayerStatistics,
   hasIdentityAttribution,
@@ -83,7 +84,11 @@ export function summarize(events, team) {
       total: kickouts.length,
       won,
       lost,
-      unknown: kickouts.length - won - lost,
+      unknown: kickouts.filter((e) => kickoutDetails(e).outcome === "unknown")
+        .length,
+      outOfPlay: kickouts.filter(
+        (e) => kickoutDetails(e).outcome === "out-of-play",
+      ).length,
       retention: percentage(team === "our" ? won : lost, won + lost),
       possessionWinRate: percentage(won, won + lost),
       marksWon: kickouts.filter(
@@ -94,10 +99,18 @@ export function summarize(events, team) {
       ).length,
       ...lengths,
     },
-    turnoversWon: selected.filter((event) => event.event === "turnover-won")
-      .length,
-    turnoversLost: selected.filter((event) => event.event === "turnover-lost")
-      .length,
+    turnoversWon: events.filter(
+      (e) =>
+        ["turnover-won", "turnover-lost"].includes(e.event) &&
+        roleTeam(e, "turnoverWinner") === team &&
+        (e.event === "turnover-won" || e.turnoverWinnerNumber),
+    ).length,
+    turnoversLost: events.filter(
+      (e) =>
+        ["turnover-won", "turnover-lost"].includes(e.event) &&
+        roleTeam(e, "turnoverLoser") === team &&
+        (e.event === "turnover-lost" || e.turnoverLoserNumber),
+    ).length,
     interceptions: selected.filter((event) => event.event === "interception")
       .length,
     possessions: selected.filter((event) => event.event === "possession")

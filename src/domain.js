@@ -61,6 +61,14 @@ export const EVENT_TYPES = [
     team: "our",
     player: true,
   },
+  { id: "pass", label: "Pass", value: 0, outcome: "completed", player: true },
+  {
+    id: "goalkeeper-change",
+    label: "Goalkeeper change",
+    value: 0,
+    outcome: "completed",
+    player: true,
+  },
   { id: "substitution", label: "Substitution", value: 0, outcome: "completed" },
 ];
 export const eventType = (id) => EVENT_TYPES.find((type) => type.id === id);
@@ -151,6 +159,9 @@ export function createEvent(match, typeId, team, now = Date.now()) {
     ...(isKickoutEvent({ event: typeId })
       ? { kickoutPerspective: "our", mark: false, markPlayerNumber: "" }
       : {}),
+    ...(typeId === "pass"
+      ? { passType: "kick", receiverNumber: "", buildUpLink: "" }
+      : {}),
     event: typeId,
     outcome: type.outcome,
     scoreValue: type.value,
@@ -193,6 +204,8 @@ export function normalizeEvent(event) {
     )
   )
     throw new Error("Shot coordinates must both be within 0–1 or both empty.");
+  if (event.event === "pass" && !["hand", "kick"].includes(event.passType))
+    throw new Error("Choose Hand Pass or Kick Pass.");
   return {
     ...event,
     ...shotFields(event),
@@ -229,12 +242,22 @@ export function saveEvent(events, event, match = null) {
       )
       .map((item) => item.id),
   );
-  return updated.map((item) =>
-    item.directScoreLink &&
-    (!scores.has(item.directScoreLink) || item.directScoreLink === item.id)
-      ? { ...item, directScoreLink: "" }
-      : item,
+  const attempts = new Map(
+    updated.filter((e) => isShot(e)).map((e) => [e.id, e]),
   );
+  return updated.map((item) => {
+    if (
+      item.buildUpLink &&
+      (!attempts.has(item.buildUpLink) ||
+        attempts.get(item.buildUpLink).team !== item.team ||
+        item.buildUpLink === item.id)
+    )
+      item = { ...item, buildUpLink: "" };
+    return item.directScoreLink &&
+      (!scores.has(item.directScoreLink) || item.directScoreLink === item.id)
+      ? { ...item, directScoreLink: "" }
+      : item;
+  });
 }
 export function undoEvent(events) {
   // Recording order stays stable when an event is edited or its match time changes.
@@ -242,8 +265,14 @@ export function undoEvent(events) {
   return events
     .slice(0, -1)
     .map((item) =>
-      item.directScoreLink === removed?.id
-        ? { ...item, directScoreLink: "" }
+      item.directScoreLink === removed?.id || item.buildUpLink === removed?.id
+        ? {
+            ...item,
+            directScoreLink:
+              item.directScoreLink === removed?.id ? "" : item.directScoreLink,
+            buildUpLink:
+              item.buildUpLink === removed?.id ? "" : item.buildUpLink,
+          }
         : item,
     );
 }

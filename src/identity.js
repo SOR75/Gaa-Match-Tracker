@@ -45,11 +45,41 @@ export function roleNumber(event, role) {
       : event.team === "opposition"
         ? shotDetails(event)?.blockedByNumber || ""
         : "";
+  if (role === "receiver")
+    return event.event === "pass" ? String(event.receiverNumber || "") : "";
+  if (["turnoverWinner", "turnoverLoser"].includes(role))
+    return ["turnover-won", "turnover-lost"].includes(event.event)
+      ? String(event[role + "Number"] || "")
+      : "";
   return event.event === "substitution" ? String(event[role] || "") : "";
 }
-export const roleTeam = (event, role) =>
-  ["markWinner", "blocker"].includes(role) ? "our" : event.team;
-const roles = ["player", "markWinner", "blocker", "playerOn", "playerOff"];
+export const roleTeam = (event, role) => {
+  if (["markWinner", "blocker"].includes(role)) return "our";
+  if (role === "turnoverWinner")
+    return event.event === "turnover-won"
+      ? event.team
+      : event.team === "our"
+        ? "opposition"
+        : "our";
+  if (role === "turnoverLoser")
+    return event.event === "turnover-lost"
+      ? event.team
+      : event.team === "our"
+        ? "opposition"
+        : "our";
+  return event.team;
+};
+export const participantRoles = [
+  "player",
+  "markWinner",
+  "blocker",
+  "playerOn",
+  "playerOff",
+  "receiver",
+  "turnoverWinner",
+  "turnoverLoser",
+];
+const roles = participantRoles;
 function validRef(ref, event, role) {
   return (
     ref &&
@@ -72,6 +102,8 @@ export function validEventIdentity(event) {
     roles.every(
       (role) =>
         event.participants[role] === null ||
+        (["receiver", "turnoverWinner", "turnoverLoser"].includes(role) &&
+          event.participants[role] === undefined) ||
         validRef(event.participants[role], event, role),
     )
   );

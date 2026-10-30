@@ -1,3 +1,5 @@
+import { linkedEventFields } from "./event-links.js";
+import { activeGoalkeepers, goalkeeperRef } from "./goalkeepers.js";
 import { openSaveTeamSetup, openUseTeamSetup } from "./team-setups-ui.js";
 import { starterWarningMarkup, starterLineupKey } from "./starter-warning.js";
 import "./starter-warning.css";
@@ -277,7 +279,7 @@ function render() {
       <div class="sidebar-bottom"><span class="local-dot"></span><div>Made for the sideline<small>Your match stays on this device.</small></div></div>
     </aside>
     <div class="main-shell">
-      <header class="topbar"><span class="build-tag">V0.3.8-dev</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${view === "halftime" ? "Half-Time Analysis" : view === "fulltime" ? "Full-Time Analysis" : tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
+      <header class="topbar"><span class="build-tag">V0.3.9-dev</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${view === "halftime" ? "Half-Time Analysis" : view === "fulltime" ? "Full-Time Analysis" : tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
       <main id="main"><p id="storage-warning" class="warning" role="alert" hidden></p>${view === "players" ? playerReviewUI.screen() : view === "history" ? historyUI.screen() : view === "setup" ? setupScreen() : view === "squad" ? squadScreen() : view === "live" ? liveScreen() : view === "timeline" ? timelineScreen() : view === "halftime" ? halfTimeScreen(match) : view === "fulltime" ? fullTimeScreen(match) : analysisScreen(match, analysisFilters, reportMode, analysisHalf)}</main>
       ${["history", "players"].includes(view) ? `<footer class="actionbar"><strong>Device records · read-only viewing</strong><button class="button subtle" data-view="live">Return to current match</button></footer>` : `<footer class="actionbar"><div class="last-event">${lastEventSummary()}</div><div class="history-actions"><button class="button subtle" data-action="edit-last" aria-label="Edit last event" ${match.events.length ? "" : "disabled"}>${icon("edit")}<span>Edit last<span class="wide-label"> event</span></span></button><button class="button undo" data-action="undo" aria-label="Undo last event" ${match.events.length ? "" : "disabled"}>${icon("undo")}<span>Undo last<span class="wide-label"> event</span></span></button></div></footer>`}
     </div>
@@ -340,10 +342,33 @@ function liveTeamControls() {
     })
     .join("")}</div></div>`;
 }
+function goalkeeperControls() {
+  const active = activeGoalkeepers(match);
+  return `<details class="optional-note"><summary>Goalkeepers · optional · set once, substitutions follow automatically</summary><div class="form-grid">${[
+    "our",
+    "opposition",
+  ]
+    .map(
+      (team) =>
+        `<label class="field"><span>${esc(teamName(team))} goalkeeper</span><select data-goalkeeper="${team}" aria-label="${team === "our" ? "Our" : "Opposition"} goalkeeper"><option value="">Not identified</option>${playersFor(
+          match,
+          team,
+        )
+          .filter((p) => Number.isInteger(p.number))
+          .map(
+            (p) =>
+              `<option value="${p.matchPlayerId || p.id}" ${active[team]?.matchPlayerId === (p.matchPlayerId || p.id) ? "selected" : ""}>#${p.number} ${esc(p.name)}</option>`,
+          )
+          .join("")}</select></label>`,
+    )
+    .join(
+      "",
+    )}</div><p class="small-note">Select the actual goalkeeper; jersey #1 is not assumed. During play a change is recorded at the current match time. No identity is inferred for old matches.</p></details>`;
+}
 function liveScreen() {
   return `${heading("FROM THE SIDELINE", "Every moment counts.", "Tap an event. Keep your eyes on the game.", `<span class="match-status"><span class="local-dot"></span>${match.clock.startedAt === null ? "MATCH WORKSPACE" : "LIVE TRACKING"}</span>`)}
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
-    <div class="matchday-toolbar"><span class="build-tag">V0.3.8-dev</span><button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>${match.clock.half === 2 ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone voice-roadmap-button" data-action="voice-mode" aria-label="Voice Match Mode — Coming soon">${icon("mic")}<span>Voice Match Mode<small class="voice-roadmap-label">COMING SOON</small></span></button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
+    <div class="matchday-toolbar"><span class="build-tag">V0.3.9-dev</span><button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>${match.clock.half === 2 ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone voice-roadmap-button" data-action="voice-mode" aria-label="Voice Match Mode — Coming soon">${icon("mic")}<span>Voice Match Mode<small class="voice-roadmap-label">COMING SOON</small></span></button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
     ${starterWarningMarkup(match)}${scoreboard()}
     <section class="event-controls recording-${selectedTeam}">${liveTeamControls()}<div class="controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div></div>
     <div class="scoring-grid">${EVENT_TYPES.slice(0, 4)
@@ -355,13 +380,15 @@ function liveScreen() {
     <div class="form-section-label event-section-label">BUILD-UP & POSSESSION <span>Tap to log · edit details afterwards</span></div><div class="other-events">${EVENT_TYPES.slice(
       4,
     )
+      .filter((type) => !["goalkeeper-change", "pass"].includes(type.id))
       .map(
         (type) =>
           `<button class="event-button compact-event" data-event="${type.id}" ${ready() ? "" : "disabled"}>${icon(type.id === "defensive-block" ? "block" : type.id.includes("kickout") ? "arrow" : type.id === "possession" ? "ball" : "pitch")}<strong>${type.quickLabel || type.label}</strong></button>`,
       )
       .join("")}</div></section>
     ${match.events.length && isShot(match.events.at(-1)) ? '<button class="button subtle shot-enrich" data-action="enrich-shot">Add player / location to last shot (optional)</button>' : ""}
-    ${actionCreditMarkup(match)}<div class="live-note-bar"><button class="button microphone" data-action="live-note" ${match.events.length ? "" : "disabled"}>${icon("mic")} Add / dictate note to last event</button><span class="small-note">Optional · no detailed editor needed</span></div><section class="card recent-card"><div class="recent-heading"><h2>Latest events <span class="count-badge">${match.events.length}</span></h2><button class="text-button" data-view="timeline">View timeline ${icon("arrow")}</button></div>${
+    <div class="report-actions"><button class="button subtle" data-event="pass" ${ready() ? "" : "disabled"}>Pass · optional</button></div>${goalkeeperControls()}
+    ${match.events.some(isShot) ? '<button class="button subtle" data-add-build-up>Add build-up pass to last shot · optional</button>' : ""}${actionCreditMarkup(match)}<div class="live-note-bar"><button class="button microphone" data-action="live-note" ${match.events.length ? "" : "disabled"}>${icon("mic")} Add / dictate note to last event</button><span class="small-note">Optional · no detailed editor needed</span></div><section class="card recent-card"><div class="recent-heading"><h2>Latest events <span class="count-badge">${match.events.length}</span></h2><button class="text-button" data-view="timeline">View timeline ${icon("arrow")}</button></div>${
       match.events.length
         ? match.events
             .slice(-3)
@@ -375,7 +402,7 @@ function eventRow(event, displayMatch = match, readOnly = false) {
   const type = eventType(event.event);
   const label = isBlockedShot(event) ? "Shot · Blocked" : type.label;
   const player = resolveParticipant(displayMatch, event, "player");
-  return `<${readOnly ? "div" : "button"} class="event-row" ${readOnly ? "" : `data-edit-event="${event.id}" aria-label="Edit ${esc(label)} at ${formatTime(event.timeMs)}"`}><span class="event-time">${formatTime(event.timeMs)}<small>H${event.half}</small></span><span class="timeline-dot ${event.team} ${isDefensiveBlockEvent(event) ? "defensive-block" : isBlockedShot(event) ? "blocked-shot" : ""}">${icon(isDefensiveBlockEvent(event) ? "block" : type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(label)} ${event.event === "substitution" ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team, displayMatch))}${player ? ` · ${esc(player.name)}` : ""}${isKickout(event) ? ` · ${esc(kickoutLabel(event))}${kickoutDetails(event).markPlayerNumber ? ` · Mark #${kickoutDetails(event).markPlayerNumber}` : ""}` : !type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}${(isBlockedShot(event) || isDefensiveBlockEvent(event)) && hasLocation(event) ? "<small>Pitch location recorded</small>" : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}${readOnly ? "" : `<span class="row-edit">${icon("edit")}</span>`}</${readOnly ? "div" : "button"}>`;
+  return `<${readOnly ? "div" : "button"} class="event-row" ${readOnly ? "" : `data-edit-event="${event.id}" aria-label="Edit ${esc(label)} at ${formatTime(event.timeMs)}"`}><span class="event-time">${formatTime(event.timeMs)}<small>H${event.half}</small></span><span class="timeline-dot ${event.team} ${isDefensiveBlockEvent(event) ? "defensive-block" : isBlockedShot(event) ? "blocked-shot" : ""}">${icon(isDefensiveBlockEvent(event) ? "block" : type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(label)} ${event.event === "substitution" ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team, displayMatch))}${player ? ` · ${esc(player.name)}` : ""}${isKickout(event) ? ` · ${esc(kickoutLabel(event))}${kickoutDetails(event).markPlayerNumber ? ` · Mark #${kickoutDetails(event).markPlayerNumber}` : ""}` : !type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.event === "pass" ? `<small>${event.passType === "hand" ? "Hand Pass" : "Kick Pass"} · #${esc(event.playerNumber || "—")} → #${esc(event.receiverNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "receiver")?.name || "")}${event.buildUpLink ? " · linked build-up" : ""}</small>` : ""}${["turnover-won", "turnover-lost"].includes(event.event) ? `<small>Won #${esc(event.turnoverWinnerNumber || (event.event === "turnover-won" ? event.playerNumber : "") || "—")} · Lost #${esc(event.turnoverLoserNumber || (event.event === "turnover-lost" ? event.playerNumber : "") || "—")}</small>` : ""}${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}${(isBlockedShot(event) || isDefensiveBlockEvent(event)) && hasLocation(event) ? "<small>Pitch location recorded</small>" : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}${readOnly ? "" : `<span class="row-edit">${icon("edit")}</span>`}</${readOnly ? "div" : "button"}>`;
 }
 function timelineScreen(displayMatch = match, readOnly = false) {
   const filtered = displayMatch.events
@@ -435,7 +462,9 @@ function openEvent(event, editing = false) {
   const displayLabel = isBlockedShot(event) ? "Shot · Blocked" : type.label;
   const kickout = event.event.includes("kickout");
   const scoring = type.value > 0;
-  const playerRelevant = type.player || editing;
+  const playerRelevant =
+    (type.player || editing) &&
+    !["pass", "turnover-won", "turnover-lost"].includes(event.event);
   dialog.innerHTML = `<form id="event-form"><div class="dialog-heading"><div><p class="eyebrow">${editing ? "EDIT EVENT" : "RECORD EVENT"} · H${event.half} · ${formatTime(event.timeMs)}</p><h2 id="event-dialog-title">${esc(displayLabel)}</h2></div><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cancel event">${icon("close")}</button></div><p class="dialog-team"><span class="local-dot"></span>${esc(teamName(event.team))}${scoring ? ` <span>+${type.value} ${type.value === 1 ? "point" : "points"}</span>` : ""}</p>
     ${
       playerRelevant
@@ -459,6 +488,7 @@ function openEvent(event, editing = false) {
           }`
         : ""
     }
+    <div data-linked-fields>${linkedEventFields(event, match)}</div>
     <div data-edit-shot-fields>${shotFieldsMarkup(event, match, { editing: true })}</div><div data-edit-kickout-fields>${kickoutFieldsMarkup(event, match)}</div>
     <details class="event-details" ${editing ? "open" : ""}><summary>${editing ? "Event details" : "Add details"} <span>Optional</span></summary><div class="detail-fields">
     ${editing ? `<div class="form-grid"><label class="field"><span>Event</span><select name="event" aria-label="Event">${EVENT_TYPES.map((item) => `<option value="${item.id}" ${item.id === event.event ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><label class="field"><span>Team</span><select name="team" aria-label="Team" ${type.team ? "disabled" : ""}><option value="our" ${event.team === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${event.team === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select></label><label class="field"><span>Half</span><select name="half" aria-label="Half"><option value="1" ${event.half === 1 ? "selected" : ""}>First half</option><option value="2" ${event.half === 2 ? "selected" : ""}>Second half</option></select></label>${input("Half time (mm:ss)", "time", formatTime(event.timeMs), 'required pattern="[0-9]{1,3}:[0-5][0-9]" inputmode="text" title="Use minutes:seconds, for example 05:30"')}</div>` : ""}
@@ -491,6 +521,11 @@ function openEvent(event, editing = false) {
     submit.preventDefault();
     const data = Object.fromEntries(new FormData(submit.target));
     const updated = { ...event, ...data };
+    if (["turnover-won", "turnover-lost"].includes(updated.event))
+      updated.playerNumber =
+        updated.event === "turnover-won"
+          ? updated.turnoverWinnerNumber || ""
+          : updated.turnoverLoserNumber || "";
     if (data.time) {
       const [minutes, seconds] = data.time.split(":").map(Number);
       updated.timeMs = (minutes * 60 + seconds) * 1000;
@@ -544,6 +579,10 @@ function openEvent(event, editing = false) {
     )
       ? "Shot · Blocked"
       : next.label;
+    dialog.querySelector("[data-linked-fields]").innerHTML = linkedEventFields(
+      draft,
+      match,
+    );
     dialog.querySelector("[data-edit-shot-fields]").innerHTML =
       shotFieldsMarkup(draft, match, { editing: true });
     dialog.querySelector("[data-edit-kickout-fields]").innerHTML =
@@ -627,6 +666,11 @@ document.addEventListener("click", async (event) => {
       match.events = saveMatchEvent({
         ...last,
         playerNumber: button.dataset.actionPlayer,
+        ...(last.event === "turnover-won"
+          ? { turnoverWinnerNumber: button.dataset.actionPlayer }
+          : last.event === "turnover-lost"
+            ? { turnoverLoserNumber: button.dataset.actionPlayer }
+            : {}),
       });
       persist();
       render();
@@ -750,13 +794,28 @@ document.addEventListener("click", async (event) => {
       );
     else {
       recordEvent(record);
-      if (isShot(record))
+      if (record.event === "pass")
+        openEvent(
+          match.events.find((e) => e.id === record.id),
+          true,
+        );
+      else if (isShot(record))
         enrichShot(match.events.find((e) => e.id === record.id));
       else if (isDefensiveBlockEvent(record))
         enrichDefensiveBlock(match.events.find((e) => e.id === record.id));
     }
   }
 
+  if (button.hasAttribute("data-add-build-up")) {
+    const shot = match.events.filter(isShot).at(-1);
+    const pass = {
+      ...createEvent(match, "pass", shot.team),
+      half: shot.half,
+      timeMs: shot.timeMs,
+      buildUpLink: shot.id,
+    };
+    openEvent(pass, true);
+  }
   if (button.dataset.editEvent)
     openEvent(
       match.events.find((item) => item.id === button.dataset.editEvent),
@@ -1053,6 +1112,11 @@ document.addEventListener("change", (event) => {
       match.events = saveMatchEvent({
         ...last,
         playerNumber: String(+event.target.value),
+        ...(last.event === "turnover-won"
+          ? { turnoverWinnerNumber: String(+event.target.value) }
+          : last.event === "turnover-lost"
+            ? { turnoverLoserNumber: String(+event.target.value) }
+            : {}),
       });
       persist();
       render();
@@ -1152,3 +1216,20 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
     }
   });
 }
+
+document.addEventListener("change", (e) => {
+  const team = e.target.dataset.goalkeeper;
+  if (!team) return;
+  const ref = goalkeeperRef(match, team, e.target.value);
+  if (!match.events.length)
+    match.goalkeepers = { ...match.goalkeepers, [team]: ref };
+  else {
+    const change = {
+      ...createEvent(match, "goalkeeper-change", team),
+      playerNumber: ref ? String(ref.jerseyNumber) : "",
+    };
+    match.events = saveMatchEvent(change);
+  }
+  persist();
+  render();
+});

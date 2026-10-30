@@ -87,7 +87,14 @@ export function participationFor(match, player, team = "our") {
       participantRef(e, "playerOn")?.playerId === player.playerId,
   );
   const action = match.events.some((e) =>
-    ["player", "markWinner", "blocker"].some((role) => {
+    [
+      "player",
+      "markWinner",
+      "blocker",
+      "receiver",
+      "turnoverWinner",
+      "turnoverLoser",
+    ].some((role) => {
       const ref = participantRef(e, role);
       return (
         ref?.team === team &&

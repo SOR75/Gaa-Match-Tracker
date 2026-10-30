@@ -4,16 +4,16 @@ export const isKickoutEvent = (event) =>
   ["our-kickout", "opposition-kickout"].includes(event.event);
 export function kickoutDetails(event) {
   if (!isKickoutEvent(event)) return null;
-  let outcome = ["won", "lost"].includes(event.outcome)
+  let outcome = ["won", "lost", "out-of-play"].includes(event.outcome)
     ? event.outcome
     : "unknown";
   if (
     event.kickoutPerspective !== "our" &&
     event.event === "opposition-kickout" &&
-    outcome !== "unknown"
+    ["won", "lost"].includes(outcome)
   )
     outcome = outcome === "won" ? "lost" : "won";
-  const mark = event.mark === true && outcome !== "unknown";
+  const mark = event.mark === true && ["won", "lost"].includes(outcome);
   const markPlayerNumber =
     mark &&
     outcome === "won" &&
@@ -41,7 +41,12 @@ export function kickoutChoices(type) {
       outcome: "lost",
       mark: true,
     },
-    { id: "unknown", label: "Unknown", outcome: "unknown", mark: false },
+    {
+      id: "out-of-play",
+      label: "Out of Play / Sideline",
+      outcome: "out-of-play",
+      mark: false,
+    },
   ];
 }
 export function kickoutLabel(event) {

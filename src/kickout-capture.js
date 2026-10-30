@@ -23,7 +23,7 @@ export function kickoutFieldsMarkup(event, match) {
     !players.some((p) => String(p.number) === data.markPlayerNumber)
       ? `<option value="${data.markPlayerNumber}" selected>#${data.markPlayerNumber} · recorded player</option>`
       : "";
-  return `<div class="kickout-fields"><label class="field"><span>Kickout result · our perspective</span><select name="kickoutResult" aria-label="Kickout result">${kickoutChoices(
+  return `<div class="kickout-fields"><label class="field"><span>Kickout result · our perspective</span><select name="kickoutResult" aria-label="Kickout result">${data.outcome === "unknown" ? '<option value="unknown" selected>Unknown · legacy / unrecorded</option>' : ""}${kickoutChoices(
     event.event,
   )
     .map(

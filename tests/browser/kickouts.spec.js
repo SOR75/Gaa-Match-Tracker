@@ -7,14 +7,14 @@ const expectedChoices = {
     { label: "Won by opposition", outcome: "lost", mark: false },
     { label: "Mark won by us", outcome: "won", mark: true },
     { label: "Mark won by opposition", outcome: "lost", mark: true },
-    { label: "Unknown", outcome: "unknown", mark: false },
+    { label: "Out of Play / Sideline", outcome: "out-of-play", mark: false },
   ],
   "opposition-kickout": [
     { label: "Won by us", outcome: "won", mark: false },
     { label: "Retained by opposition", outcome: "lost", mark: false },
     { label: "Mark won by us", outcome: "won", mark: true },
     { label: "Mark won by opposition", outcome: "lost", mark: true },
-    { label: "Unknown", outcome: "unknown", mark: false },
+    { label: "Out of Play / Sideline", outcome: "out-of-play", mark: false },
   ],
 };
 const state = (page) =>

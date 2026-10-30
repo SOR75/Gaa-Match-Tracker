@@ -2,6 +2,7 @@ import {
   participantKey,
   participantRef,
   resolveParticipant,
+  roleTeam,
   rowId,
   validPlayerId,
 } from "./identity.js";
@@ -25,10 +26,34 @@ export function identityPlayerStatistics(match, team, summarize) {
         main: [],
         blocks: [],
         marks: [],
+        wins: [],
+        losses: [],
+        passesReceived: [],
       });
     return groups.get(key);
   }
   for (const e of match.events) {
+    if (e.event === "pass" && e.team === team) {
+      const g = group(e, "receiver");
+      if (g) g.passesReceived.push(e);
+    }
+    if (["turnover-won", "turnover-lost"].includes(e.event)) {
+      for (const [role, field] of [
+        ["turnoverWinner", "wins"],
+        ["turnoverLoser", "losses"],
+      ]) {
+        if (roleTeam(e, role) === team) {
+          const has = e[role + "Number"];
+          const fallback =
+            !has &&
+            e.team === team &&
+            ((role === "turnoverWinner" && e.event === "turnover-won") ||
+              (role === "turnoverLoser" && e.event === "turnover-lost"));
+          const g = group(e, fallback ? "player" : role);
+          if (g) g[field].push(e);
+        }
+      }
+    }
     if (e.team === team) {
       const g = group(e, "player");
       if (g) g.main.push(e);
@@ -57,6 +82,9 @@ export function identityPlayerStatistics(match, team, summarize) {
         main: [],
         blocks: [],
         marks: [],
+        wins: [],
+        losses: [],
+        passesReceived: [],
       });
   }
   return [...groups.values()]
@@ -74,6 +102,10 @@ export function identityPlayerStatistics(match, team, summarize) {
       identityKey: g.key,
       filterKey: g.key,
       ...summarize(g.main, team),
+      turnoversWon: g.wins.length,
+      turnoversLost: g.losses.length,
+      passes: g.main.filter((e) => e.event === "pass").length,
+      passesReceived: g.passesReceived.length,
       defensiveBlocks: team === "our" ? g.blocks.length : 0,
       kickoutMarks: team === "our" ? g.marks.length : 0,
       kickoutInvolvement: g.main.filter((e) =>
@@ -86,9 +118,14 @@ export function hasIdentityAttribution(match, team) {
   return (
     roster.some((p) => p.matchPlayerId) ||
     match.events.some((e) =>
-      ["player", "blocker", "markWinner"].some(
-        (role) => participantRef(e, role)?.team === team,
-      ),
+      [
+        "player",
+        "blocker",
+        "markWinner",
+        "receiver",
+        "turnoverWinner",
+        "turnoverLoser",
+      ].some((role) => participantRef(e, role)?.team === team),
     )
   );
 }
