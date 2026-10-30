@@ -209,7 +209,7 @@ test("every existing fast event preserves selected team, including fixed-team ki
     ["turnover-won", "opposition"],
     ["turnover-lost", "opposition"],
     ["interception", "opposition"],
-    ["possession", "opposition"],
+    ["pass", "opposition"],
   ].entries()) {
     await page.locator(`[data-event="${type}"]`).click();
     if (type.includes("kickout"))
@@ -217,6 +217,13 @@ test("every existing fast event preserves selected team, including fixed-team ki
         .getByRole("dialog")
         .getByRole("button", { name: "Out of Play / Sideline", exact: true })
         .click();
+    if (type === "pass") {
+      await page.getByLabel("Passer", { exact: true }).selectOption("1");
+      await page.getByLabel("Receiver", { exact: true }).selectOption("2");
+      await page
+        .getByRole("button", { name: "Record pass", exact: true })
+        .click();
+    }
     const m = await state(page);
     expect(m.events).toHaveLength(index + 1);
     expect(m.events.at(-1)).toMatchObject({ event: type, team: recordedTeam });

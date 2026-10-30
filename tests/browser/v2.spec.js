@@ -392,7 +392,7 @@ test("microphone denial keeps notes editable and secure UUID fallback supports L
   });
   await start(page);
   await nav(page, "Live match");
-  await nav(page, "Possession");
+  await nav(page, "Interception");
   await nav(page, "Add / dictate note to last event");
   await page.getByLabel("Typed notes").fill("Keep this note");
   await nav(page, "Dictate note");

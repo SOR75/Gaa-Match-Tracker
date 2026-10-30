@@ -63,12 +63,7 @@ test("real #18 on/#10 off uses roster buttons and every live our selector follow
       await expect(page.locator('[data-ko-player="10"]')).toHaveCount(0);
       await page.locator('[data-ko-player="18"]').click();
     }
-  for (const type of [
-    "turnover-won",
-    "turnover-lost",
-    "interception",
-    "possession",
-  ]) {
+  for (const type of ["turnover-won", "turnover-lost", "interception"]) {
     await page.locator(`[data-event="${type}"]`).click();
     await page.locator("[data-action-credit] summary").click();
     await expect(page.locator('[data-action-player="18"]')).toBeVisible();

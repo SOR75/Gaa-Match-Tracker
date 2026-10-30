@@ -365,13 +365,13 @@ function liveScreen() {
       4,
     )
       .filter((type) => !["goalkeeper-change", "pass"].includes(type.id))
+      .map((type) => (type.id === "possession" ? eventType("pass") : type))
       .map(
         (type) =>
-          `<button class="event-button compact-event" data-event="${type.id}" ${ready() ? "" : "disabled"}>${icon(type.id === "defensive-block" ? "block" : type.id.includes("kickout") ? "arrow" : type.id === "possession" ? "ball" : "pitch")}<strong>${type.quickLabel || type.label}</strong></button>`,
+          `<button class="event-button compact-event" data-event="${type.id}" ${ready() ? "" : "disabled"}>${icon(type.id === "defensive-block" ? "block" : type.id.includes("kickout") ? "arrow" : type.id === "pass" ? "ball" : "pitch")}<strong>${type.quickLabel || type.label}</strong></button>`,
       )
       .join("")}</div></section>
     ${match.events.length && isShot(match.events.at(-1)) ? '<button class="button subtle shot-enrich" data-action="enrich-shot">Add player / location to last shot (optional)</button>' : ""}
-    <div class="report-actions"><button class="button subtle" data-event="pass" ${ready() ? "" : "disabled"}>Pass · optional</button></div>
     ${actionCreditMarkup(match)}<div class="live-note-bar"><button class="button microphone" data-action="live-note" ${match.events.length ? "" : "disabled"}>${icon("mic")} Add / dictate note to last event</button><span class="small-note">Optional · no detailed editor needed</span></div><section class="card recent-card"><div class="recent-heading"><h2>Latest events <span class="count-badge">${match.events.length}</span></h2><button class="text-button" data-view="timeline">View timeline ${icon("arrow")}</button></div>${
       match.events.length
         ? match.events
