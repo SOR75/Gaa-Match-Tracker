@@ -36,10 +36,9 @@ async function seed(page) {
 }
 async function pass(page, from, to, type) {
   await page.locator('[data-event="pass"]').click();
-  await page.getByLabel("Passer", { exact: true }).selectOption(String(from));
-  await page.getByLabel("Receiver", { exact: true }).selectOption(String(to));
-  await page.getByLabel("Pass type", { exact: true }).selectOption(type);
-  await nav(page, "Record pass");
+  await page.locator(`[data-pass-from="${String(from)}"]`).click();
+  await page.locator(`[data-pass-to="${String(to)}"]`).click();
+  await page.locator(`[data-pass-type="${type}"]`).click();
 }
 async function resume(page, m) {
   await page.evaluate((m) => {
@@ -96,18 +95,17 @@ test("Pass occupies exactly the old Possession slot; Kick #8→#11 then substitu
   await page.keyboard.press("Escape");
   await page.waitForTimeout(700);
   await page.locator('[data-event="pass"]').click();
-  for (const label of ["Passer", "Receiver"]) {
+  for (const label of ["FROM", "TO"]) {
     await expect(
-      page.getByLabel(label, { exact: true }).locator('option[value="18"]'),
+      page.getByRole("group", { name: label, exact: true }).locator(':is([data-pass-from="18"], [data-pass-to="18"])'),
     ).toHaveCount(1);
     await expect(
-      page.getByLabel(label, { exact: true }).locator('option[value="10"]'),
+      page.getByRole("group", { name: label, exact: true }).locator(':is([data-pass-from="10"], [data-pass-to="10"])'),
     ).toHaveCount(0);
   }
-  await page.getByLabel("Passer", { exact: true }).selectOption("18");
-  await page.getByLabel("Receiver", { exact: true }).selectOption("11");
-  await page.getByLabel("Pass type", { exact: true }).selectOption("hand");
-  await nav(page, "Record pass");
+  await page.locator('[data-pass-from="18"]').click();
+  await page.locator('[data-pass-to="11"]').click();
+  await page.locator('[data-pass-type="hand"]').click();
   const saved = await state(page);
   await nav(page, "Timeline");
   await expect(

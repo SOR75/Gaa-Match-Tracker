@@ -62,10 +62,9 @@ for (const team of ["our", "opposition"])
     await page.locator(`[data-team="${team}"]`).click();
     await page.locator('[data-event="pass"]').click();
     expect((await state(page)).events).toHaveLength(0);
-    await page.getByLabel("Passer", { exact: true }).selectOption("1");
-    await page.getByLabel("Receiver", { exact: true }).selectOption("8");
-    await page.getByLabel("Pass type", { exact: true }).selectOption("hand");
-    await nav(page, "Record pass");
+    await page.locator('[data-pass-from="1"]').click();
+    await page.locator('[data-pass-to="8"]').click();
+    await page.locator('[data-pass-type="hand"]').click();
     const e = (await state(page)).events[0];
     expect(e.participants.player.playerId).toBeTruthy();
     expect(e.participants.receiver.team).toBe(team);
@@ -90,9 +89,9 @@ test("one simple optional Pass after a shot has no build-up decisions and preser
   await expect(
     page.getByLabel("Build-up to shot", { exact: true }),
   ).toHaveCount(0);
-  await page.getByLabel("Passer", { exact: true }).selectOption("8");
-  await page.getByLabel("Receiver", { exact: true }).selectOption("1");
-  await nav(page, "Record pass");
+  await page.locator('[data-pass-from="8"]').click();
+  await page.locator('[data-pass-to="1"]').click();
+  await page.locator('[data-pass-type="kick"]').click();
   const m = await state(page);
   expect(m.events).toHaveLength(2);
   expect(m.events[0]).toEqual(shot);
@@ -167,9 +166,9 @@ test("new participant metadata and GK analysis survive native History and offlin
   await page.locator('[data-event="our-kickout"]').click();
   await nav(page, "Out of Play / Sideline");
   await page.locator('[data-event="pass"]').click();
-  await page.getByLabel("Passer", { exact: true }).selectOption("8");
-  await page.getByLabel("Receiver", { exact: true }).selectOption("1");
-  await nav(page, "Record pass");
+  await page.locator('[data-pass-from="8"]').click();
+  await page.locator('[data-pass-to="1"]').click();
+  await page.locator('[data-pass-type="kick"]').click();
   const archived = await state(page);
   await page.evaluate((m) => {
     localStorage.setItem("sideline.match.archive." + m.id, JSON.stringify(m));

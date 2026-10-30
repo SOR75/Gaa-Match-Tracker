@@ -50,22 +50,21 @@ test("one optional Pass: no event on opening/cancel, Active XV, one Record, unch
   await expect(
     page.getByLabel("Build-up to shot", { exact: true }),
   ).toHaveCount(0);
-  for (const label of ["Passer", "Receiver"]) {
+  for (const label of ["FROM", "TO"]) {
     await expect(
-      page.getByLabel(label, { exact: true }).locator('option[value="10"]'),
+      page.getByRole("group", { name: label, exact: true }).locator(':is([data-pass-from="10"], [data-pass-to="10"])'),
     ).toHaveCount(0);
     await expect(
-      page.getByLabel(label, { exact: true }).locator('option[value="18"]'),
+      page.getByRole("group", { name: label, exact: true }).locator(':is([data-pass-from="18"], [data-pass-to="18"])'),
     ).toHaveCount(1);
   }
   await nav(page, "Close Pass");
   expect((await state(page)).events).toEqual(before.events);
   await page.waitForTimeout(700);
   await page.locator('[data-event="pass"]').click();
-  await page.getByLabel("Passer", { exact: true }).selectOption("18");
-  await page.getByLabel("Receiver", { exact: true }).selectOption("15");
-  await page.getByLabel("Pass type", { exact: true }).selectOption("hand");
-  await nav(page, "Record pass");
+  await page.locator('[data-pass-from="18"]').click();
+  await page.locator('[data-pass-to="15"]').click();
+  await page.locator('[data-pass-type="hand"]').click();
   const m = await state(page);
   expect(m.events).toHaveLength(before.events.length + 1);
   expect(m.events.at(-1)).toMatchObject({

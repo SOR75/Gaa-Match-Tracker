@@ -13,9 +13,11 @@ import { esc } from "./ui.js";
 const pct = (value) => (value === null ? "—" : `${value}%`);
 const score = (value) =>
   `${value.total} pts (${value.goals}G · ${value.points}P · ${value.twoPointers} × 2P)`;
-function table(headers, rows, caption = "") {
-  return `<div class="table-scroll"><table>${caption ? `<caption>${esc(caption)}</caption>` : ""}<thead><tr>${headers.map((header) => `<th scope="col">${esc(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell, index) => (index === 0 ? `<th scope="row">${esc(cell)}</th>` : `<td>${esc(cell)}</td>`)).join("")}</tr>`).join("")}</tbody></table></div>`;
+// Responsive flag adds presentation labels/roles only; cells and statistics are unchanged.
+function table(headers, rows, caption = "", responsive = false) {
+  return `<div class="table-scroll"><table ${responsive ? 'class="kickout-readable" role="table"' : ""}>${caption ? `<caption>${esc(caption)}</caption>` : ""}<thead ${responsive ? 'role="rowgroup"' : ""}><tr ${responsive ? 'role="row"' : ""}>${headers.map((header) => `<th scope="col" ${responsive ? 'role="columnheader"' : ""}>${esc(header)}</th>`).join("")}</tr></thead><tbody ${responsive ? 'role="rowgroup"' : ""}>${rows.map((row) => `<tr ${responsive ? 'role="row"' : ""}>${row.map((cell, index) => (index === 0 ? `<th scope="row" ${responsive ? 'role="rowheader"' : ""}>${esc(cell)}</th>` : `<td ${responsive ? `role="cell" data-label="${esc(headers[index])}"` : ""}>${esc(cell)}</td>`)).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
+
 const section = (title, body, extra = "") =>
   `<section class="card analysis-section ${extra}"><h2>${title}</h2>${body}</section>`;
 export function analysisScreen(
@@ -226,6 +228,8 @@ export function analysisScreen(
           k.outOfPlay,
         ];
       }),
+      "",
+      true,
     ) +
       '<p class="small-note">Won/lost is always from our team’s perspective. Retention is the percentage retained by the kicking team (our wins on our kickouts, opposition wins on their kickouts), using known outcomes only. Older kicking-team results are translated on read. Marks are attributes of these kickouts, never additional events. Unrecorded or legacy Medium lengths are counted in total kickouts, not short/long. Player involvement below reflects attribution, not an inferred receiver.</p>',
   )}

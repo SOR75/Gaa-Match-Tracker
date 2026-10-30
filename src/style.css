@@ -3852,3 +3852,185 @@ dialog::backdrop {
 .ht-comparison th, .ht-comparison td { padding:7px 10px; text-align:left; border-bottom:1px solid #e2e7d8; white-space:nowrap; }
 .ht-comparison thead th { background:#f0f4e8; color:#244936; }
 .ht-comparison tbody th { font-weight:600; }
+
+/* V0.3.9 presentation-only match-day refinement. Event order and behaviour stay intact. */
+#app[data-view="live"] .event-value,
+#app[data-view="live"] .controls-heading p,
+#app[data-view="live"] .event-section-label,
+#app[data-view="live"] .event-section-label > span {
+  color: #4a604a;
+}
+#app[data-view="live"] .score-event { border-color: #a4b591; }
+#app[data-view="live"] .score-event strong { font-weight: 800; }
+#app[data-view="live"] .goal-event { background: #dcebb9; border-color: #91aa62; }
+#app[data-view="live"] .miss-event { color: #42543c; background: #eff1e9; }
+#app[data-view="live"] .compact-event { color: #304b35; border-color: #b8c5af; }
+#app[data-view="live"] .compact-event strong { font-weight: 700; }
+#app[data-view="live"] .compact-event:is([data-event="our-kickout"], [data-event="opposition-kickout"], [data-event="pass"]) {
+  background: #e8efdb;
+  border-color: #8da875;
+}
+#app[data-view="live"] .compact-event svg { color: #4d7145; }
+#app[data-view="live"] .score-team-label,
+#app[data-view="live"] .clock-status,
+#app[data-view="live"] .score-breakdown,
+#app[data-view="live"] .half-button { color: #d4e2c7; }
+#app[data-view="live"] .score-total { font-weight: 800; }
+#app[data-view="live"] .live-team-toggle button:not(.selected) { border-color: #7f937e; }
+#app[data-view="live"] .live-team-state { font-size: 11px; }
+#app[data-view="live"] .live-note-bar .button { border-color: #acbba2; }
+
+@media (min-width: 768px) and (orientation: landscape) {
+  #app[data-view="live"] .matchday-toolbar { gap: 8px; flex-wrap: nowrap; }
+  #app[data-view="live"] .matchday-toolbar > .small-note {
+    flex: 0 1 135px;
+    width: auto;
+    font-size: 10.5px;
+    line-height: 1.3;
+    margin: 0;
+  }
+  #app[data-view="live"] .matchday-toolbar .button { padding-inline: 12px; }
+  #app[data-view="live"] .scoreboard { min-height: 160px; padding: 12px 18px 24px; }
+  #app[data-view="live"] .score-team {
+    display: grid;
+    grid-template-columns: max-content max-content;
+    justify-content: center;
+    align-content: center;
+    align-items: baseline;
+    column-gap: 8px;
+  }
+  #app[data-view="live"] .score-team-label,
+  #app[data-view="live"] .score-team h2,
+  #app[data-view="live"] .score-breakdown { grid-column: 1 / -1; }
+  #app[data-view="live"] .score-team-label { font-size: 9px; letter-spacing: 1.3px; }
+  #app[data-view="live"] .score-team h2 { font-size: 18px; line-height: 1.2; margin: 4px 0; }
+  #app[data-view="live"] .score-total { font-size: 44px; line-height: 1.15; margin: 1px 0 5px; }
+  #app[data-view="live"] .score-calculated { font-size: 23px; line-height: 1.15; margin: 0; }
+  #app[data-view="live"] .score-breakdown { gap: 10px; font-size: 10px; }
+  #app[data-view="live"] .score-clock { align-content: center; }
+  #app[data-view="live"] .clock-digits { font-size: 33px; font-weight: 750; }
+  #app[data-view="live"] .half-button { font-size: 11px; font-weight: 600; }
+  #app[data-view="live"] .score-event { min-height: 90px; }
+  #app[data-view="live"] .score-event strong { font-size: 22px; }
+  #app[data-view="live"] .event-value { font-size: 12px; }
+  #app[data-view="live"] .compact-event { min-height: 64px; padding: 10px 12px; }
+  #app[data-view="live"] .compact-event strong { font-size: 14px; }
+  #app[data-view="live"] .controls-heading p { font-size: 11px; }
+  #app[data-view="live"] .event-section-label { margin: 12px 0 9px; }
+}
+
+/* Scope modal changes to live capture/edit controls, not import or squad review dialogs. */
+#event-dialog:has(:is(.shot-detail-layout, .kickout-outcomes, [data-pass-form], #substitution-form)) {
+  padding: 20px;
+  border-color: #a8b69b;
+}
+#event-dialog:has(:is(.shot-detail-layout, .kickout-outcomes, [data-pass-form], #substitution-form)) .dialog-heading h2 {
+  font-size: 25px;
+  font-weight: 800;
+}
+#event-dialog:has(:is(.shot-detail-layout, .kickout-outcomes, [data-pass-form], #substitution-form)) .dialog-heading .eyebrow {
+  font-size: 10px;
+  color: #496447;
+}
+#event-dialog:has(:is(.shot-detail-layout, .kickout-outcomes, [data-pass-form], #substitution-form)) .dialog-heading .icon-button { min-width: 44px; min-height: 44px; }
+#event-dialog :is(.quick-player-grid, .sub-picks, .player-picks) .player-pick {
+  min-height: 70px;
+  border-color: #a6b995;
+  background: #f0f5e7;
+  color: #294b32;
+  font-size: 22px;
+  font-weight: 800;
+}
+#event-dialog :is(.quick-player-grid, .sub-picks, .player-picks) .player-pick span {
+  font-size: 11px;
+  line-height: 1.25;
+  font-weight: 500;
+}
+#event-dialog :is(.quick-player-grid, .sub-picks, .player-picks) .player-pick.chosen {
+  background: #214f37;
+  border-color: #214f37;
+  color: #fff;
+}
+#event-dialog:has(:is(.shot-detail-layout, .kickout-outcomes, [data-pass-form], #substitution-form)) :is(select, input[type="number"]) {
+  font-size: 16px;
+  min-height: 48px;
+}
+#event-dialog:has(:is(.shot-detail-layout, .kickout-outcomes, [data-pass-form], #substitution-form)) .field > span {
+  color: #38553d;
+  font-size: 13px;
+  font-weight: 700;
+}
+#event-dialog:has(:is(.shot-detail-layout, .kickout-outcomes, [data-pass-form], #substitution-form)) .small-note { color: #50634e; }
+#event-dialog .quick-length > span { color: #455c42; font-size: 12px; }
+#event-dialog .quick-length [aria-pressed="true"] { background: #214f37; border-color: #214f37; color: white; }
+#event-dialog .kickout-outcomes .button { font-size: 14px; }
+#event-dialog .sub-grid legend { font-size: 14px; color: #245338; }
+#event-dialog .sub-grid fieldset:nth-child(2) legend { color: #79451f; }
+#event-dialog .sub-grid fieldset:nth-child(2) .chosen { background: #79451f; border-color: #79451f; color: white; }
+#event-dialog [data-pass-form] .form-grid > .field:last-child { grid-column: 1 / -1; }
+#event-dialog [data-pass-form] .dialog-actions .button { min-height: 48px; }
+
+@media (min-width: 700px) and (orientation: landscape) {
+  #event-dialog:has(.kickout-outcomes),
+  #event-dialog:has(#substitution-form) { width: min(780px, calc(100% - 32px)); }
+  #event-dialog:has([data-pass-form]) { width: min(620px, calc(100% - 32px)); }
+  #event-dialog:has(.shot-detail-layout) .capture-pitch { max-width: 220px; }
+  #event-dialog:has(.shot-detail-layout) .quick-player-grid { max-height: 330px; margin: 12px 0; gap: 8px; }
+  #event-dialog:has([data-ko-credit]:not([hidden])) .quick-length { margin-top: 12px; }
+  #event-dialog:has([data-ko-credit]:not([hidden])) .kickout-outcomes { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  #event-dialog:has([data-ko-credit]:not([hidden])) .kickout-outcomes .button { min-height: 48px; font-size: 12px; }
+  #event-dialog:has([data-ko-credit]:not([hidden])) .kickout-outcomes .button:last-child { grid-column: auto; }
+  #event-dialog:has([data-ko-credit]:not([hidden])) .kickout-outcomes .button:disabled { opacity: .75; }
+  #event-dialog [data-ko-credit] .quick-player-grid { max-height: 280px; margin: 12px 0; }
+  #event-dialog .sub-grid { gap: 14px; margin-top: 16px; }
+  #event-dialog .sub-grid fieldset { padding: 12px; }
+  #event-dialog .sub-picks { grid-template-columns: repeat(5, minmax(0, 1fr)); max-height: 280px; gap: 7px; }
+}
+
+/* Existing kickout table cells reflow into two labelled team panels. No duplicate data. */
+@media screen {
+  .kickout-readable { display: block; width: 100%; min-width: 0; }
+  .kickout-readable thead {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  .kickout-readable tbody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .kickout-readable tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid #c4d0b7; border-radius: 10px; overflow: hidden; }
+  .kickout-readable tbody th { grid-column: 1 / -1; padding: 14px; background: #e8efdb; color: #244533; font-size: 14px; white-space: normal; }
+  .kickout-readable tbody td { display: flex; flex-direction: column; gap: 5px; padding: 11px 13px; white-space: normal; overflow-wrap: anywhere; font-size: 18px; font-weight: 750; color: #234431; border-bottom: 1px solid #e1e7da; }
+  .kickout-readable tbody td::before { content: attr(data-label); font-size: 11px; font-weight: 550; line-height: 1.3; color: #4f624a; }
+  .kickout-readable tbody td:nth-child(even) { border-right: 1px solid #e1e7da; }
+}
+@media screen and (max-width: 650px) { .kickout-readable tbody { grid-template-columns: 1fr; } }
+.goalkeeper-card { border-color: #bccbb0; }
+.goalkeeper-card h3 { font-size: 20px; color: #254b35; }
+.goalkeeper-card dt { color: #475e46; }
+.goalkeeper-card dd { color: #214a34; font-size: 15px; }
+.goalkeeper-card dl > div { padding-block: 3px; }
+/* Preserve every timeline detail; strengthen the existing hierarchy only. */
+.event-info > strong { color: #284b37; }
+.event-info > span { color: #4c604c; }
+#event-dialog .quick-length .button { font-size: 14px; font-weight: 700; }
+#event-dialog:has([data-ko-credit]:not([hidden])) .quick-length [aria-pressed="true"]:disabled {
+  opacity: 1;
+  background: #e2ecd4;
+  border-color: #92aa7b;
+  color: #294e34;
+}
+
+/* One-screen live Pass: both active-player grids and type controls stay together. */
+#event-dialog [data-pass-form] .pass-rosters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+#event-dialog [data-pass-form] .pass-roster { min-width: 0; }
+#event-dialog [data-pass-form] h3 { margin: 0 0 10px; font-size: 15px; color: #284b37; }
+#event-dialog [data-pass-form] .quick-player-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
+#event-dialog [data-pass-form] .player-pick { min-width: 0; }
+#event-dialog [data-pass-form] .player-pick span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#event-dialog [data-pass-form] .pass-type-heading { margin-top: 18px; }
+#event-dialog [data-pass-form] .pass-type-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+#event-dialog [data-pass-form] .pass-type-options .button { min-height: 64px; font-size: 20px; }
+@media (min-width: 900px) and (orientation: landscape) {
+  #event-dialog:has([data-pass-form]) { width: min(940px, calc(100% - 32px)); }
+}
+@media (max-width: 700px) {
+  #event-dialog [data-pass-form] .pass-rosters { grid-template-columns: 1fr; gap: 16px; }
+}

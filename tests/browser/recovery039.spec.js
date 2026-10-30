@@ -78,18 +78,17 @@ test("real #18 on/#10 off uses roster buttons and every live our selector follow
   );
   await page.keyboard.press("Escape");
   await page.locator('[data-event="pass"]').click();
-  for (const label of ["Passer", "Receiver"]) {
+  for (const label of ["FROM", "TO"]) {
     await expect(
-      page.getByLabel(label, { exact: true }).locator('option[value="18"]'),
+      page.getByRole("group", { name: label, exact: true }).locator(':is([data-pass-from="18"], [data-pass-to="18"])'),
     ).toHaveCount(1);
     await expect(
-      page.getByLabel(label, { exact: true }).locator('option[value="10"]'),
+      page.getByRole("group", { name: label, exact: true }).locator(':is([data-pass-from="10"], [data-pass-to="10"])'),
     ).toHaveCount(0);
   }
-  await page.getByLabel("Passer", { exact: true }).selectOption("18");
-  await page.getByLabel("Receiver", { exact: true }).selectOption("1");
-  await page.getByLabel("Pass type", { exact: true }).selectOption("hand");
-  await nav(page, "Record pass");
+  await page.locator('[data-pass-from="18"]').click();
+  await page.locator('[data-pass-to="1"]').click();
+  await page.locator('[data-pass-type="hand"]').click();
 });
 for (const type of ["our-kickout", "opposition-kickout"])
   for (const outcome of [

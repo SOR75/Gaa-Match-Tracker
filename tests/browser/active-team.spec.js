@@ -218,10 +218,10 @@ test("every existing fast event preserves selected team, including fixed-team ki
         .getByRole("button", { name: "Out of Play / Sideline", exact: true })
         .click();
     if (type === "pass") {
-      await page.getByLabel("Passer", { exact: true }).selectOption("1");
-      await page.getByLabel("Receiver", { exact: true }).selectOption("2");
+      await page.locator('[data-pass-from="1"]').click();
+      await page.locator('[data-pass-to="2"]').click();
       await page
-        .getByRole("button", { name: "Record pass", exact: true })
+        .getByRole("button", { name: "Kick Pass", exact: true })
         .click();
     }
     const m = await state(page);
