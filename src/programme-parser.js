@@ -1,3 +1,4 @@
+import { beforeProgrammeSection, programmeSectionWord } from "./programme-integrity.js";
 // Programme structure, not an OCR sensitivity adjustment. No player vocabulary or
 // expected team names are used here: candidates require a pair or a full grid.
 export const isFooter = (text) =>
@@ -47,7 +48,7 @@ export function stripCaptain(text) {
 }
 export function plausibleName(text, { uncertain = false } = {}) {
   const { name } = stripCaptain(text.replace(/\s*[=~|]+\s*$/g, ""));
-  if (!name || isMetadata(name) || isSubs(name) || name.length > 100)
+  if (!name || isMetadata(name) || programmeSectionWord(name) || isSubs(name) || name.length > 100)
     return false;
   if (!/\p{L}{2}/u.test(name) || /[=:;\/\\]|\d{3,}/.test(name)) return false;
   // OCR damage such as R?gney is kept when a jersey anchors it, not corrected.
@@ -55,9 +56,7 @@ export function plausibleName(text, { uncertain = false } = {}) {
   return true;
 }
 export function numberedEntries(text) {
-  const value = text
-    .replace(/\b(?:management|coaches?|flo|first\s*aid|sponsors?)\s*:.*/i, "")
-    .trim();
+  const value = beforeProgrammeSection(text).trim();
   const matches = [
     ...value.matchAll(/(?:^|[\s,;])#?\(?(\d{1,2})[.)\-:]?\s+(?=\p{L}|\?)/gu),
   ];
@@ -262,7 +261,7 @@ export function parseProgrammeSegments(
   }
   // Unnumbered names are admitted only if they form a full conventional six-row
   // grid (1–3–3–2–3–3), never merely because "Formation" was selected.
-  const unpaired = names.filter((s) => !usedNames.has(s.index) && inBody(s)),
+  const unpaired = names.filter((s) => !usedNames.has(s.index) && inBody(s) && strong.length < 8),
     combinedLoose = new Set(),
     loose = [];
   for (const s of unpaired) {

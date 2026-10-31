@@ -116,7 +116,7 @@ test("original Gaelic Manager screenshot imports all 27 numbered names offline, 
   expect(rows[8].position).toBe("Midfield");
   expect(rows[12].position).toBe("Right Corner Forward");
   expect(rows[13].position).toBe("Full Forward");
-  expect(rows.every((r) => r.review.includes("Review required"))).toBe(true);
+  expect(rows.some((r) => !r.review.includes("Review required"))).toBe(true); // Clean rows use neutral presentation; uncertain fields remain flagged.
   expect(rows[7].review).toContain("leading jersey zero normalized");
   expect(rows[8].review).toContain("leading jersey zero normalized");
   expect(

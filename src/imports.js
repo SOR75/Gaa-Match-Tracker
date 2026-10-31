@@ -1,3 +1,4 @@
+import { limitMatchDayCandidates } from "./programme-integrity.js";
 // Local adapters return candidates, never mutate a squad or auto-confirm recognition.
 export function parseDelimited(text) {
   const delimiter = text.split(/\r?\n/)[0].includes("\t") ? "\t" : ",";
@@ -43,6 +44,12 @@ import {
   parseSpatialPlayers,
 } from "./import-parser.js";
 export async function extractCandidates(file, options = {}) {
+  const result = await extractFileCandidates(file, options);
+  if (result.officialSquad || result.formationReview) return result;
+  const limited = limitMatchDayCandidates(result.players);
+  return { ...result, players: limited.players, excludedCandidates: [...(result.excludedCandidates || []), ...limited.excluded] };
+}
+async function extractFileCandidates(file, options = {}) {
   const { signal, onProgress = () => {} } = options;
   if (file.size > 15 * 1024 * 1024)
     throw new Error("Choose a file smaller than 15 MB.");
@@ -210,6 +217,8 @@ export async function extractCandidates(file, options = {}) {
         players:
           result.players ??
           parseSpatialPlayers(result.words, { ...options, ocr: true }),
+        excludedCandidates: result.excludedCandidates || [],
+        programme: Boolean(result.diagnostics?.grid || result.diagnostics?.layout === "boxed-formation-with-stacked-names" || result.diagnostics?.layout === "graphical-numbered-formation"),
         ...(result.diagnostics?.layout === "reference-roster-with-formation"
           ? {
               formationReview: {

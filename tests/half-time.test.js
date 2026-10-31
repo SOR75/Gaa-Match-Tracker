@@ -157,22 +157,22 @@ test("editing, deleting and undoing H1 events recomputes all results without mut
   m.events = [];
   assert.equal(halfTimeAnalysis(m).our.attempts, 0);
 });
-test("arc SVG paths are exactly the frozen V0.3.6 paths, using shared geometry", () => {
+test("40m paths are full shared-radius goal-centred arcs; other pitch geometry is unchanged", () => {
   assert.deepEqual(fortyMetreArcPaths(), [
-    "M95.122 145A240 240 0 0 0 504.878 145",
-    "M95.122 755A240 240 0 0 1 504.878 755",
+    "M60 20A240 240 0 0 0 540 20",
+    "M60 880A240 240 0 0 1 540 880",
   ]);
   for (const path of fortyMetreArcPaths())
     assert.ok(pitchMarkup().includes(`d="${path}"`));
 });
-test("40m inside/outside/boundary classification matches circular segment and its full-width joins", () => {
-  assert.equal(fortyMetreZone({ shotX: 0.5, shotY: 260 / 900 }), "inside");
+test("40m inside/outside uses the circular boundary without a full-width horizontal exception", () => {
+  assert.equal(fortyMetreZone({ shotX: 0.5, shotY: 260 / 900 }), "outside");
   assert.equal(fortyMetreZone({ shotX: 0.5, shotY: 260.01 / 900 }), "outside");
   assert.equal(fortyMetreZone({ shotX: 0.5, shotY: 259.99 / 900 }), "inside");
   const x = 400,
     y = 20 + Math.sqrt(PITCH_GEOMETRY.fortyRadius ** 2 - 100 ** 2);
-  assert.equal(fortyMetreZone({ shotX: x / 600, shotY: y / 900 }), "inside");
-  assert.equal(fortyMetreZone({ shotX: 25 / 600, shotY: 145 / 900 }), "inside");
+  assert.equal(fortyMetreZone({ shotX: x / 600, shotY: y / 900 }), "outside");
+  assert.equal(fortyMetreZone({ shotX: 25 / 600, shotY: 145 / 900 }), "outside");
   assert.equal(
     fortyMetreZone({ shotX: 25 / 600, shotY: 146 / 900 }),
     "outside",

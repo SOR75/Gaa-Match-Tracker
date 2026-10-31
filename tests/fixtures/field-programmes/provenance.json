@@ -1,0 +1,58 @@
+[
+  {
+    "file": "st-manchans.heic",
+    "originalUpload": "IMG_0962.HEIC",
+    "sha256": "bf72662f5ef8ba82a6195f5e64e32a495c5ca6eeb8e2f54ea5043c4dbaa29063",
+    "bytes": 1220446,
+    "conversion": "Original uploaded HEIC"
+  },
+  {
+    "file": "st-manchans.png",
+    "originalUpload": "IMG_0962.png",
+    "sha256": "1da9a695e052b54fb7eeac1be8f52f957e27cf39d2d466dbc8822e5dfc7539cd",
+    "bytes": 5811257,
+    "conversion": "ImageMagick decode of original HEIC, auto-oriented; lossless PNG; no OCR/name edits, no recreation"
+  },
+  {
+    "file": "naomh-ciaran.heic",
+    "originalUpload": "IMG_0963.HEIC",
+    "sha256": "cc9c0888b92161b1b59b021ddef7587162b4d5b096ab8206476de25d1647c5c4",
+    "bytes": 1588363,
+    "conversion": "Original uploaded HEIC"
+  },
+  {
+    "file": "naomh-ciaran.png",
+    "originalUpload": "IMG_0963.png",
+    "sha256": "3b77e0870fd5433bc24d14644db1c994f85736f3deaa83b87377eef2d173696b",
+    "bytes": 7538541,
+    "conversion": "ImageMagick decode of original HEIC, auto-oriented; lossless PNG; no OCR/name edits, no recreation"
+  },
+  {
+    "file": "shamrocks.heic",
+    "originalUpload": "IMG_0973.HEIC",
+    "sha256": "90ad1859e1fc8280c9d8a53212a19cdcde9ef0f59882a2de9cb3c70764d532e4",
+    "bytes": 2534811,
+    "conversion": "Original uploaded HEIC"
+  },
+  {
+    "file": "shamrocks.png",
+    "originalUpload": "IMG_0973.png",
+    "sha256": "980fca4e2ca1b0ced1638916906a4bdfe25be633681112d5ae83077335253e42",
+    "bytes": 12812301,
+    "conversion": "ImageMagick decode of original HEIC, auto-oriented; lossless PNG; no OCR/name edits, no recreation"
+  },
+  {
+    "file": "st-manchans-camera.heic",
+    "originalUpload": "IMG_0962 2.HEIC",
+    "sha256": "6a0beebb3f86c2c819aa401949b345047e96e0b1d6622b505482a7483beb7262",
+    "bytes": 1714597,
+    "conversion": "Original uploaded HEIC"
+  },
+  {
+    "file": "st-manchans-camera.png",
+    "originalUpload": "IMG_0962 2.HEIC",
+    "sha256": "b0d16e9f56ac9df17784e9df4f74768a86555f8b0be12c2d4cc3c43014d176dd",
+    "bytes": 8497107,
+    "conversion": "ImageMagick decode of exact new camera HEIC, auto-oriented; lossless PNG; no OCR/name edits, no recreation"
+  }
+]

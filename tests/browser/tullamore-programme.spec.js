@@ -59,7 +59,7 @@ test("exact Tullamore JPEG keeps XV separate from subs and rejects a distant cli
   expect(last.name === "" || /Varvara.*[IL]ypnytska/i.test(last.name)).toBe(
     true,
   );
-  expect(rows.every((r) => r.review.includes("Review required"))).toBe(true);
+  expect(rows.some((r) => /OCR word score/.test(r.review) && !/Review required/.test(r.review))).toBe(true);
   expect(
     rows.some((r) =>
       /Peter Martin|Martin Connolly|Derek Dolan|Georgina|Gemma Bourke|Management|FLO|First Aid|Final Replay|^Fi$/i.test(

@@ -1,3 +1,4 @@
+import "./coach-report.css";
 import { openPassCapture } from "./pass-capture.js";
 import { advanceHalfClock } from "./goalkeepers.js";
 import "./goalkeeper.css";
@@ -909,7 +910,7 @@ document.addEventListener("click", async (event) => {
       break;
     case "ft-detailed-report":
       analysisHalf = null;
-      reportMode = true;
+      reportMode = "data";
       view = "analysis";
       render();
       window.scrollTo(0, 0);
@@ -937,8 +938,13 @@ document.addEventListener("click", async (event) => {
       render();
       window.scrollTo(0, 0);
       break;
+    case "full-match-data":
+      reportMode = "data";
+      render();
+      break;
+    case "coach-report":
     case "match-report":
-      reportMode = true;
+      reportMode = "coach";
       render();
       break;
     case "analysis-back":

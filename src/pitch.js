@@ -1,4 +1,4 @@
-import { fortyMetreArcPaths } from "./pitch-geometry.js";
+import { fortyMetreArcPaths, PITCH_GEOMETRY } from "./pitch-geometry.js";
 import { isBlockedShot } from "./shots.js";
 import { isDefensiveBlockEvent } from "./defensive-blocks.js";
 import { transformLocation } from "./matchday.js";
@@ -19,7 +19,7 @@ export function pitchMarkup(
     <rect width="600" height="900" fill="#24573f"/>
     <path d="M0 150H600M0 450H600M0 750H600" stroke="#ffffff09" stroke-width="145"/>
     <!-- 40m radius follows the existing 45m-line scale (270 units / 45m).
-         Arcs are centred on the goal lines and meet the existing 20m lines.
+         Complete semicircles share their geometry with location classification.
          Drawing only: normalized event coordinates and transforms are unchanged. -->
     <g fill="none" stroke="#e2edcb" stroke-width="3" opacity=".8"><rect x="20" y="20" width="560" height="860"/><path d="M20 450H580M20 290H580M20 610H580M20 145H580M20 755H580M220 20V85H380V20M220 880V815H380V880M270 20V55H330V20M270 880V845H330V880M280 20V5M320 20V5M280 880V895M320 880V895"/><circle cx="300" cy="450" r="22"/><path d="M235 145Q300 225 365 145M235 755Q300 675 365 755"/>${fortyMetreArcPaths()
       .map((path) => `<path class="forty-metre-arc" d="${path}"/>`)
@@ -29,8 +29,8 @@ export function pitchMarkup(
       .filter(hasLocation)
       .map((event) => {
         const displayed = transformLocation(event, direction);
-        const x = displayed.shotX * 600,
-          y = displayed.shotY * 900;
+        const x = displayed.shotX * PITCH_GEOMETRY.width,
+          y = displayed.shotY * PITCH_GEOMETRY.height;
         const type = event.event;
         const blocked = isBlockedShot(event),
           defensive = isDefensiveBlockEvent(event);

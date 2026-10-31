@@ -1,5 +1,4 @@
 import { halfTimeAnalysis } from "./half-time.js";
-import { attackingDirection } from "./matchday.js";
 import { coachingDashboard } from "./coaching-dashboard.js";
 
 // Scope selection and match transitions stay outside the reusable dashboard.
@@ -16,7 +15,7 @@ export function halfTimeScreen(match, { actions } = {}) {
     mapHeading: "FIRST HALF SHOT MAP",
     mapLabel: "First-half shot map",
     contributorsHeading: "KEY CONTRIBUTORS — FIRST HALF",
-    direction: attackingDirection(match, "our", 1),
+    direction: "top",
     actions: actions ?? [
       { label: "View Full Stats", action: "ht-full-stats" },
       { label: "Return to Live Match", view: "live" },

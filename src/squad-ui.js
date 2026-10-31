@@ -1,3 +1,4 @@
+import { programmeRowWarnings, limitMatchDayCandidates, assertMatchDayCapacity } from "./programme-integrity.js";
 import { showFormationReview } from "./formation-review.js";
 import { esc } from "./ui.js";
 import { playersFor } from "./domain.js";
@@ -273,14 +274,38 @@ function showReview(
       { filename, objectUrl },
     );
   }
-  dialog.innerHTML = `<form><div class="dialog-heading"><h2 id="event-dialog-title">Review & confirm</h2>${closeButton}</div><p class="small-note">${esc(filename)}</p><p class="inline-notice">${esc(result.message)}${!result.players.length ? " No usable player rows extracted. Try a clearer/cropped image or paste text; manual entry below is a fallback." : ""}</p>${objectUrl ? `<img class="sheet-preview" src="${objectUrl}" alt="Source team sheet for verification">` : ""}${reviewTable(result.players.length ? result.players : [{ number: "", name: "", position: "", role: "starter", confidence: "Manual fallback — nothing extracted" }])}<p class="warning" data-squad-error hidden></p><div class="dialog-actions"><button type="button" class="button subtle" data-close-squad>Cancel import</button><button type="submit" class="button primary">Confirm & add to squad</button></div><p class="small-note">Verify every row. Blank jerseys are preserved, never generated. Panel = registered, not selected. Duplicate numbered jerseys must be corrected or removed.</p></form>`;
+  const limited = limitMatchDayCandidates(result.players);
+  result = { ...result, players: limited.players, excludedCandidates: [...(result.excludedCandidates || []), ...limited.excluded] };
+  const excluded = result.excludedCandidates;
+  const capacityNotice = excluded.length ? `<aside class="warning" data-import-capacity><strong>Maximum 30 named match-day players.</strong> ${excluded.length} extra candidate(s) excluded from the selection; check for footer text or an extended panel. Excluded evidence: ${excluded.map(p => esc(`${p.number || 'Blank'} ${p.name}`)).join('; ')}. Remove an incorrect selected row and add a genuine missing player manually if needed.</aside>` : '';
+  dialog.innerHTML = `<form><div class="dialog-heading"><h2 id="event-dialog-title">Review & confirm</h2>${closeButton}</div><p class="small-note">${esc(filename)}</p><p class="inline-notice">${esc(result.message)}${!result.players.length ? " No usable player rows extracted. Try a clearer/cropped image or paste text; manual entry below is a fallback." : ""}</p>${capacityNotice}<aside class="warning" data-import-checks role="status" hidden></aside>${objectUrl ? `<img class="sheet-preview" src="${objectUrl}" alt="Source team sheet for verification">` : ""}${reviewTable(result.players.length ? result.players : [{ number: "", name: "", position: "", role: "starter", confidence: "Manual fallback — nothing extracted" }])}<p class="warning" data-squad-error hidden></p><div class="dialog-actions"><button type="button" class="button subtle" data-close-squad>Cancel import</button><button type="submit" class="button primary">Confirm & add to squad</button></div><p class="small-note">Verify every row. Blank jerseys are preserved, never generated. Panel = registered, not selected. Duplicate numbered jerseys must be corrected or removed.</p></form>`;
   const read = bindRows(dialog, result.players);
+  const refreshChecks=()=>{
+    const node=dialog.querySelector("[data-import-checks]");if(!node)return;
+    const players=read(), issues=programmeRowWarnings(players,{programme:result.programme===true});
+    const warnings=[...new Set(issues.flat())];
+    const affected=issues.filter(row=>row.length).length;
+    node.hidden=!warnings.length;
+    node.innerHTML=warnings.length?`<strong>Review checks · ${affected} row${affected===1?'':'s'} need attention</strong><ul>${warnings.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>`:"";
+    if(result.programme) dialog.querySelectorAll('[data-review-row]').forEach((row,i)=>{
+      const cell=row.querySelector('.uncertain');
+      row.dataset.reviewAttention=String(issues[i].length>0);
+      cell.toggleAttribute('data-review-clean',!issues[i].length);
+      const confidence=String(players[i].confidence || 'Source extracted — editable');
+      cell.textContent=issues[i].length ? confidence : confidence.replace(/^Review required\s*·?\s*/i,'').replace(/Name uncertain: verify transcription\s*·?\s*/i,'');
+    });
+  };
+  const form=dialog.querySelector("form");
+  form.oninput=refreshChecks;form.onchange=refreshChecks;
+  form.addEventListener("click",()=>setTimeout(refreshChecks,0));
+  refreshChecks();
   dialog
     .querySelectorAll("[data-close-squad]")
     .forEach((button) => (button.onclick = () => dialog.close()));
   dialog.querySelector("form").onsubmit = (event) => {
     event.preventDefault();
     try {
+      assertMatchDayCapacity(read(), existing);
       const players = validatePlayers(read(), existing);
       onConfirmed(players);
       dialog.close();
@@ -306,6 +331,7 @@ export function openPasteImport(dialog, existing, onConfirmed) {
         dialog,
         {
           players,
+          programme: options.layout === "programme" || options.layout === "formation",
           message:
             "Pasted text extracted locally. Review all fields before confirming.",
         },

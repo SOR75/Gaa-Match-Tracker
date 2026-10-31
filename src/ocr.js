@@ -1,3 +1,4 @@
+import { programmeBounds, programmeReadQuality, beforeProgrammeSection, completeSpatialRead, substitutePrefixes, programmeConfidence, limitMatchDayCandidates, completePrefixRead } from "./programme-integrity.js";
 import {
   graphicalNumberRegions,
   readGraphicalProgramme,
@@ -27,7 +28,13 @@ import {
 } from "./programme-geometry.js";
 import { candidate, POSITIONS, parseSpatialPlayers } from "./import-parser.js";
 import { createWorker } from "tesseract.js";
-export async function recognizeImage(
+export async function recognizeImage(input, options = {}) {
+  const result = await recognizeProgrammeImage(input, options);
+  if (!result.players) return result;
+  const limited = limitMatchDayCandidates(result.players);
+  return { ...result, players: limited.players, excludedCandidates: limited.excluded };
+}
+async function recognizeProgrammeImage(
   input,
   { signal, onProgress = () => {} } = {},
 ) {
@@ -142,14 +149,14 @@ export async function recognizeImage(
       });
       if (result) return result;
     }
-    const listPlayers = readNumberedList(originalScan.words);
+    const grid = fitFormation(scan.words);
+    const listPlayers = !grid && readNumberedList(originalScan.words);
     if (listPlayers)
       return {
         ...originalScan,
         players: listPlayers,
         diagnostics: { layout: "numbered-list" },
       };
-    const grid = fitFormation(scan.words);
     if (!grid) {
       const notebook = await detectNotebook(
         source,
@@ -209,6 +216,17 @@ export async function recognizeImage(
         worker,
         onProgress,
       });
+    const section = programmeBounds([...originalScan.words, ...scan.words], {
+      left: Math.max(0, grid.x0 - grid.sx * 1.45), right: grid.x0 + grid.sx * 1.45,
+      after: grid.y0 + grid.sy * 5.2,
+    });
+    function boundedCanvas(canvas, bottom, slope=0, originX=0) {
+      if (!Number.isFinite(bottom)) return canvas;
+      const c = document.createElement("canvas");c.width=canvas.width;c.height=canvas.height;
+      const ctx=c.getContext("2d");ctx.drawImage(canvas,0,0);ctx.fillStyle="white";ctx.beginPath();ctx.moveTo(0,bottom-slope*originX);ctx.lineTo(c.width,bottom+slope*(c.width-originX));ctx.lineTo(c.width,c.height);ctx.lineTo(0,c.height);ctx.closePath();ctx.fill();return c;
+    }
+    const bodySource=boundedCanvas(source,Math.min(section.subsY,section.footerY)),
+      bodyNormalized=boundedCanvas(normalized,Math.min(section.subsY,section.footerY));
     for (let i = 0; i < slots.length; i++) {
       onProgress(`Reading formation player ${i + 1}/15`);
       const [tx, ty] = slots[i],
@@ -221,8 +239,8 @@ export async function recognizeImage(
         grid.sy * 0.6,
       ];
       const alternatives = [
-        await read(crop(normalized, ...box), "7"),
-        await read(crop(source, ...box), "7"),
+        await read(crop(bodyNormalized, ...box), "7"),
+        await read(crop(bodySource, ...box), "7"),
       ];
       const spatialWords = scan.words
         .filter(
@@ -231,27 +249,19 @@ export async function recognizeImage(
             w.x + w.w / 2 < box[0] + box[2] &&
             w.y + w.h / 2 > y + grid.sy * 0.25 &&
             w.y + w.h / 2 < y + grid.sy * 0.85 &&
+            w.y < section.subsY && w.y < section.footerY &&
             (/\p{L}{2}/u.test(w.text) || /^\((?:C|VC)\)$/i.test(w.text)),
         )
         .sort((a, b) => a.x - b.x);
       if (spatialWords.length >= 2)
         alternatives.push({
           text: spatialWords.map((w) => w.text).join(" "),
-          words: spatialWords,
+          words: spatialWords, spatial: true,
         });
-      const quality = (r) =>
-        r.words
-          .filter((w) => /\p{L}{2}/u.test(w.text))
-          .reduce((sum, w) => sum + w.confidence * w.text.length, 0) /
-        Math.max(
-          1,
-          r.words
-            .filter((w) => /\p{L}{2}/u.test(w.text))
-            .reduce((sum, w) => sum + w.text.length, 0),
-        );
-      alternatives.sort((a, b) => quality(b) - quality(a));
-      const nameRead = alternatives[0];
-      const name = cleanPlayerText(nameRead.text);
+      const quality = programmeReadQuality;
+      alternatives.sort((a,b)=>quality(b)-quality(a));
+      const nameRead = completeSpatialRead(alternatives[0], alternatives);
+      const name = quality(nameRead) < 0 ? "" : cleanPlayerText(nameRead.text);
       const anchor = grid.anchors.find((a) => a.n === i + 1);
       // Re-read the actual number; do not fill it from the expected slot.
       await worker.setParameters({ tessedit_char_whitelist: "0123456789.)" });
@@ -309,7 +319,7 @@ export async function recognizeImage(
           name,
           "starter",
           POSITIONS[number && +number <= 15 ? +number - 1 : i],
-          `Review required · OCR word score ${Math.round(score)}/100${!number ? " · jersey unreadable; left blank" : ""} · position suggestion; editable`,
+          programmeConfidence(number, name, score) + " · position suggestion; editable",
         ),
       );
       regions.push({ slot: i + 1, box, nameRead, numberRead, alternatives });
@@ -317,17 +327,21 @@ export async function recognizeImage(
     // A dense numbered block below the formation is independent of its heading.
     const left = grid.x0 - grid.sx * 1.45,
       right = grid.x0 + grid.sx * 1.45;
-    const footerY = Math.min(
-      ...scan.words.filter((w) => isFooter(w.text)).map((w) => w.y),
-      Infinity,
-    );
+    const footerY = section.footerY;
+    const subSource=boundedCanvas(source,footerY,section.footerSlope,section.footerX),subNormalized=boundedCanvas(normalized,footerY,section.footerSlope,section.footerX);
     const lower = scan.words.filter(
       (w) =>
         w.x >= left &&
-        w.x + w.w <= right &&
+        w.x < right &&
         w.y > grid.y0 + grid.sy * 5.65 &&
         w.y < footerY,
     );
+    // Independent whole-page pass may retain a real digit box lost by lighting
+    // normalization. Merge only matching spatial evidence, not player identities.
+    for(const w of originalScan.words.filter(w=>/^\d{2}$/.test(w.text) && +w.text>=16 && w.confidence>=70 && w.x>=left && w.x<right && w.y>grid.y0+grid.sy*5.65 && w.y<footerY)) {
+      if(!lower.some(v=>v.text===w.text && Math.abs(v.x-w.x)<w.h && Math.abs(v.y-w.y)<w.h)) lower.push(w);
+    }
+    const blockRight = Math.min(source.width, Math.max(right, ...lower.map(w=>w.x+w.w)));
     let nums = lower.filter(
       (w) => /^\d{2}$/.test(w.text) && +w.text >= 16 && w.confidence >= 70,
     );
@@ -407,7 +421,7 @@ export async function recognizeImage(
         const neighbor = next || prev;
         const slope = neighbor ? (neighbor.y - n.y) / (neighbor.x - n.x) : 0;
         const x = n.x + n.w + height * (n.uncertain ? 0.8 : 0.15),
-          width = (next ? next.x - height * 0.2 : right) - x;
+          width = (next ? next.x - height * 0.2 : blockRight) - x;
         if (width < height) continue;
         function band(canvas, padding = 0.4, bandHeight = 2.1, angle = slope) {
           const c = document.createElement("canvas");
@@ -428,10 +442,10 @@ export async function recognizeImage(
           return c;
         }
         const reads = [
-          await read(band(source), "7"),
-          await read(band(normalized), "7"),
-          await read(band(source, 0.8, 1.9), "7"),
-          await read(band(source, 0.4, 2.1, 0), "7"),
+          await read(band(subSource), "7"),
+          await read(band(subNormalized), "7"),
+          await read(band(subSource, 0.8, 1.9), "7"),
+          await read(band(subSource, 0.4, 2.1, 0), "7"),
         ];
         const local = lower.filter(
           (w) =>
@@ -451,7 +465,7 @@ export async function recognizeImage(
           }
           line.words.push(w);
         }
-        const quality = (r) => substituteReadQuality(r, height, n.x + n.w);
+        const quality = (r) => substituteReadQuality({ ...r, text: beforeProgrammeSection(r.text) }, height, n.x + n.w);
         const line = lines
           .filter((l) => l.words.length >= 2)
           .sort((a, b) =>
@@ -474,20 +488,20 @@ export async function recognizeImage(
           const x2 = Math.max(...ws.map((w) => w.x + w.w)) + height * 0.2;
           reads.push(
             await read(
-              crop(source, x, y1, Math.min(width, x2 - x), y2 - y1),
+              crop(subSource, x, y1, Math.min(width, x2 - x), y2 - y1),
               "7",
             ),
           );
           reads.push(
             await read(
-              crop(normalized, x, y1, Math.min(width, x2 - x), y2 - y1),
+              crop(subNormalized, x, y1, Math.min(width, x2 - x), y2 - y1),
               "7",
             ),
           );
         }
         reads.sort((a, b) => quality(b) - quality(a));
         let name = (
-          quality(reads[0]) < 0 ? "" : cleanPlayerText(reads[0].text)
+          quality(reads[0]) < 0 ? "" : cleanPlayerText(beforeProgrammeSection(completeSpatialRead(reads[0], reads).text))
         ).replace(/\s+[A-Za-z][.,]?$/u, "");
         if (name && n === ordered.at(-1)) {
           const wrap = lower.filter(
@@ -511,10 +525,40 @@ export async function recognizeImage(
             name,
             "substitute",
             "",
-            `Review required · Name uncertain: verify transcription · OCR word score ${Math.max(0, Math.round(quality(reads[0])))}/100${!name ? " · name unresolved: crop may cross another row; left blank" : ""}${n.uncertain ? " · jersey unreadable; left blank" : ""}`,
+            programmeConfidence(n.uncertain ? "" : n.text, name, quality(reads[0]), { uncertainNumber: n.uncertain }),
           ),
         );
         details.push({ number: n.text, reads, slope });
+      }
+      for (const prefix of substitutePrefixes(lower, ordered, height)) {
+        const ws=prefix.words;
+        const x=Math.max(0,Math.min(...ws.map(w=>w.x))-height*0.9),
+          y=Math.min(...ws.map(w=>w.y))-height*0.65,
+          width=prefix.anchor.x-x-height*0.2,
+          h=Math.max(...ws.map(w=>w.y+w.h))-y+height*0.15;
+        if(width<height)continue;
+        const reads=[await read(crop(subSource,x,y,width,h),"7"),await read(crop(subNormalized,x,y,width,h),"7"),{text:ws.map(w=>w.text).join(" "),words:ws,spatial:true}];
+        // Re-read only this observed name at native resolution, keeping the
+        // same row bounds. A whole-page missed/partial word is not a reason to
+        // discard the player or supply letters from a name dictionary.
+        if(source.originalImage) {
+          const original=source.originalImage, scale=original.naturalWidth/source.width;
+          for(const pad of [0.6,1.2]) {
+            const nx=Math.max(0,Math.min(...ws.map(w=>w.x))-height*pad);
+            const bounded=crop(original,nx*scale,y*scale,(prefix.anchor.x-nx-height*0.2)*scale,h*scale);
+            reads.push(await read(bounded,"7"));
+          }
+        }
+        reads.sort((a,b)=>programmeReadQuality(b)-programmeReadQuality(a));
+        const chosen=completePrefixRead(reads[0],reads);
+        let name=beforeProgrammeSection(chosen.text).trim(), number="";
+        const explicit=name.match(/^(\d{1,2})[.)]?\s+/);
+        if(explicit && chosen.words.some(w=>w.text.replace(/\D/g,"")===explicit[1]&&w.confidence>=85)) { number=String(+explicit[1]);name=name.slice(explicit[0].length); }
+        name=cleanPlayerText(name);
+        if(name.split(/\s+/).filter(t=>/\p{L}{2}/u.test(t)).length<2)continue;
+        if(number&&players.some(p=>p.role==="substitute"&&p.number===number))continue;
+        players.push(candidate(number,name,"substitute","",programmeConfidence(number,name,Math.min(...chosen.words.map(w=>w.confidence),100)) + " · Substitute line-prefix evidence" + (chosen.prefixRestored ? " · Review name: complete first word recovered in bounded crop" : "")));
+        details.push({prefix:ws,reads});
       }
       regions.push({ substitutes: details });
     }
@@ -527,7 +571,7 @@ export async function recognizeImage(
     return {
       ...scan,
       players: players.filter((p) => !isMetadata(p.name)),
-      diagnostics: { grid, regions },
+      diagnostics: { grid, regions, sections: section },
     };
   } finally {
     finished = true;

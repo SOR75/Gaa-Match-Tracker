@@ -53,7 +53,7 @@ test("original wrinkled programme JPEG recovers XV and twelve subs without docum
   expect(subs.at(-1).name).toBe("Kara Kelly");
   expect(subs.at(-1).number).toBe("27");
   expect(subs[5].name).toMatch(/Brazil/); // Middle folded line must not steal Niamh Egan from the following row.
-  expect(rows.every((r) => /Review required/.test(r.review))).toBe(true);
+  expect(rows.some((r) => /OCR word score/.test(r.review) && !/Review required/.test(r.review))).toBe(true);
   expect(
     rows.some((r) =>
       /LGFA|Cumann|Venue|Shield|Management|FLO|^Fi$/i.test(r.name),

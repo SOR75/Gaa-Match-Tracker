@@ -90,6 +90,17 @@ export function parseTextPlayers(text, { layout = "auto" } = {}) {
       continue;
     }
     if (isMetadata(line)) continue;
+    if (substitutes) {
+      const entries=numberedEntries(line);
+      if(entries.length){
+        players.push(...entries.map(e=>candidate(e.number,e.name,"substitute","","Number/name pair in Subs section — verify")));
+        continue;
+      }
+      if(!/^\d/.test(line) && players.at(-1)?.role==="substitute" && plausibleName(line) && (/^\s+/.test(raw) || players.at(-1).name.split(/\s+/).length===1)) {
+        players.at(-1).name += " " + line;
+        continue;
+      }
+    }
     // Pasted tabular data is handled by the table adapter; these are ordinary lines.
     const match = line.match(
       /^(?:#?\(?\s*(\d{1,2}|\?)\s*[.)\-:]?\s+)?(.+?)(?:\s+(✓|✔|☑|\[x\]|\[ \]))?$/u,
@@ -100,7 +111,7 @@ export function parseTextPlayers(text, { layout = "auto" } = {}) {
     if (suffix) name = name.slice(0, suffix.index);
     if (
       !plausibleName(name, { uncertain: Boolean(number) }) ||
-      (!number && !explicitStarters && !registered)
+      (!number && !explicitStarters && !registered && !(substitutes && layout === "programme"))
     )
       continue;
     const jersey = numberOrBlank(number);

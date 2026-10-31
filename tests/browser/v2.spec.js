@@ -124,7 +124,7 @@ test("shots save immediately and optional enrichment retains normalized location
   expect((await state(page)).events[2].shotX).toBe(0.3);
   await nav(page, "Undo last event");
   expect((await state(page)).events).toHaveLength(2);
-  await nav(page, "Match Report");
+  await nav(page, "Full Match Data");
   await expect(
     page.getByRole("heading", { name: "Match details", exact: true }),
   ).toBeVisible();

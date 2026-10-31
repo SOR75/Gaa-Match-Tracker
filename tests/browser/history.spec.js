@@ -138,7 +138,7 @@ test("V0.3.7 archive upgrades into read-only History with correct analysis, time
   await expect(page.locator(".analysis-view")).toContainText("Nora Defender");
   await expect(page.locator(".analysis-view")).toContainText("Rory Midfield");
   await page
-    .getByRole("button", { name: "Match Report", exact: true })
+    .getByRole("button", { name: "Full Match Data", exact: true })
     .first()
     .click();
   await expect(
@@ -374,6 +374,9 @@ test("failed legacy copy is recoverable and repeat-safe without editing original
     .getByRole("button", { name: "Refresh history", exact: true })
     .click();
   await expect(card(page)).toBeVisible();
+  // The existing legacy card remains visible while Refresh copies it to IDB.
+  // Wait for the public completion state before checking durable storage.
+  await expect(page.locator("[data-history-root]")).toHaveAttribute("aria-busy", "false");
   expect((await dbRows(page)).filter((r) => !r.deleted)).toHaveLength(1);
   expect(await activeRaw(page)).toBe(before);
 });

@@ -92,8 +92,8 @@ async function assertDashboardLayout(page) {
   ).toBeInViewport({ ratio: 1 });
 }
 const arcs = [
-  "M95.122 145A240 240 0 0 0 504.878 145",
-  "M95.122 755A240 240 0 0 1 504.878 755",
+  "M60 20A240 240 0 0 0 540 20",
+  "M60 880A240 240 0 0 1 540 880",
 ];
 test("real Live Match H1 capture → coaching summary → correction → H2 leaves H1 unchanged", async ({
   page,
@@ -106,7 +106,7 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
   for (const [type, inside] of [
     ["goal", true],
     ["point", true],
-    ["two-point", true],
+    ["two-point", false],
     ["point", true],
     ["miss", false],
     ["miss", false],
@@ -165,8 +165,8 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
   await expect(page.locator('[data-ht-kpi="turnovers"]')).toContainText(
     "Lost 1",
   );
-  await expect(page.locator('[data-ht-zone="inside"]')).toContainText("4 / 4");
-  await expect(page.locator('[data-ht-zone="outside"]')).toContainText("1 / 4");
+  await expect(page.locator('[data-ht-zone="inside"]')).toContainText("3 / 3");
+  await expect(page.locator('[data-ht-zone="outside"]')).toContainText("2 / 5");
   const map = page.getByRole("img", {
     name: "First-half shot map",
     exact: true,
@@ -186,7 +186,7 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
     "1 of 5",
   );
   await expect(page.locator('[data-observation="opportunity"]')).toContainText(
-    "4/4",
+    "3/3",
   );
   await expect(page.locator(".ht-contributors")).toContainText(
     "#4 Casey Defender",
@@ -356,7 +356,7 @@ test("small/no-data observations are neutral, compatible saved matches and H1 an
   await context.setOffline(false);
 });
 
-test("H1 map respects bottom attack, shares renderer byte-for-byte and never rewrites shot coordinates", async ({
+test("H1 analysis stays attacking-top even when capture faces bottom; shared renderer and raw coordinates are unchanged", async ({
   page,
 }) => {
   const saved = blankMatch();
@@ -377,9 +377,9 @@ test("H1 map respects bottom attack, shares renderer byte-for-byte and never rew
     name: "First-half shot map",
     exact: true,
   });
-  await expect(svg).toContainText("ATTACKS ↓ BOTTOM");
-  await expect(svg.locator(".shot-marker circle")).toHaveAttribute("cx", "420");
-  await expect(svg.locator(".shot-marker circle")).toHaveAttribute("cy", "720");
+  await expect(svg).toContainText("ATTACKS ↑ TOP");
+  await expect(svg.locator(".shot-marker circle")).toHaveAttribute("cx", "180");
+  await expect(svg.locator(".shot-marker circle")).toHaveAttribute("cy", "180");
   expect((await state(page)).events[0]).toMatchObject({
     shotX: 0.3,
     shotY: 0.2,
@@ -387,7 +387,7 @@ test("H1 map respects bottom attack, shares renderer byte-for-byte and never rew
   // Direct equality uses the actual shared SVG output, not a substitute pitch.
   const { pitchMarkup } = await import("../../src/pitch.js");
   const expected = pitchMarkup(saved.events, false, {
-    direction: "bottom",
+    direction: "top",
     teamName: "East",
     mapLabel: "First-half shot map",
   });

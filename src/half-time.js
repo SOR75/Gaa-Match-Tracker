@@ -1,7 +1,7 @@
 import { enhanceKickoutObservations } from "./kickout-patterns.js";
 import { summarize, playerStatistics, percentage } from "./analysis.js";
 import { isShot } from "./domain.js";
-import { fortyMetreZone } from "./pitch-geometry.js";
+import { shotLocationAnalysis } from "./shot-location-analysis.js";
 
 export const OBSERVATION_RULES = Object.freeze({
   minimumAttempts: 5,
@@ -89,24 +89,12 @@ export function analysisForScope(match, scope = "H1") {
       scope === "FULL_MATCH" || event.half === (scope === "H1" ? 1 : 2),
   );
   const shots = events.filter((e) => e.team === "our" && isShot(e));
-  const zones = Object.fromEntries(
-    ["inside", "outside", "unknown"].map((zone) => {
-      const group = shots.filter((e) => fortyMetreZone(e) === zone);
-      const successful = group.filter((e) => e.outcome === "scored").length;
-      return [
-        zone,
-        {
-          attempts: group.length,
-          successful,
-          conversion: percentage(successful, group.length),
-        },
-      ];
-    }),
-  );
+  const { zones, invalidTwoPointers } = shotLocationAnalysis(events);
   const data = {
     events,
     shots,
     zones,
+    invalidTwoPointers,
     our: summarize(events, "our"),
     opposition: summarize(events, "opposition"),
     contributors: playerStatistics({ ...match, events }, "our").filter(

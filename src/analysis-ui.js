@@ -1,3 +1,6 @@
+import { isReportShooter, hasReportEventData, REPORT_EVENT_METRICS, reportPlayerStatistics } from './report-player-data.js';
+import { coachReportScreen } from "./coach-report-ui.js";
+import { shotLocationAnalysis } from "./shot-location-analysis.js";
 import { goalkeeperCards } from "./goalkeeper-ui.js";
 import { isDefensiveBlockEvent } from "./defensive-blocks.js";
 import { SHOT_SOURCES, gaelicScore } from "./shots.js";
@@ -26,6 +29,7 @@ export function analysisScreen(
   report = false,
   scopeHalf = null,
 ) {
+  if (report === "coach") return coachReportScreen(match);
   const keepersMarkup = goalkeeperCards(match, { half: scopeHalf });
   if (scopeHalf !== null)
     match = {
@@ -59,28 +63,17 @@ export function analysisScreen(
     ["Interceptions", "interceptions"],
     ["Possession-related events", "possessions"],
   ];
-  const playerRows = teams.flatMap((team) =>
-    playerStatistics(match, team).map((player) => [
-      `${name(team)} · #${player.number} ${player.name}`,
-      player.goals,
-      player.points,
-      player.twoPointers,
-      player.total,
-      player.attempts,
-      player.wides,
-      player.misses,
-      pct(player.conversion),
-      player.turnoversWon,
-      player.turnoversLost,
-      player.interceptions,
-      player.kickoutInvolvement,
-      player.blockedAttempts,
-      player.defensiveBlocks,
-      player.kickoutMarks,
-      player.kickoutPossessionsWon || 0,
-      player.otherKickoutPossessionsWon || 0,
-    ]),
-  );
+  const reportPlayers=teams.flatMap(team=>(report?reportPlayerStatistics(match,team):playerStatistics(match,team)).map(player=>({...player,team})));
+  const playerLabel=player=>`${name(player.team)} · #${player.number} ${player.name}`;
+  const shootingRows=reportPlayers.filter(isReportShooter).map(p=>[
+    playerLabel(p),p.goals,p.points,p.twoPointers,p.total,p.attempts,p.successful,p.wides,p.misses,pct(p.conversion),p.blockedAttempts,
+  ]);
+  const eventPlayers=reportPlayers.filter(hasReportEventData);
+  const eventColumns=REPORT_EVENT_METRICS.filter(([,key])=>eventPlayers.some(p=>Number(p[key])>0));
+  const eventRows=eventPlayers.map(p=>[playerLabel(p),...eventColumns.map(([,key])=>p[key]||0)]);
+  // Retain the existing interactive analysis matrix. Report output below uses
+  // statistic-specific rows; no roster/Player Review records are changed.
+  const playerRows=reportPlayers.map(p=>[playerLabel(p),p.goals,p.points,p.twoPointers,p.total,p.attempts,p.wides,p.misses,pct(p.conversion),p.turnoversWon,p.turnoversLost,p.interceptions,p.kickoutInvolvement,p.blockedAttempts,p.defensiveBlocks,p.kickoutMarks,p.kickoutPossessionsWon||0,p.otherKickoutPossessionsWon||0]);
   const options = (values, current) =>
     values
       .map(
@@ -98,7 +91,7 @@ export function analysisScreen(
   const observations = match.events.filter(
     (event) => event.dictatedNote || event.coachObservation || event.notes,
   );
-  return `<div class="analysis-view ${report ? "report-view" : ""}">${scopeHalf !== null ? `<div class="inline-notice"><strong>FIRST HALF ONLY</strong> · All statistics below use H1 events. <button class="button subtle" data-view="halftime">Back to Half-Time Analysis</button></div>` : ""}<div class="page-heading"><div><p class="eyebrow">05 — MATCH ANALYSIS</p><h1>${report ? "Match report" : "The game, in perspective."}</h1><p class="page-description">${report ? "A printable snapshot of the recorded match." : "Calculated from your event log. Corrections and undo update every figure."}</p></div><div class="report-actions">${report ? '<button class="button subtle" data-action="analysis-back">Back to analysis</button><button class="button primary" data-action="print-report">Print / Save as PDF</button>' : '<button class="button primary" data-action="match-report">Match Report</button>'}</div></div>
+  return `<div class="analysis-view ${report ? "report-view" : ""}">${scopeHalf !== null ? `<div class="inline-notice"><strong>FIRST HALF ONLY</strong> · All statistics below use H1 events. <button class="button subtle" data-view="halftime">Back to Half-Time Analysis</button></div>` : ""}<div class="page-heading"><div><p class="eyebrow">05 — MATCH ANALYSIS</p><h1>${report ? "Full Match Data" : "The game, in perspective."}</h1><p class="page-description">${report ? "A printable snapshot of the recorded match." : "Calculated from your event log. Corrections and undo update every figure."}</p></div><div class="report-actions">${report ? '<button class="button subtle" data-action="analysis-back">Back to analysis</button><button class="button subtle" data-action="coach-report">Coach Report</button><button class="button primary" data-action="print-report">Print / Save as PDF</button>' : '<button class="button primary" data-action="coach-report">Coach Report</button><button class="button subtle" data-action="full-match-data">Full Match Data</button>'}</div></div>
   ${
     report
       ? section(
@@ -186,6 +179,10 @@ export function analysisScreen(
         : ""
     }<div class="analysis-map-layout"><div class="analysis-pitch">${pitchMarkup(shots)}</div><div><div class="shot-legend"><span><i class="legend-goal">●</i> Goal</span><span><i class="legend-point">●</i> Point</span><span><i class="legend-two">◎</i> 2 Point</span><span><i class="legend-miss">×</i> Wide / Miss</span><span><i class="legend-blocked">▣</i> Blocked shot</span></div><p class="small-note" data-map-count>${mapped.length} plotted / ${shots.length} attempts in this selection.</p><p class="small-note">${shots.length - mapped.length} attempts have no recorded location. Legacy events remain in all statistics; no location is invented. Attacking goal is at top for both halves.</p><p class="small-note">Filters affect the shot map only. Overlapping marks may hide shots taken at the same location.</p></div></div>`,
   )}
+  ${section("40m shooting locations", table(["Team", "Inside 40m · scores / attempts", "Inside conversion", "Outside 40m · scores / attempts", "Outside conversion", "Unclassifiable"], teams.map(team => {
+    const {zones:z,invalidTwoPointers}=shotLocationAnalysis(match.events,team);
+    return [name(team),`${z.inside.successful} / ${z.inside.attempts}`,pct(z.inside.conversion),`${z.outside.successful} / ${z.outside.attempts}`,pct(z.outside.conversion),`${z.unknown.attempts}${invalidTwoPointers ? ` (${invalidTwoPointers} inside-arc two-point location(s) require review)` : ''}`];
+  }),"Located attempts only · team-relative attacking goal at top · 40m boundary counts outside")+'<p class="small-note">Conversion counts successful attempts, not points value. Missing, off-pitch and contradictory inside-arc two-point locations are excluded from location buckets; all attempts remain in overall statistics. Original coordinates are unchanged.</p>')}
   ${section("Defensive block locations", `<details class="defensive-map"><summary>Show recorded defensive blocks · ${match.events.filter(isDefensiveBlockEvent).length}</summary><div class="analysis-pitch">${pitchMarkup(match.events.filter(isDefensiveBlockEvent), false, { mapLabel: "Defensive block map", teamName: name("opposition") })}</div><p class="small-note">Purple D = Defensive Block. Locations are normalized toward the opposition attacking goal. These actions are not shot attempts or possession changes. Legacy defensive credits on opposition shots remain in the shooting map and analysis.</p></details>`)}
   ${keepersMarkup}
   ${section(
@@ -233,7 +230,7 @@ export function analysisScreen(
     ) +
       '<p class="small-note">Won/lost is always from our team’s perspective. Retention is the percentage retained by the kicking team (our wins on our kickouts, opposition wins on their kickouts), using known outcomes including Out of Play / Sideline as a loss for the kicking team (our Out of Play counts in Lost; opposition Out of Play counts in Won by us). The Out of Play figure is a subset of these losses, not an additional kickout or player possession credit. Older kicking-team results are translated on read. Marks are attributes of these kickouts, never additional events. Unrecorded or legacy Medium lengths are counted in total kickouts, not short/long. Player involvement below reflects attribution, not an inferred receiver.</p>',
   )}
-  ${section("Player shooting & event analysis", playerRows.length ? table(["Player", "Goals", "Points", "2P", "Total pts", "Attempts", "Wides", "Misses", "Conv.", "TO won", "TO lost", "Intercept.", "Kickouts", "Blocked attempts", "Defensive blocks", "Kickout Marks", "Kickout possessions won", "Other kickout possessions won"], playerRows) : '<p class="small-note">Add players or record attributed events to populate this table.</p>')}
+  ${report ? section("Player shooting analysis", shootingRows.length ? table(["Player","Goals","Points","2P","Total pts","Attempts","Scores","Wides","Misses","Conv.","Blocked"],shootingRows,"Recorded shooters only · at least one attempt") : '<p class="small-note">No player-attributed shooting attempts recorded.</p>', 'player-shooting-section') + section("Player event data", eventRows.length ? table(["Player",...eventColumns.map(([label])=>label)],eventRows,"Recorded event statistics only; zero-only roster rows and empty statistic columns are omitted") + '<p class="small-note">KO events = attributed kickout involvement, not automatically possession won. KO wins = explicit possession wins; KO other = non-Mark possession wins. Interceptions and turnovers remain separate. Goalkeeper details are above; squad membership and appearances are not event statistics.</p>' : '<p class="small-note">No player-attributed event statistics recorded.</p>', 'player-event-section') : section("Player shooting & event analysis", playerRows.length ? table(["Player", "Goals", "Points", "2P", "Total pts", "Attempts", "Wides", "Misses", "Conv.", "TO won", "TO lost", "Intercept.", "Kickouts", "Blocked attempts", "Defensive blocks", "Kickout Marks", "Kickout possessions won", "Other kickout possessions won"],playerRows) : '<p class="small-note">Add players or record attributed events to populate this table.</p>')}
   ${section(
     "Half comparison",
     table(

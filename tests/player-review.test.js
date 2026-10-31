@@ -185,7 +185,7 @@ test("substitutions reconstruct active XV, allow re-entry and distinguish ON ben
     [...onFieldNumbers(m, "our")],
   );
 });
-test("all ordinary OUR selectors filter bench/panel but history editing includes recorded off players", () => {
+test("live selectors use independent Active XV for both teams; history editing includes off players", () => {
   const m = make();
   record(m, "substitution", { playerOn: "22", playerOff: "8" });
   assert.deepEqual(
@@ -197,7 +197,8 @@ test("all ordinary OUR selectors filter bench/panel but history editing includes
     3,
   );
   m.oppositionPlayers = m.players;
-  assert.equal(attributionRoster(m, "opposition").players.length, 3);
+  assert.deepEqual(attributionRoster(m, "opposition").players.map(p=>p.number), [3, 8]);
+  assert.equal(attributionRoster(m, "opposition", {includeInactive:true}).players.length, 3);
 });
 test("numberless starting players retain local active identity; match-day load ignores default collisions and starts unassigned", () => {
   const s = squad();

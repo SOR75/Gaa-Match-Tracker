@@ -4034,3 +4034,7 @@ dialog::backdrop {
 @media (max-width: 700px) {
   #event-dialog [data-pass-form] .pass-rosters { grid-template-columns: 1fr; gap: 16px; }
 }
+
+/* Programme review highlights evidence issues, not every extracted row. */
+.review-table td.uncertain[data-review-clean] { color: #50634e; }
+.review-table tr[data-review-attention="true"] > td { background: #fff4e2; }

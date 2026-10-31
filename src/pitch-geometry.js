@@ -1,4 +1,4 @@
-// Existing V0.3.6 viewBox and arc geometry, shared by drawing and classification.
+// Existing viewBox/6-units-per-metre scale; full 40m geometry is shared by drawing and classification.
 // Coordinates remain canonical: the attacking goal is at the top in storage.
 export const PITCH_GEOMETRY = Object.freeze({
   width: 600,
@@ -14,29 +14,25 @@ export const PITCH_GEOMETRY = Object.freeze({
 });
 export function fortyMetreArcPaths() {
   const g = PITCH_GEOMETRY;
-  const offset = Math.sqrt(
-    g.fortyRadius ** 2 - (g.topArcJoin - g.topGoal) ** 2,
-  );
-  const left = (g.centreX - offset).toFixed(3);
-  const right = (g.centreX + offset).toFixed(3);
+  const left = g.centreX - g.fortyRadius, right = g.centreX + g.fortyRadius;
   return [
-    `M${left} ${g.topArcJoin}A${g.fortyRadius} ${g.fortyRadius} 0 0 0 ${right} ${g.topArcJoin}`,
-    `M${left} ${g.bottomArcJoin}A${g.fortyRadius} ${g.fortyRadius} 0 0 1 ${right} ${g.bottomArcJoin}`,
+    `M${left} ${g.topGoal}A${g.fortyRadius} ${g.fortyRadius} 0 0 0 ${right} ${g.topGoal}`,
+    `M${left} ${g.bottomGoal}A${g.fortyRadius} ${g.fortyRadius} 0 0 1 ${right} ${g.bottomGoal}`,
   ];
 }
-export function fortyMetreZone(event) {
+// Events are already attacking-top coordinates, independent of team and half.
+// Do not apply attackingDirection() again to stored shots.
+export function fortyMetreLocationZone(event) {
   const g = PITCH_GEOMETRY;
-  if (!Number.isFinite(event.shotX) || !Number.isFinite(event.shotY))
-    return "unknown";
-  const x = event.shotX * g.width,
-    y = event.shotY * g.height;
-  if (x < g.left || x > g.right || y < g.topGoal || y > g.bottomGoal)
-    return "unknown";
-  // The drawn arc joins the existing 20m line. The inside region includes the
-  // full-width area goal-side of that line plus the circular segment beyond it.
-  // Exactly on the arc/join line is inside (epsilon = 0.000001 viewBox units).
-  return y <= g.topArcJoin + 1e-6 ||
-    Math.hypot(x - g.centreX, y - g.topGoal) <= g.fortyRadius + 1e-6
-    ? "inside"
-    : "outside";
+  if (!Number.isFinite(event.shotX) || !Number.isFinite(event.shotY)) return "unknown";
+  const x = event.shotX * g.width, y = event.shotY * g.height;
+  if (x < g.left || x > g.right || y < g.topGoal || y > g.bottomGoal) return "unknown";
+  // Same centre, scale and radius as the SVG. Numerical boundary tolerance is
+  // one millionth of a viewBox unit, not a horizontal/20m-line exception.
+  return Math.hypot(x-g.centreX,y-g.topGoal) < g.fortyRadius-1e-6 ? "inside" : "outside";
+}
+export const invalidTwoPointLocation = event => event.event === "two-point" && fortyMetreLocationZone(event) === "inside";
+export function fortyMetreZone(event) {
+  // Never override a contradictory coordinate to invent an outside location.
+  return invalidTwoPointLocation(event) ? "unknown" : fortyMetreLocationZone(event);
 }

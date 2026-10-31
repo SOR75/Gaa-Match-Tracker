@@ -97,8 +97,8 @@ test("H2 live capture → Full-Time dashboard/comparison → detailed report →
       .locator(".forty-metre-arc")
       .evaluateAll((n) => n.map((p) => p.getAttribute("d"))),
   ).toEqual([
-    "M95.122 145A240 240 0 0 0 504.878 145",
-    "M95.122 755A240 240 0 0 1 504.878 755",
+    "M60 20A240 240 0 0 0 540 20",
+    "M60 880A240 240 0 0 1 540 880",
   ]);
   await expect(page.locator(".ht-comparison")).toBeVisible();
   await comparisonRow(page, "Score · our / opposition", [
@@ -142,7 +142,7 @@ test("H2 live capture → Full-Time dashboard/comparison → detailed report →
     .getByRole("button", { name: "VIEW DETAILED MATCH REPORT", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Match report", exact: true }),
+    page.getByRole("heading", { name: "Full Match Data", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".analysis-scores")).toContainText("(9)");
   await expect(page.locator(".inline-notice")).toHaveCount(0);

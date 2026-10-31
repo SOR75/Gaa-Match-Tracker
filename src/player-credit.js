@@ -2,7 +2,7 @@ import { onFieldKeys, playerKey } from "./participation.js";
 import { playersFor } from "./domain.js";
 import { esc } from "./ui.js";
 
-// Mark and defensive-block credit share the active our-team roster, not a copy
+// Live credit uses each team’s independent active roster, not a copy
 // or separate database. Numberless players are never assigned invented jerseys.
 export function attributionRoster(
   match,
@@ -15,8 +15,9 @@ export function attributionRoster(
     .filter(
       (p) =>
         Number.isInteger(p.number) &&
-        (includePanel || p.role !== "panel") &&
-        (team !== "our" || includeInactive || active.has(playerKey(p))),
+        (includeInactive
+          ? includePanel || p.role !== "panel"
+          : active.has(playerKey(p))),
     )
     .sort((a, b) => a.number - b.number);
   const guidance = !roster.length
