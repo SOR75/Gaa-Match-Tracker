@@ -206,8 +206,8 @@ test("every existing fast event preserves selected team, including fixed-team ki
     ["defensive-block", "our"],
     ["our-kickout", "our"],
     ["opposition-kickout", "opposition"],
-    ["turnover-won", "opposition"],
-    ["turnover-lost", "opposition"],
+    ["turnover-won", "our"],
+    ["turnover-lost", "our"],
     ["interception", "opposition"],
     ["pass", "opposition"],
   ].entries()) {
@@ -217,6 +217,10 @@ test("every existing fast event preserves selected team, including fixed-team ki
         .getByRole("dialog")
         .getByRole("button", { name: "Out of Play / Sideline", exact: true })
         .click();
+    if (type.startsWith("turnover-")) {
+      await page.locator('[data-turnover-our="1"]').click();
+      await page.getByRole("button", { name: "Record turnover", exact: true }).click();
+    }
     if (type === "pass") {
       await page.locator('[data-pass-from="1"]').click();
       await page.locator('[data-pass-to="2"]').click();

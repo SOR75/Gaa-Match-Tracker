@@ -157,10 +157,12 @@ test("active XV: off player disappears from shot, Mark, block and turnover/inter
   await nav(page, "Undo last event");
   for (const type of ["interception", "turnover-won", "turnover-lost"]) {
     await page.locator(`.event-controls [data-event="${type}"]`).click();
-    await page.locator("[data-action-credit] summary").click();
-    await expect(page.locator('[data-action-player="8"]')).toHaveCount(0);
-    await expect(page.locator('[data-action-player="22"]')).toBeVisible();
-    await page.locator('[data-action-player="22"]').click();
+    const attribute = type.startsWith("turnover-") ? "data-turnover-our" : "data-action-player";
+    if (type === "interception") await page.locator("[data-action-credit] summary").click();
+    await expect(page.locator(`[${attribute}="8"]`)).toHaveCount(0);
+    await expect(page.locator(`[${attribute}="22"]`)).toBeVisible();
+    await page.locator(`[${attribute}="22"]`).click();
+    if (type.startsWith("turnover-")) await nav(page, "Record turnover");
     expect((await state(page)).events.at(-1).playerNumber).toBe("22");
     await nav(page, "Undo last event");
   }

@@ -4038,3 +4038,18 @@ dialog::backdrop {
 /* Programme review highlights evidence issues, not every extracted row. */
 .review-table td.uncertain[data-review-clean] { color: #50634e; }
 .review-table tr[data-review-attention="true"] > td { background: #fff4e2; }
+
+/* Paired live turnover: two independent active squads in one touch panel. */
+#event-dialog [data-turnover-form] .turnover-rosters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+#event-dialog [data-turnover-form] .turnover-roster { min-width: 0; }
+#event-dialog [data-turnover-form] h3 { margin: 0 0 8px; font-size: 16px; color: #284b37; }
+#event-dialog [data-turnover-form] .quick-player-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
+#event-dialog [data-turnover-form] .player-pick { min-width: 0; }
+#event-dialog [data-turnover-form] .player-pick span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#event-dialog [data-turnover-form] .dialog-actions { margin-top: 16px; }
+@media (min-width: 900px) and (orientation: landscape) {
+  #event-dialog:has([data-turnover-form]) { width: min(940px, calc(100% - 32px)); }
+}
+@media (max-width: 700px) {
+  #event-dialog [data-turnover-form] .turnover-rosters { grid-template-columns: 1fr; gap: 16px; }
+}

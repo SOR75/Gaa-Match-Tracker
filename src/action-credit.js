@@ -1,3 +1,4 @@
+import { isPairedTurnover } from "./turnovers.js";
 import { attributionRoster, playerCreditPicker } from "./player-credit.js";
 import { eventType } from "./domain.js";
 import { esc } from "./ui.js";
@@ -8,7 +9,7 @@ export const actionCreditEvent = (e) =>
   );
 export function actionCreditMarkup(match) {
   const e = match.events.at(-1);
-  if (!actionCreditEvent(e)) return "";
+  if (!actionCreditEvent(e) || isPairedTurnover(e)) return "";
   const picker = playerCreditPicker(attributionRoster(match, e.team), {
     groupLabel: "On-field event player",
     attribute: "data-action-player",

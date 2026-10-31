@@ -1,3 +1,4 @@
+import { scoringSourceTotals, scoringSourceSummary } from './scoring-sources.js';
 import {playerStatistics,summarize} from './analysis.js';
 import {participantKey,resolveParticipant,roleTeam} from './identity.js';
 // Match-report presentation only. Never change the underlying statistics,
@@ -14,6 +15,8 @@ export const hasReportEventData = player => REPORT_EVENT_METRICS.some(([,key])=>
 export function playerReportContributions(player) {
  const items=[];
  if(Number(player.successful)>0)items.push({label:'Score',value:`${player.goals}-${player.points+2*player.twoPointers} (${player.total})`});
+ const sources=scoringSourceSummary(player.scoringSources);
+ if(sources)items.push({label:'',value:sources});
  if(isReportShooter(player))items.push({label:'Shots',value:`${player.successful}/${player.attempts}`});
  for(const [label,key] of [
   ['KO wins','kickoutPossessionsWon'], ['Marks','kickoutMarks'],
@@ -42,5 +45,9 @@ export function reportPlayerStatistics(match,team) {
   }
  }
  for(const [row,values] of counts)for(const field of ['passes','passesReceived'])if(row[field]===undefined)row[field]=values[field];
+ for(const row of rows){
+  const key=row.filterKey||row.identityKey||(row.matchPlayerId?`id:${team}:${row.matchPlayerId}`:`legacy:${team}:${row.number}`);
+  row.scoringSources=scoringSourceTotals(match.events.filter(e=>e.team===team&&participantKey(e,'player')===key));
+ }
  return rows;
 }

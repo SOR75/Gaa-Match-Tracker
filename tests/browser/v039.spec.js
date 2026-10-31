@@ -106,6 +106,9 @@ test("one turnover stores winner and loser from opposite squads", async ({
 }) => {
   await seed(page);
   await page.locator('[data-event="turnover-won"]').click();
+  await page.locator('[data-turnover-our="8"]').click();
+  await page.locator('[data-turnover-opposition="8"]').click();
+  await nav(page, "Record turnover");
   await page.locator('[data-action="edit-last"]').click();
   await page
     .getByLabel("Player who won possession", { exact: true })

@@ -29,7 +29,17 @@ for(const team of ['our','opposition'])test(`${team}: kickout/Mark, shots, actio
  }
  await page.locator('[data-event="point"]').click();await picks(page,'data-shot-player');await page.keyboard.press('Escape');
  for(const type of ['turnover-won','turnover-lost','interception']){
-  await page.locator(`[data-event="${type}"]`).click();await page.locator('[data-action-credit] summary').click();await picks(page,'data-action-player');await page.locator('[data-action-player="18"]').click();expect((await state(page)).events.at(-1).playerNumber).toBe('18');
+  await page.locator(`[data-event="${type}"]`).click();
+  if(type.startsWith('turnover-')){
+   await picks(page,`data-turnover-${team}`);await picks(page,`data-turnover-${team==='our'?'opposition':'our'}`,6,18);
+   await page.locator(`[data-turnover-${team}="18"]`).click();
+   if(team==='opposition')await page.locator('[data-turnover-our="6"]').click();
+   await nav(page,'Record turnover');
+   const e=(await state(page)).events.at(-1);expect(e.playerNumber).toBe(team==='our'?'18':'6');
+   expect(type==='turnover-won'?e.turnoverLoserNumber:e.turnoverWinnerNumber).toBe(team==='opposition'?'18':'');
+  }else{
+   await page.locator('[data-action-credit] summary').click();await picks(page,'data-action-player');await page.locator('[data-action-player="18"]').click();expect((await state(page)).events.at(-1).playerNumber).toBe('18');
+  }
  }
  await page.locator('[data-event="defensive-block"]').click();await picks(page,'data-defensive-player',team==='our'?18:6,team==='our'?6:18);await page.keyboard.press('Escape');
  await page.locator('[data-event="pass"]').click();await picks(page,'data-pass-from');await picks(page,'data-pass-to');await page.locator('[data-pass-from="18"]').click();await page.locator('[data-pass-to="11"]').click();await nav(page,'Hand Pass');const passEvent=(await state(page)).events.at(-1);

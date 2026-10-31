@@ -65,9 +65,16 @@ test("real #18 on/#10 off uses roster buttons and every live our selector follow
     }
   for (const type of ["turnover-won", "turnover-lost", "interception"]) {
     await page.locator(`[data-event="${type}"]`).click();
-    await page.locator("[data-action-credit] summary").click();
-    await expect(page.locator('[data-action-player="18"]')).toBeVisible();
-    await expect(page.locator('[data-action-player="10"]')).toHaveCount(0);
+    if (type.startsWith("turnover-")) {
+      await expect(page.locator('[data-turnover-our="18"]')).toBeVisible();
+      await expect(page.locator('[data-turnover-our="10"]')).toHaveCount(0);
+      await page.locator('[data-turnover-our="18"]').click();
+      await nav(page, "Record turnover");
+    } else {
+      await page.locator("[data-action-credit] summary").click();
+      await expect(page.locator('[data-action-player="18"]')).toBeVisible();
+      await expect(page.locator('[data-action-player="10"]')).toHaveCount(0);
+    }
   }
   await page.locator('[data-event="defensive-block"]').click();
   await expect(

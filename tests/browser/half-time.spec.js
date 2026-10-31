@@ -139,8 +139,8 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
   }
   for (const type of ["turnover-won", "turnover-lost", "turnover-won"]) {
     await page.locator(`[data-event="${type}"]`).click();
-    if (await page.getByRole("dialog").isVisible())
-      await page.keyboard.press("Escape");
+    await page.locator('[data-turnover-our="4"]').click();
+    await page.getByRole("button", { name: "Record turnover", exact: true }).click();
   }
   const before = await state(page);
   await open(page);

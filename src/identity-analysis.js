@@ -1,3 +1,4 @@
+import { isPairedTurnover } from "./turnovers.js";
 import {
   participantKey,
   participantRef,
@@ -141,6 +142,7 @@ export function identityPlayerStatistics(match, team, summarize) {
 export function hasIdentityAttribution(match, team) {
   const roster = team === "our" ? match.players : match.oppositionPlayers;
   return (
+    match.events.some(isPairedTurnover) ||
     match.events.some(
       (e) =>
         kickoutDetails(e)?.kickoutWinnerNumber &&

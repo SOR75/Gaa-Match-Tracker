@@ -1,3 +1,4 @@
+import { isPairedTurnover, turnoverTeams } from "./turnovers.js";
 import { uid } from "./ids.js";
 import { kickoutDetails } from "./kickouts.js";
 import { shotDetails } from "./shots.js";
@@ -59,6 +60,8 @@ export const roleTeam = (event, role) => {
   if (role === "kickoutWinner")
     return kickoutDetails(event)?.outcome === "won" ? "our" : "opposition";
   if (["markWinner", "blocker"].includes(role)) return "our";
+  if (isPairedTurnover(event) && role === "turnoverWinner") return turnoverTeams(event).winningTeam;
+  if (isPairedTurnover(event) && role === "turnoverLoser") return turnoverTeams(event).losingTeam;
   if (role === "turnoverWinner")
     return event.event === "turnover-won"
       ? event.team

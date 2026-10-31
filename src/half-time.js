@@ -103,6 +103,7 @@ export function analysisForScope(match, scope = "H1") {
         p.defensiveBlocks ||
         p.kickoutMarks ||
         p.turnoversWon ||
+        p.turnoversLost ||
         p.interceptions,
     ),
   };

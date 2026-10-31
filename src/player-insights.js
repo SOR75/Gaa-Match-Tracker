@@ -1,3 +1,4 @@
+import { scoringSourceTotals, mergeScoringSources } from './scoring-sources.js';
 import {
   goalkeeperStatistics,
   goalkeeperMetrics,
@@ -125,6 +126,10 @@ export function playerReviews(records, squads = [], active = null) {
         ...participation,
         named: !p.eventOnly,
         ...total,
+        scoringSources: scoringSourceTotals(m.events.filter(e=>{
+          const ref=participantRef(e, "player");
+          return ref?.team === "our" && ref.playerId === id;
+        })),
         current: !!record.current,
       });
       // No name/number matching: historical source Squad is shown only by stored ID.
@@ -182,6 +187,7 @@ export function playerReviews(records, squads = [], active = null) {
           };
         }),
         ...total,
+        scoringSources: mergeScoringSources(q.matches.map(m=>m.scoringSources)),
         conversion: percentage(total.successful, total.attempts),
         gkRetention: keeperPercent(total.gkRetained, total.gkKickouts),
         gkShortRetention: keeperPercent(total.gkShortRetained, total.gkShort),

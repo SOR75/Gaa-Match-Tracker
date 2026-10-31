@@ -21,7 +21,7 @@ export function coachReportMarkup(d) {
  const goalie=g=>`<article class="coach-keeper"><h3>${esc(d.names[g.team])} · #${esc(g.jerseyNumber??'—')} ${esc(g.nameSnapshot)}</h3>${table(['Goalkeeper metric','Recorded'],[['Time in goal',g.gkTimeMs===null?'Unrecorded boundary':formatTime(g.gkTimeMs)],['Kickouts taken',g.gkKickouts],['Retained',`${g.gkRetained} · ${pct(g.gkRetention)}`],['Lost',g.gkLost],['Short retained / taken',`${g.gkShortRetained}/${g.gkShort} · ${pct(g.gkShortRetention)}`],['Long retained / taken',`${g.gkLongRetained}/${g.gkLong} · ${pct(g.gkLongRetention)}`],['Marks generated',g.gkMarks],['Out of Play / Sideline',g.gkOutOfPlay],['Saves',g.gkSaves],['Goals conceded',g.gkGoalsConceded]])}</article>`;
  const activeRows=d.players.map(p=>[
   `#${p.number} ${p.name}${p.keeper?' · GK':''}`,
-  playerReportContributions(p).map(c=>`${c.label} ${c.value}`).join(' · '),
+  playerReportContributions(p).map(c=>`${c.label ? c.label+" " : ""}${c.value}`).join(' · '),
  ]);
  const playerTable=(start,end)=>teams.map(team=>{
    const rows=activeRows.slice(start,end).filter((_,i)=>d.players[start+i].team===team);

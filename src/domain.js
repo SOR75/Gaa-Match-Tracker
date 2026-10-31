@@ -1,3 +1,4 @@
+import { pairedTurnoverFields, validPairedTurnover } from "./turnovers.js";
 import { uid } from "./ids.js";
 import {
   bindEventParticipants,
@@ -189,6 +190,8 @@ export function createEvent(match, typeId, team, now = Date.now()) {
   };
 }
 export function normalizeEvent(event) {
+  event = { ...event, ...pairedTurnoverFields(event) };
+  if (!validPairedTurnover(event)) throw new Error("Choose our turnover player (jersey 1–99).");
   const type = eventType(event.event);
   if (!type) throw new Error("Unknown event type");
   if (
@@ -300,6 +303,7 @@ export function validMatch(value) {
       (event) =>
         typeof event.id === "string" &&
         validEventIdentity(event) &&
+        validPairedTurnover(event) &&
         eventType(event.event) &&
         ["our", "opposition"].includes(event.team) &&
         [1, 2].includes(event.half) &&

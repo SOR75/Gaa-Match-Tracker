@@ -1,3 +1,4 @@
+import { isPairedTurnover } from "./turnovers.js";
 import { roleTeam } from "./identity.js";
 import {
   identityPlayerStatistics,
@@ -103,13 +104,13 @@ export function summarize(events, team) {
       (e) =>
         ["turnover-won", "turnover-lost"].includes(e.event) &&
         roleTeam(e, "turnoverWinner") === team &&
-        (e.event === "turnover-won" || e.turnoverWinnerNumber),
+        (isPairedTurnover(e) || e.event === "turnover-won" || e.turnoverWinnerNumber),
     ).length,
     turnoversLost: events.filter(
       (e) =>
         ["turnover-won", "turnover-lost"].includes(e.event) &&
         roleTeam(e, "turnoverLoser") === team &&
-        (e.event === "turnover-lost" || e.turnoverLoserNumber),
+        (isPairedTurnover(e) || e.event === "turnover-lost" || e.turnoverLoserNumber),
     ).length,
     interceptions: selected.filter((event) => event.event === "interception")
       .length,

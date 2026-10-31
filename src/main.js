@@ -1,3 +1,4 @@
+import { openTurnoverCapture } from "./turnover-capture.js";
 import "./coach-report.css";
 import { openPassCapture } from "./pass-capture.js";
 import { advanceHalfClock } from "./goalkeepers.js";
@@ -387,7 +388,7 @@ function eventRow(event, displayMatch = match, readOnly = false) {
   const type = eventType(event.event);
   const label = isBlockedShot(event) ? "Shot · Blocked" : type.label;
   const player = resolveParticipant(displayMatch, event, "player");
-  return `<${readOnly ? "div" : "button"} class="event-row" ${readOnly ? "" : `data-edit-event="${event.id}" aria-label="Edit ${esc(label)} at ${formatTime(event.timeMs)}"`}><span class="event-time">${formatTime(event.timeMs)}<small>H${event.half}</small></span><span class="timeline-dot ${event.team} ${isDefensiveBlockEvent(event) ? "defensive-block" : isBlockedShot(event) ? "blocked-shot" : ""}">${icon(isDefensiveBlockEvent(event) ? "block" : type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(label)} ${event.event === "substitution" ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team, displayMatch))}${player ? ` · ${esc(player.name)}` : ""}${isKickout(event) ? ` · ${esc(kickoutLabel(event))}${kickoutDetails(event).kickoutWinnerNumber ? ` · Winner #${esc(kickoutDetails(event).kickoutWinnerNumber)} ${esc(resolveParticipant(displayMatch, event, "kickoutWinner")?.name || "")}` : ""}${kickoutDetails(event).markPlayerNumber ? ` · Mark #${kickoutDetails(event).markPlayerNumber}` : ""}` : !type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.event === "pass" ? `<small>${event.passType === "hand" ? "Hand Pass" : "Kick Pass"} · #${esc(event.playerNumber || "—")} → #${esc(event.receiverNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "receiver")?.name || "")}</small>` : ""}${["turnover-won", "turnover-lost"].includes(event.event) ? `<small>Won #${esc(event.turnoverWinnerNumber || (event.event === "turnover-won" ? event.playerNumber : "") || "—")} · Lost #${esc(event.turnoverLoserNumber || (event.event === "turnover-lost" ? event.playerNumber : "") || "—")}</small>` : ""}${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}${(isBlockedShot(event) || isDefensiveBlockEvent(event)) && hasLocation(event) ? "<small>Pitch location recorded</small>" : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}${readOnly ? "" : `<span class="row-edit">${icon("edit")}</span>`}</${readOnly ? "div" : "button"}>`;
+  return `<${readOnly ? "div" : "button"} class="event-row" ${readOnly ? "" : `data-edit-event="${event.id}" aria-label="Edit ${esc(label)} at ${formatTime(event.timeMs)}"`}><span class="event-time">${formatTime(event.timeMs)}<small>H${event.half}</small></span><span class="timeline-dot ${event.team} ${isDefensiveBlockEvent(event) ? "defensive-block" : isBlockedShot(event) ? "blocked-shot" : ""}">${icon(isDefensiveBlockEvent(event) ? "block" : type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(label)} ${event.event === "substitution" ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team, displayMatch))}${player ? ` · ${esc(player.name)}` : ""}${isKickout(event) ? ` · ${esc(kickoutLabel(event))}${kickoutDetails(event).kickoutWinnerNumber ? ` · Winner #${esc(kickoutDetails(event).kickoutWinnerNumber)} ${esc(resolveParticipant(displayMatch, event, "kickoutWinner")?.name || "")}` : ""}${kickoutDetails(event).markPlayerNumber ? ` · Mark #${kickoutDetails(event).markPlayerNumber}` : ""}` : !type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.event === "pass" ? `<small>${event.passType === "hand" ? "Hand Pass" : "Kick Pass"} · #${esc(event.playerNumber || "—")} → #${esc(event.receiverNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "receiver")?.name || "")}</small>` : ""}${["turnover-won", "turnover-lost"].includes(event.event) ? event.pairedTurnoverVersion === 1 ? `<small>Won: ${esc(teamName(event.winningTeam, displayMatch))} #${esc(event.turnoverWinnerNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "turnoverWinner")?.name || "")} · Lost: ${esc(teamName(event.losingTeam, displayMatch))} #${esc(event.turnoverLoserNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "turnoverLoser")?.name || "")}</small>` : `<small>Won #${esc(event.turnoverWinnerNumber || (event.event === "turnover-won" ? event.playerNumber : "") || "—")} · Lost #${esc(event.turnoverLoserNumber || (event.event === "turnover-lost" ? event.playerNumber : "") || "—")}</small>` : ""}${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}${(isBlockedShot(event) || isDefensiveBlockEvent(event)) && hasLocation(event) ? "<small>Pitch location recorded</small>" : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}${readOnly ? "" : `<span class="row-edit">${icon("edit")}</span>`}</${readOnly ? "div" : "button"}>`;
 }
 function timelineScreen(displayMatch = match, readOnly = false) {
   const filtered = displayMatch.events
@@ -477,7 +478,7 @@ function openEvent(event, editing = false, liveCredit = false) {
     <div data-linked-fields>${linkedEventFields(event, match, { includeInactive: !liveCredit })}</div>
     <div data-edit-shot-fields>${shotFieldsMarkup(event, match, { editing: true })}</div><div data-edit-kickout-fields>${kickoutFieldsMarkup(event, match)}</div>
     <details class="event-details" ${editing ? "open" : ""}><summary>${editing ? "Event details" : "Add details"} <span>Optional</span></summary><div class="detail-fields">
-    ${editing ? `<div class="form-grid"><label class="field"><span>Event</span><select name="event" aria-label="Event">${EVENT_TYPES.map((item) => `<option value="${item.id}" ${item.id === event.event ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><label class="field"><span>Team</span><select name="team" aria-label="Team" ${type.team ? "disabled" : ""}><option value="our" ${event.team === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${event.team === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select></label><label class="field"><span>Half</span><select name="half" aria-label="Half"><option value="1" ${event.half === 1 ? "selected" : ""}>First half</option><option value="2" ${event.half === 2 ? "selected" : ""}>Second half</option></select></label>${input("Half time (mm:ss)", "time", formatTime(event.timeMs), 'required pattern="[0-9]{1,3}:[0-5][0-9]" inputmode="text" title="Use minutes:seconds, for example 05:30"')}</div>` : ""}
+    ${editing ? `<div class="form-grid"><label class="field"><span>Event</span><select name="event" aria-label="Event">${EVENT_TYPES.map((item) => `<option value="${item.id}" ${item.id === event.event ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><label class="field"><span>Team</span><select name="team" aria-label="Team" ${type.team || event.pairedTurnoverVersion === 1 ? "disabled" : ""}><option value="our" ${event.team === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${event.team === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select></label><label class="field"><span>Half</span><select name="half" aria-label="Half"><option value="1" ${event.half === 1 ? "selected" : ""}>First half</option><option value="2" ${event.half === 2 ? "selected" : ""}>Second half</option></select></label>${input("Half time (mm:ss)", "time", formatTime(event.timeMs), 'required pattern="[0-9]{1,3}:[0-5][0-9]" inputmode="text" title="Use minutes:seconds, for example 05:30"')}</div>` : ""}
     <div class="form-grid">${!scoring && event.event !== "miss" && !kickout && !isDefensiveBlockEvent(event) ? selectField("Outcome", "outcome", event.outcome, ["won", "lost", "retained", "completed", "incomplete"]) : ""}${selectField("Zone", "zone", event.zone, ["Defensive third", "Middle third", "Attacking third"])}${selectField("Side", "side", event.side, ["Left", "Centre", "Right"])}${kickout || editing ? selectField("Kickout length", "kickoutLength", event.kickoutLength, ["Short", "Medium", "Long"]) : ""}${!isShot(event) && editing ? selectField("Score origin", "scoreOrigin", event.scoreOrigin, ["Open play", "Free", "45", "Penalty", "Sideline"]) : ""}${selectField("Possession result", "possessionResult", event.possessionResult, ["Retained", "Lost", "Shot", "Score"])}${input("Attack pattern", "attackPattern", event.attackPattern, 'maxlength="120" placeholder="Optional"')}</div>
     ${noteMarkup(event)}${input("Coach observation", "coachObservation", event.coachObservation, 'maxlength="500" placeholder="Optional"')}
     <label class="field"><span>Direct score link</span><select name="directScoreLink"><option value="">No linked score</option>${match.events
@@ -526,7 +527,14 @@ function openEvent(event, editing = false, liveCredit = false) {
     }
     stopDictation();
     const nextType = eventType(updated.event);
-    if (updated.event !== event.event) updated.outcome = nextType.outcome;
+    if (updated.event !== event.event) {
+      updated.outcome = nextType.outcome;
+      if (!["turnover-won", "turnover-lost"].includes(updated.event)) {
+        delete updated.pairedTurnoverVersion;
+        delete updated.winningTeam;
+        delete updated.losingTeam;
+      }
+    }
     if (nextType.value > 0) updated.outcome = "scored";
     if (isKickout(updated))
       Object.assign(updated, kickoutFormFields(data, updated));
@@ -590,7 +598,9 @@ function openEvent(event, editing = false, liveCredit = false) {
     ?.addEventListener("change", (eventChange) => {
       const nextType = eventType(eventChange.target.value);
       const team = dialog.querySelector('[name="team"]');
-      team.disabled = Boolean(nextType.team);
+      const paired = event.pairedTurnoverVersion === 1 && ["turnover-won", "turnover-lost"].includes(nextType.id);
+      team.disabled = Boolean(nextType.team || paired);
+      if (paired) team.value = "our";
       if (nextType.team) team.value = nextType.team;
       refreshShotFields();
     });
@@ -768,6 +778,10 @@ document.addEventListener("click", async (event) => {
         record,
         match,
         recordEvent,
+      );
+    else if (["turnover-won", "turnover-lost"].includes(record.event))
+      openTurnoverCapture(
+        document.querySelector("#event-dialog"), record, match, recordEvent,
       );
     else if (record.event === "pass")
       openPassCapture(
