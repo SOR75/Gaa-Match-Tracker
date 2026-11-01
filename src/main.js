@@ -1,3 +1,4 @@
+import { openBookedCapture } from "./booked-capture.js";
 import { acceptedEnrichment, enrichmentOptions, withNumberedEventPlayers, retainLiveRoster } from "./match-squad-enrichment.js";
 import { APP_VERSION, BUILD_INFO } from "./build-info.js";
 import { registerOfflineApp } from "./pwa-updates.js";
@@ -318,7 +319,7 @@ function setupScreen() {
     <section class="card setup-card"><div class="card-heading"><div class="section-icon">${icon("setup")}</div><div><h2>Match details</h2><p>The essentials for your day on the sideline.</p></div><span class="step-tag">STEP 01</span></div>
       <form id="setup-form"><div class="form-section-label">THE TEAMS <span>Required</span></div><div class="teams-fields">${input("Our team", "ourTeam", setup.ourTeam, 'placeholder="Enter your team name" required maxlength="80" autocomplete="off"')}<span class="versus">VS</span>${input("Opposition", "opposition", setup.opposition, 'placeholder="Enter opposition name" required maxlength="80" autocomplete="off"')}</div>
       <div class="form-divider"></div><div class="form-section-label">THE OCCASION</div><div class="form-grid">${input("Competition", "competition", setup.competition, 'placeholder="e.g. Senior championship" maxlength="100"')}${input("Venue", "venue", setup.venue, 'placeholder="Where are we playing?" maxlength="100"')}${input("Match date", "date", setup.date, "", "date")}<label class="field"><span>Half length</span><div class="input-suffix"><input name="halfLength" type="number" inputmode="numeric" min="1" max="90" step="1" required value="${setup.halfLength}"><span>minutes</span></div></label>${input("Tracker / Coach", "coach", setup.coach, 'placeholder="Your name" maxlength="80"')}</div>
-      <label class="field direction-setting"><span>Our team attacks in first half (pitch display)</span><select name="ourFirstHalfAttacks" aria-label="Our first-half attacking goal"><option value="top" ${(setup.ourFirstHalfAttacks || "top") === "top" ? "selected" : ""}>Top goal</option><option value="bottom" ${setup.ourFirstHalfAttacks === "bottom" ? "selected" : ""}>Bottom goal</option></select><small>Opposition attacks the other goal; directions reverse in the second half. Stored locations do not change.</small></label><div class="form-end"><span class="form-hint">${icon("check")} Details save as you go</span><button class="button primary" type="submit">Continue to squad ${icon("arrow")}</button></div></form>
+      <label class="field"><span>Match code / ruleset</span><select name="matchCode" aria-label="Match code"><option value="" ${!setup.matchCode ? "selected" : ""}>Not selected</option><option value="GAA" ${setup.matchCode === "GAA" ? "selected" : ""}>GAA</option><option value="LGFA" ${setup.matchCode === "LGFA" ? "selected" : ""}>LGFA</option></select></label><label class="field direction-setting"><span>Our team attacks in first half (pitch display)</span><select name="ourFirstHalfAttacks" aria-label="Our first-half attacking goal"><option value="top" ${(setup.ourFirstHalfAttacks || "top") === "top" ? "selected" : ""}>Top goal</option><option value="bottom" ${setup.ourFirstHalfAttacks === "bottom" ? "selected" : ""}>Bottom goal</option></select><small>Opposition attacks the other goal; directions reverse in the second half. Stored locations do not change.</small></label><div class="form-end"><span class="form-hint">${icon("check")} Details save as you go</span><button class="button primary" type="submit">Continue to squad ${icon("arrow")}</button></div></form>
     </section>
     <aside class="setup-aside"><div class="match-preview"><div class="preview-top"><span class="eyebrow">MATCH DAY</span>${icon("pitch")}</div><div class="preview-teams"><span class="team-crest" id="preview-crest">${esc(initials(setup.ourTeam))}</span><h2 id="preview-our">${esc(setup.ourTeam || "Your team")}</h2><span class="preview-vs">versus</span><h2 id="preview-opposition">${esc(setup.opposition || "The opposition")}</h2></div><div class="preview-bottom"><span>${icon("clock")} <span id="preview-length">${setup.halfLength}</span> min / half</span><span>GAELIC FOOTBALL</span></div></div>
     <div class="quiet-note"><span class="section-icon">${icon("check")}</span><div><h3>Focus on the game.</h3><p>Your match and every event save automatically on this device. No account. No distractions.</p></div></div><p class="device-note">Keep this browser’s data to keep your match. Private browsing may not retain it.</p></aside></div>`;
@@ -365,7 +366,7 @@ function liveScreen() {
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
     <div class="matchday-toolbar"><span class="build-tag">V${APP_VERSION}</span><button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>${match.clock.half === 2 ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone voice-roadmap-button" data-action="voice-mode" aria-label="Voice Match Mode — Coming soon">${icon("mic")}<span>Voice Match Mode<small class="voice-roadmap-label">COMING SOON</small></span></button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
     ${starterWarningMarkup(match)}${scoreboard()}
-    <section class="event-controls recording-${selectedTeam}">${liveTeamControls()}<div class="controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div></div>
+    <section class="event-controls recording-${selectedTeam}">${liveTeamControls()}<div class="controls-heading booked-controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div><button class="button subtle" data-event="booked" ${ready() ? "" : "disabled"}>Booked</button></div>
     <div class="scoring-grid">${EVENT_TYPES.slice(0, 4)
       .map(
         (type, index) =>
@@ -375,7 +376,7 @@ function liveScreen() {
     <div class="form-section-label event-section-label">BUILD-UP & POSSESSION <span>Tap to log · edit details afterwards</span></div><div class="other-events">${EVENT_TYPES.slice(
       4,
     )
-      .filter((type) => !["goalkeeper-change", "pass"].includes(type.id))
+      .filter((type) => !["goalkeeper-change", "pass", "booked"].includes(type.id))
       .map((type) => (type.id === "possession" ? eventType("pass") : type))
       .map(
         (type) =>
@@ -795,6 +796,8 @@ document.addEventListener("click", async (event) => {
       openTurnoverCapture(
         document.querySelector("#event-dialog"), record, match, recordEvent,
       );
+    else if (record.event === "booked")
+      openBookedCapture(document.querySelector("#event-dialog"), record, match, recordEvent);
     else if (record.event === "pass")
       openPassCapture(
         document.querySelector("#event-dialog"),
@@ -1039,7 +1042,7 @@ document.addEventListener("input", (event) => {
   }
   if (!event.target.closest("#setup-form")) return;
   const { name, value } = event.target;
-  if (!Object.hasOwn(match.setup, name) && name !== "ourFirstHalfAttacks")
+  if (!Object.hasOwn(match.setup, name) && !["ourFirstHalfAttacks", "matchCode"].includes(name))
     return;
   if (name === "halfLength" && (!event.target.validity.valid || !value)) return;
   match.setup[name] = name === "halfLength" ? Number(value) : value;

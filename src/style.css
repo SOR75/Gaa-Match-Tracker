@@ -4053,3 +4053,17 @@ dialog::backdrop {
 @media (max-width: 700px) {
   #event-dialog [data-turnover-form] .turnover-rosters { grid-template-columns: 1fr; gap: 16px; }
 }
+
+/* Reserve only the new Booked control's space; keep existing capture rows in place. */
+#app[data-view="live"] .booked-controls-heading {
+  position: relative;
+  padding-right: 90px;
+  min-height: 44px;
+}
+#app[data-view="live"] .booked-controls-heading > [data-event="booked"] {
+  position: absolute;
+  right: 0;
+  top: 0;
+  min-width: 76px;
+  min-height: 44px;
+}

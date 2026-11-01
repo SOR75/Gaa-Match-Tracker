@@ -71,6 +71,7 @@ export const EVENT_TYPES = [
     player: true,
   },
   { id: "substitution", label: "Substitution", value: 0, outcome: "completed" },
+  { id: "booked", label: "Booked", value: 0, outcome: "", player: true },
 ];
 export const eventType = (id) => EVENT_TYPES.find((type) => type.id === id);
 export { uid };
@@ -87,6 +88,7 @@ export function blankMatch() {
       date: localDate(),
       halfLength: 30,
       coach: "",
+      matchCode: "",
     },
     players: [],
     oppositionPlayers: [],
@@ -169,6 +171,7 @@ export function createEvent(match, typeId, team, now = Date.now()) {
     ...(typeId === "pass"
       ? { passType: "kick", receiverNumber: "", buildUpLink: "" }
       : {}),
+    ...(typeId === "booked" ? { matchCode: ["GAA", "LGFA"].includes(match.setup.matchCode) ? match.setup.matchCode : null } : {}),
     event: typeId,
     outcome: type.outcome,
     scoreValue: type.value,
@@ -199,6 +202,8 @@ export function normalizeEvent(event) {
     !validSubstitution(event.playerOn, event.playerOff)
   )
     throw new Error("Choose different on/off jerseys, 1–99.");
+  if (event.event === "booked" && !/^[1-9]\d?$/.test(String(event.playerNumber || "")))
+    throw new Error("Choose the player who was booked (jersey 1–99).");
   const shotX = event.shotX ?? null,
     shotY = event.shotY ?? null;
   if (
@@ -290,6 +295,7 @@ export function validMatch(value) {
     ["ourTeam", "opposition", "competition", "venue", "date", "coach"].every(
       (key) => typeof value.setup[key] === "string",
     ) &&
+    (value.setup.matchCode === undefined || ["", "GAA", "LGFA"].includes(value.setup.matchCode)) &&
     Number.isInteger(value.setup.halfLength) &&
     value.setup.halfLength >= 1 &&
     value.setup.halfLength <= 90 &&

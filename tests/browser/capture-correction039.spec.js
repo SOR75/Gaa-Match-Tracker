@@ -74,6 +74,7 @@ test("Pass occupies exactly the old Possession slot; Kick #8→#11 then substitu
     "defensive-block",
     "substitution",
   ]);
+  await expect(page.locator('[data-event="booked"]')).toHaveCount(1);
   await expect(page.locator('[data-event="pass"]')).toHaveCount(1);
   await expect(page.locator('[data-event="possession"]')).toHaveCount(0);
   await expect(page.locator("[data-add-build-up]")).toHaveCount(0);

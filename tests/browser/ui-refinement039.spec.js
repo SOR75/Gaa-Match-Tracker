@@ -43,6 +43,7 @@ test("populated landscape: core buttons clear footer, strong active team, touch 
     "defensive-block",
     "substitution",
   ]);
+  await expect(page.locator('[data-event="booked"]')).toHaveCount(1);
   await expect(page.locator('[data-event="pass"]')).toHaveCount(1);
   await expect(page.locator('[data-event="possession"]')).toHaveCount(0);
   const bounds = await page.evaluate(() => {
