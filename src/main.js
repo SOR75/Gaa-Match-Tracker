@@ -1,3 +1,5 @@
+import { APP_VERSION, BUILD_INFO } from "./build-info.js";
+import { registerOfflineApp } from "./pwa-updates.js";
 import { openTurnoverCapture } from "./turnover-capture.js";
 import "./coach-report.css";
 import { openPassCapture } from "./pass-capture.js";
@@ -288,7 +290,7 @@ function render() {
       <div class="sidebar-bottom"><span class="local-dot"></span><div>Made for the sideline<small>Your match stays on this device.</small></div></div>
     </aside>
     <div class="main-shell">
-      <header class="topbar"><span class="build-tag">V0.3.9-dev</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${view === "halftime" ? "Half-Time Analysis" : view === "fulltime" ? "Full-Time Analysis" : tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
+      <header class="topbar"><span class="build-tag">V${APP_VERSION}</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${view === "halftime" ? "Half-Time Analysis" : view === "fulltime" ? "Full-Time Analysis" : tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
       <main id="main"><p id="storage-warning" class="warning" role="alert" hidden></p>${view === "players" ? playerReviewUI.screen() : view === "history" ? historyUI.screen() : view === "setup" ? setupScreen() : view === "squad" ? squadScreen() : view === "live" ? liveScreen() : view === "timeline" ? timelineScreen() : view === "halftime" ? halfTimeScreen(match) : view === "fulltime" ? fullTimeScreen(match) : analysisScreen(match, analysisFilters, reportMode, analysisHalf)}</main>
       ${["history", "players"].includes(view) ? `<footer class="actionbar"><strong>Device records · read-only viewing</strong><button class="button subtle" data-view="live">Return to current match</button></footer>` : `<footer class="actionbar"><div class="last-event">${lastEventSummary()}</div><div class="history-actions"><button class="button subtle" data-action="edit-last" aria-label="Edit last event" ${match.events.length ? "" : "disabled"}>${icon("edit")}<span>Edit last<span class="wide-label"> event</span></span></button><button class="button undo" data-action="undo" aria-label="Undo last event" ${match.events.length ? "" : "disabled"}>${icon("undo")}<span>Undo last<span class="wide-label"> event</span></span></button></div></footer>`}
     </div>
@@ -354,7 +356,7 @@ function liveTeamControls() {
 function liveScreen() {
   return `${heading("FROM THE SIDELINE", "Every moment counts.", "Tap an event. Keep your eyes on the game.", `<span class="match-status"><span class="local-dot"></span>${match.clock.startedAt === null ? "MATCH WORKSPACE" : "LIVE TRACKING"}</span>`)}
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
-    <div class="matchday-toolbar"><span class="build-tag">V0.3.9-dev</span><button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>${match.clock.half === 2 ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone voice-roadmap-button" data-action="voice-mode" aria-label="Voice Match Mode — Coming soon">${icon("mic")}<span>Voice Match Mode<small class="voice-roadmap-label">COMING SOON</small></span></button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
+    <div class="matchday-toolbar"><span class="build-tag">V${APP_VERSION}</span><button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>${match.clock.half === 2 ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone voice-roadmap-button" data-action="voice-mode" aria-label="Voice Match Mode — Coming soon">${icon("mic")}<span>Voice Match Mode<small class="voice-roadmap-label">COMING SOON</small></span></button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
     ${starterWarningMarkup(match)}${scoreboard()}
     <section class="event-controls recording-${selectedTeam}">${liveTeamControls()}<div class="controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div></div>
     <div class="scoring-grid">${EVENT_TYPES.slice(0, 4)
@@ -1191,23 +1193,20 @@ window.addEventListener("storage", (event) => {
     match = null;
   }
 });
+window.__SIDELINE_BUILD__ = BUILD_INFO;
 render();
 setInterval(updateClock, 500);
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("/sw.js");
-      await navigator.serviceWorker.ready;
-      offlineStatus = navigator.serviceWorker.controller
-        ? "Offline app ready"
-        : "App cached — reload once before going offline";
-      document
-        .querySelectorAll("[data-offline-status]")
-        .forEach((node) => (node.textContent = offlineStatus));
-      if (registration.waiting)
-        toast(
-          "An app update is ready. Close all Sideline tabs after the match to apply it.",
-        );
+      await registerOfflineApp({
+        onStatus: (status) => {
+          offlineStatus = status;
+          document.querySelectorAll("[data-offline-status]")
+            .forEach((node) => (node.textContent = status));
+        },
+        onUpdate: toast,
+      });
     } catch {
       toast(
         "Offline app installation is unavailable. Local match autosave is still active.",

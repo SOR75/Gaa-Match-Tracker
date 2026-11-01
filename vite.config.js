@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   readFileSync,
@@ -9,6 +10,16 @@ import {
 } from "node:fs";
 import { resolve } from "node:path";
 
+const sourceInfo = (() => {
+  let sourceCommit = /^[a-f0-9]{40}$/i.test(process.env.COMMIT_REF || "") ? process.env.COMMIT_REF : "unknown";
+  let sourceDirty = null;
+  try {
+    if (sourceCommit === "unknown") sourceCommit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    sourceDirty = Boolean(execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim());
+  } catch { /* Source ZIPs can build without Git; never manufacture a revision. */ }
+  return { sourceCommit, sourceDirty };
+})();
+const buildMetadata = JSON.parse(readFileSync(resolve("public/build-info.json"), "utf8"));
 const ocrFiles = {
   "worker.min.js": "node_modules/tesseract.js/dist/worker.min.js",
   "eng.traineddata.gz":
@@ -23,13 +34,17 @@ const ocrFiles = {
 // Precache every built asset before an app version is available offline.
 // Each build gets its own cache, so an update cannot mix old and new bundles.
 export default defineConfig({
+  define: {
+    "import.meta.env.VITE_BUILD_COMMIT": JSON.stringify(sourceInfo.sourceCommit),
+    "import.meta.env.VITE_BUILD_DIRTY": JSON.stringify(sourceInfo.sourceDirty),
+  },
   plugins: [
     {
       name: "sideline-offline-shell",
       configureServer(server) {
         server.httpServer?.once("listening", () =>
           server.config.logger.info(
-            `[Sideline V0.3.8-dev] Project root: ${server.config.root}`,
+            `[Sideline V${buildMetadata.version}] Project root: ${server.config.root}`,
           ),
         );
         server.middlewares.use((req, res, next) => {
@@ -57,6 +72,7 @@ export default defineConfig({
         const revision = createHash("sha256")
           .update(assets.join("|") + readFileSync(resolve(dist, "index.html")))
           .update(source)
+          .update(JSON.stringify(sourceInfo))
           .update(
             Object.values(ocrFiles)
               .map((path) =>
@@ -68,6 +84,9 @@ export default defineConfig({
           )
           .digest("hex")
           .slice(0, 12);
+        writeFileSync(resolve(dist, "build-info.json"), JSON.stringify({
+          ...buildMetadata, ...sourceInfo, assetRevision: revision,
+        }, null, 2) + "\n");
         writeFileSync(
           resolve(dist, "sw.js"),
           source
