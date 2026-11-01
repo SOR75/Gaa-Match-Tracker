@@ -1,3 +1,4 @@
+import { acceptedEnrichment, enrichmentOptions, withNumberedEventPlayers, retainLiveRoster } from "./match-squad-enrichment.js";
 import { APP_VERSION, BUILD_INFO } from "./build-info.js";
 import { registerOfflineApp } from "./pwa-updates.js";
 import { openTurnoverCapture } from "./turnover-capture.js";
@@ -169,7 +170,13 @@ const acceptTap = createTapGuard();
 const saveMatchEvent = (event) => {
   if (match.goalkeeperTrackingVersion === 1 && !match.goalkeepers)
     match.goalkeepers = startingGoalkeepers(match);
-  return saveEvent(match.events, event, match);
+  const prepared = withNumberedEventPlayers(match, event);
+  const saved = saveEvent(match.events, event, prepared);
+  if (prepared !== match) {
+    match.players = prepared.players;
+    match.oppositionPlayers = prepared.oppositionPlayers;
+  }
+  return saved;
 };
 function recordEvent(event) {
   match.events = saveMatchEvent(event);
@@ -329,7 +336,7 @@ function squadScreen() {
           .sort((a, b) => (a.number ?? 1000) - (b.number ?? 1000))
           .map(
             (item) =>
-              `<div class="player-row"><span class="jersey">${item.number ?? "—"}</span><div class="player-info"><strong>${esc(item.name)}</strong><span>${item.role === "starter" ? "Starter" : item.role === "panel" ? "Panel · not selected" : "Substitute"}${item.position ? ` · ${esc(item.position)}` : ""}</span>${item.notes ? `<small>${esc(item.notes)}</small>` : ""}</div><button class="button lineup-toggle" data-lineup-player="${item.id}" aria-label="${item.role === "starter" ? "Make substitute" : "Make starter"} ${esc(item.name)}">${item.role === "starter" ? "Starter ✓" : item.role === "panel" ? "Panel" : "Substitute"}${active.has(String(item.number)) ? " · on field" : ""}</button><button class="icon-button" data-edit-player="${item.id}" aria-label="Edit ${esc(item.name)}">${icon("edit")}</button><button class="icon-button" data-delete-player="${item.id}" aria-label="Remove ${esc(item.name)}">${icon("close")}</button></div>`,
+              `<div class="player-row"><span class="jersey">${item.number ?? "—"}</span><div class="player-info"><strong>${esc(item.name || "Unnamed · number only")}</strong><span>${item.role === "starter" ? "Starter" : item.role === "panel" ? "Panel · not selected" : "Substitute"}${item.position ? ` · ${esc(item.position)}` : ""}</span>${item.notes ? `<small>${esc(item.notes)}</small>` : ""}</div><button class="button lineup-toggle" data-lineup-player="${item.id}" aria-label="${item.role === "starter" ? "Make substitute" : "Make starter"} ${esc(item.name || `#${item.number ?? "—"} unnamed`)}">${item.role === "starter" ? "Starter ✓" : item.role === "panel" ? "Panel" : "Substitute"}${active.has(String(item.number)) ? " · on field" : ""}</button><button class="icon-button" data-edit-player="${item.id}" aria-label="Edit ${esc(item.name || `#${item.number ?? "—"} unnamed`)}">${icon("edit")}</button><button class="icon-button" data-delete-player="${item.id}" aria-label="Remove ${esc(item.name || `#${item.number ?? "—"} unnamed`)}">${icon("close")}</button></div>`,
           )
           .join("")}</div>`
       : `<div class="empty-state"><span class="empty-icon">${icon("squad")}</span><h3>A blank team sheet.</h3><p>Add your first player using the form.<br>Only the players you enter will appear here.</p></div>`
@@ -648,6 +655,7 @@ document.addEventListener("click", async (event) => {
       match,
       squadTeam,
       (players, squad) => {
+        players = retainLiveRoster(playersFor(match, squadTeam), players, enrichmentOptions(match).live);
         if (squadTeam === "our") {
           match.squadId = squad.id;
           match.seasonId = squad.seasonId || null;
@@ -727,11 +735,12 @@ document.addEventListener("click", async (event) => {
       document.querySelector("#event-dialog"),
       playersFor(match, squadTeam),
       (players) => {
-        setPlayers([...playersFor(match, squadTeam), ...players]);
+        setPlayers(players);
         persist();
         render();
         toast(`${players.length} reviewed players added.`);
       },
+      { match, team: squadTeam },
     );
   if (button.hasAttribute("data-save-squad"))
     openSaveSquad(
@@ -746,6 +755,7 @@ document.addEventListener("click", async (event) => {
       match,
       squadTeam,
       (players, squad) => {
+        players = retainLiveRoster(playersFor(match, squadTeam), players, enrichmentOptions(match).live);
         playerEditing = null;
         if (squadTeam === "our") {
           match.squadId = squad.id;
@@ -1062,16 +1072,8 @@ document.addEventListener("submit", (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.target));
     const number = data.number === "" ? null : Number(data.number);
-    if (
-      playersFor(match, squadTeam).some(
-        (item) =>
-          number !== null &&
-          item.number === number &&
-          item.id !== playerEditing,
-      )
-    ) {
-      toast(`Jersey #${number} is already in your squad.`);
-      return;
+    if (playerEditing && playersFor(match, squadTeam).some(p=>p.id!==playerEditing && number!==null && p.number===number)) {
+      toast(`Jersey #${number} is already in your squad. Review today's team before changing this jersey.`);return;
     }
     if (!data.name.trim()) {
       toast("Enter a player name.");
@@ -1084,15 +1086,18 @@ document.addEventListener("submit", (event) => {
       ...data,
       name: data.name.trim(),
       number,
+      numberPlaceholder: false,
       id: playerEditing || uid(),
     });
-    setPlayers(
+    try { setPlayers(
       playerEditing
         ? playersFor(match, squadTeam).map((item) =>
             item.id === playerEditing ? player : item,
           )
-        : [...playersFor(match, squadTeam), player],
-    );
+        : acceptedEnrichment(playersFor(match, squadTeam), [player], {
+            ...enrichmentOptions(match), mode: "manual",
+          }),
+    ); } catch (error) { toast(error.message); return; }
     playerEditing = null;
     persist();
     render();
@@ -1153,11 +1158,12 @@ document.addEventListener("change", (event) => {
       file,
       playersFor(match, squadTeam),
       (players) => {
-        setPlayers([...playersFor(match, squadTeam), ...players]);
+        setPlayers(players);
         persist();
         render();
-        toast(`${players.length} reviewed players added.`);
+        toast(`Team sheet applied; existing match identities retained.`);
       },
+      { match, team: squadTeam },
     );
     event.target.value = "";
   }

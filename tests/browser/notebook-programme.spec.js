@@ -19,7 +19,7 @@ for(const [label,file,sha] of fixtures)test(`handwritten notebook ${label}: 30 r
  for(let i=0;i<30;i++){
   expect(rows[i].confidence).toContain('Number/name row');expect(rows[i].confidence).toContain('Review name');expect(rows[i].confidence).toContain('Review jersey');expect(rows[i].confidence).toContain(`Source column ${i<15?1:2}, row ${i%15+1}`);
  }
- expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('sideline.match.v1')).players)).toHaveLength(0);
+ expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('sideline.match.v1')).players.filter(p=>p.name))).toHaveLength(0);
  await testInfo.attach('notebook-review-rows.json',{body:JSON.stringify(rows,null,2),contentType:'application/json'});
  await page.setViewportSize({width:1366,height:1024});await page.screenshot({path:testInfo.outputPath('notebook-review.png'),fullPage:true});
  await page.getByRole('button',{name:'Cancel import',exact:true}).click();await page.getByRole('button',{name:'Live match',exact:true}).click();await page.locator('[data-event=point]').click();await page.keyboard.press('Escape');expect((await page.evaluate(()=>JSON.parse(localStorage.getItem('sideline.match.v1')))).events).toHaveLength(1);

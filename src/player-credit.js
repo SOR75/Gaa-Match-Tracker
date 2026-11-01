@@ -33,6 +33,7 @@ export function attributionRoster(
       : Array.from({ length: 15 }, (_, i) => ({ number: i + 1, name: "" })),
     guidance,
     fallback: !roster.length,
+    allowOther: match.matchDayPlayersVersion === 1,
   };
 }
 export const ourCreditRoster = (match, options) =>
@@ -47,7 +48,7 @@ export function playerCreditPicker(
   { groupLabel, attribute, actionLabel, selected = "" },
 ) {
   if (!roster.players.length) return emptyCreditRosterMarkup(roster.guidance);
-  return `${emptyCreditRosterMarkup(roster.guidance)}<div class="quick-player-grid" role="group" aria-label="${esc(groupLabel)}">${roster.players.map((p) => `<button type="button" class="player-pick ${String(p.number) === selected ? "chosen" : ""}" ${attribute}="${p.number}" aria-pressed="${String(p.number) === selected}" aria-label="${esc(actionLabel)} #${p.number} ${esc(p.name)}">${roster.fallback ? "No. " : ""}${p.number}<span>${esc(p.name)}</span></button>`).join("")}</div>${roster.fallback ? `<label class="field"><span>Other number · optional</span><input type="number" min="1" max="99" step="1" inputmode="numeric" data-credit-other="${attribute}" aria-label="Other number"></label>` : ""}`;
+  return `${emptyCreditRosterMarkup(roster.guidance)}<div class="quick-player-grid" role="group" aria-label="${esc(groupLabel)}">${roster.players.map((p) => `<button type="button" class="player-pick ${String(p.number) === selected ? "chosen" : ""}" ${attribute}="${p.number}" aria-pressed="${String(p.number) === selected}" aria-label="${esc(actionLabel)} #${p.number} ${esc(p.name)}">${roster.fallback ? "No. " : ""}${p.number}<span>${esc(p.name)}</span></button>`).join("")}</div>${roster.fallback || roster.allowOther ? `<label class="field"><span>Other number · optional</span><input type="number" min="1" max="99" step="1" inputmode="numeric" data-credit-other="${attribute}" aria-label="Other number"></label>` : ""}`;
 }
 
 // A numeric input is explicit; no keyboard opens until the operator chooses it.

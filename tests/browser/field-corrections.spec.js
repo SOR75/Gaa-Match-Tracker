@@ -109,5 +109,5 @@ test('skipped and higher jerseys remain legal; missing numeric sequence alone cr
  await page.goto('/');await nav(page,'Squad');await page.locator('#import-layout').selectOption('programme');await nav(page,'Paste team-sheet text');
  await page.getByLabel('Team-sheet text',{exact:true}).fill('1 Ava Quinn\nSubs: 16 Beth Quinn 18 Cara Quinn 26 Dara Quinn 44 Ella Quinn\nManagement: Coach Person');await nav(page,'Extract & review text');
  await expect(page.locator('[data-review-row]')).toHaveCount(5);await expect(page.locator('[data-import-checks]')).toBeHidden();await nav(page,'Confirm & add to squad');
- expect((await state(page)).players.map(p=>p.number)).toEqual([1,16,18,26,44]);
+ expect((await state(page)).players.filter(p=>p.name).map(p=>p.number).sort((a,b)=>a-b)).toEqual([1,16,18,26,44]);
 });

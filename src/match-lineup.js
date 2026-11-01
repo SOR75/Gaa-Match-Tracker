@@ -13,6 +13,7 @@ export function applyMatchLineup(original, changes) {
       if (!old) throw Error("Unknown match player");
       return { ...old, number: c.number, role: c.role };
     }),
+    [], { allowUnnamed: true },
   ).map(createMatchPlayer);
 }
 export function openMatchLineup(dialog, players, onSaved) {

@@ -1,9 +1,12 @@
+import { blankMatch } from "../../src/domain.js";
 import { test, expect } from "@playwright/test";
 const state = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem("sideline.match.v1")));
 const nav = (page, name) =>
   page.getByRole("button", { name, exact: true }).click();
 async function setup(page) {
+  // Existing saved empty-roster matches must retain the original fallback behaviour.
+  await page.addInitScript(m => { if (!localStorage.getItem("sideline.match.v1")) localStorage.setItem("sideline.match.v1", JSON.stringify(m)); }, blankMatch());
   await page.goto("/");
   await page.getByLabel("Our team", { exact: true }).fill("Home");
   await page.getByLabel("Opposition", { exact: true }).fill("Away");

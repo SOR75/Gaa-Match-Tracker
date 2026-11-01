@@ -1,9 +1,10 @@
+import { withBlankMatchPlayers } from "./match-squad-enrichment.js";
 import { blankMatch, migrateMatch } from "./domain.js";
 const KEY = "sideline.match.v1";
 export function loadMatch() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return { match: blankMatch(), error: "" };
+    if (!raw) return { match: withBlankMatchPlayers(blankMatch()), error: "" };
     const match = JSON.parse(raw);
     return { match: migrateMatch(match), error: "" };
   } catch {
@@ -38,7 +39,7 @@ export function startBlankMatch(current) {
       `sideline.match.archive.${current.id}`,
       JSON.stringify(current),
     );
-    const match = blankMatch();
+    const match = withBlankMatchPlayers(blankMatch());
     const error = persistMatch(match);
     return error ? { match: null, error } : { match, error: "" };
   } catch {

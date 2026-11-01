@@ -106,9 +106,9 @@ test("formation OCR extracts names with blank jerseys and formation positions; b
     "Centre Half Back",
   );
   await nav(page, "Confirm & add to squad");
-  expect((await state(page)).players).toHaveLength(15);
+  expect((await state(page)).players.filter(p=>p.name)).toHaveLength(15);
   expect(
-    (await state(page)).players.every(
+    (await state(page)).players.filter(p=>p.name).every(
       (player) => player.number === null && player.role === "starter",
     ),
   ).toBe(true);
@@ -125,7 +125,8 @@ test("formation OCR extracts names with blank jerseys and formation positions; b
   await page.getByLabel("Opposition", { exact: true }).fill("Formation Away");
   await nav(page, "Live match");
   await nav(page, "Substitution");
-  await expect(page.locator("[data-sub-on], [data-sub-off]")).toHaveCount(0);
+  await expect(page.locator("[data-sub-off]")).toHaveCount(0);
+  await expect(page.locator("[data-sub-on]")).toHaveCount(23);
 });
 
 test("pasted Foireann table applies first Starting marker, preserves unselected panel and exposes all review edits", async ({
@@ -165,12 +166,12 @@ test("pasted Foireann table applies first Starting marker, preserves unselected 
   await page.getByLabel("Role row 3", { exact: true }).selectOption("panel");
   await nav(page, "Confirm & add to squad");
   const players = (await state(page)).players;
-  expect(players[1]).toMatchObject({
+  expect(players.find(p=>p.name==="Selected Sub")).toMatchObject({
     number: null,
     role: "starter",
     position: "Left Half Forward",
   });
-  expect(players[2]).toMatchObject({
+  expect(players.find(p=>p.name==="Added Player")).toMatchObject({
     number: null,
     role: "panel",
     name: "Added Player",
@@ -244,6 +245,7 @@ test("cancelling OCR adds nothing and leaves normal match controls usable", asyn
   await page.getByLabel("Opposition", { exact: true }).fill("Cancel Away");
   await nav(page, "Live match");
   await nav(page, "Point +1 point");
-  expect((await state(page)).players).toEqual([]);
+  expect((await state(page)).players).toHaveLength(23);
+  expect((await state(page)).players.every(p=>!p.name)).toBe(true);
   expect((await state(page)).events).toHaveLength(1);
 });

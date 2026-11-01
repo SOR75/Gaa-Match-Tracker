@@ -29,6 +29,8 @@ async function markCell(row) {
 const nav = (page, name) =>
   page.getByRole("button", { name, exact: true }).click();
 async function setup(page) {
+  // Exercise the preserved pre-V0.3.10 empty-roster/partial-roster contract.
+  await page.addInitScript(m => { if (!localStorage.getItem("sideline.match.v1")) localStorage.setItem("sideline.match.v1", JSON.stringify(m)); }, blankMatch());
   await page.goto("/");
   await page.getByLabel("Our team", { exact: true }).fill("Home");
   await page.getByLabel("Opposition", { exact: true }).fill("Away");

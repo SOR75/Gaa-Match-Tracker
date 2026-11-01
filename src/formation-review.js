@@ -14,7 +14,7 @@ export function showFormationReview(
   data,
   existing,
   onConfirmed,
-  { filename = "", objectUrl = "" } = {},
+  { filename = "", objectUrl = "", acceptPlayers = null } = {},
 ) {
   let state = createFormationResolution(data),
     selected = null,
@@ -137,10 +137,8 @@ export function showFormationReview(
       .querySelector("[data-formation-confirm]")
       ?.addEventListener("click", () => {
         try {
-          const players = validatePlayers(
-            confirmedFormationPlayers(state),
-            existing,
-          );
+          const candidates = confirmedFormationPlayers(state);
+          const players = acceptPlayers ? acceptPlayers(candidates) : validatePlayers(candidates, existing);
           onConfirmed(players);
           dialog.close();
         } catch (e) {

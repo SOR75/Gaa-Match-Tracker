@@ -130,7 +130,7 @@ test("original Gaelic Manager screenshot imports all 27 numbered names offline, 
     await page.evaluate(
       () => JSON.parse(localStorage.getItem("sideline.match.v1")).players,
     ),
-  ).toHaveLength(0); // Review does not auto-add.
+  ).toHaveLength(23); // Existing numbered slots remain unchanged until review confirmation.
   await testInfo.attach("gaelic-manager-review-rows.json", {
     body: JSON.stringify(rows, null, 2),
     contentType: "application/json",

@@ -1,3 +1,5 @@
+import { hasMatchEvidence } from "./participation.js";
+import { importStarterWarning } from "./match-squad-enrichment.js";
 import {
   loadTeamSetups,
   saveTeamSetup,
@@ -34,7 +36,7 @@ export function openUseTeamSetup(dialog, match, team, onLoaded) {
     saved.setups
       .map((s) => {
         const squad = library.squads.find((q) => q.id === s.squadId);
-        return `<div class="library-row"><div><strong>${esc(s.name)}</strong><p>${esc(squad?.name || "Source Saved Squad unavailable")} · ${s.players.filter((p) => p.role === "starter").length} starters · ${s.players.filter((p) => p.role === "substitute").length} substitutes</p></div><button class="button primary" data-use-team-setup="${s.id}" ${!squad || library.error || completedMatch ? "disabled" : ""}>Use setup</button></div>`;
+        return `<div class="library-row"><div><strong>${esc(s.name)}</strong><p>${esc(squad?.name || "Source Saved Squad unavailable")} · ${s.players.filter((p) => p.role === "starter").length} starters · ${s.players.filter((p) => p.role === "substitute").length} substitutes</p>${importStarterWarning(s.players)?`<p class="warning">${esc(importStarterWarning(s.players).message)}</p>`:""}</div><button class="button primary" data-use-team-setup="${s.id}" ${!squad || library.error || completedMatch ? "disabled" : ""}>Use setup</button></div>`;
       })
       .join("") ||
     "<p>No saved team setups yet. Load a Saved Squad, set today’s jerseys/roles, then Save team setup.</p>"
@@ -52,7 +54,7 @@ export function openUseTeamSetup(dialog, match, team, onLoaded) {
             squad = library.squads.find((s) => s.id === setup.squadId),
             existing = team === "our" ? match.players : match.oppositionPlayers;
           if (
-            existing.length &&
+            (existing.some(p => !p.numberPlaceholder) || hasMatchEvidence(match)) &&
             !confirm(
               `Use “${setup.name}” for this match? Today’s selected team jerseys/roles will be replaced. Recorded events, Saved Squad and historical matches are kept.`,
             )

@@ -81,7 +81,7 @@ export function persistSquads(squads) {
   validateLibrary(squads);
   localStorage.setItem(KEY, JSON.stringify({ version: 2, squads }));
 }
-export function validatePlayers(players, existing = []) {
+export function validatePlayers(players, existing = [], { allowUnnamed = false } = {}) {
   const numbers = new Set(
       existing.filter((p) => Number.isInteger(p.number)).map((p) => p.number),
     ),
@@ -96,7 +96,7 @@ export function validatePlayers(players, existing = []) {
     if (
       (number !== null &&
         (!Number.isInteger(number) || number < 1 || number > 99)) ||
-      !name ||
+      (!name && !(allowUnnamed && p.numberPlaceholder === true)) ||
       name.length > 80
     )
       throw Error(

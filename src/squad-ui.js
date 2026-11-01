@@ -1,3 +1,6 @@
+import { bindEnrichmentReview } from "./enrichment-review.js";
+import { acceptedEnrichment } from "./match-squad-enrichment.js";
+import { hasMatchEvidence } from "./participation.js";
 import { programmeRowWarnings, limitMatchDayCandidates, assertMatchDayCapacity } from "./programme-integrity.js";
 import { showFormationReview } from "./formation-review.js";
 import { esc } from "./ui.js";
@@ -95,7 +98,7 @@ export function openSaveSquad(dialog, match, team, onSaved) {
         );
       persistSquads([
         ...loaded.squads,
-        snapshotSquad(name, playersFor(match, team)),
+        snapshotSquad(name, playersFor(match, team).filter(p => p.name.trim())),
       ]);
       dialog.close();
       onSaved();
@@ -117,19 +120,16 @@ export function openSquadLibrary(dialog, match, team, onLoaded) {
             (item) => item.id === button.dataset.loadSquad,
           );
           if (
-            playersFor(match, team).length &&
+            (playersFor(match, team).some(p => !p.numberPlaceholder) || hasMatchEvidence(match)) &&
             !confirm(
               `Replace the selected team's current squad with ${squad.name}? Event records are kept. Existing linked players retain today’s jerseys/roles; new players start with blank jerseys as panel members.`,
             )
           )
             return;
-          onLoaded(
-            loadSquadPlayers(squad, playersFor(match, team), {
-              matchDay: true,
-            }),
-            squad,
-          );
-          dialog.close();
+          try {
+            onLoaded(loadSquadPlayers(squad, playersFor(match, team), { matchDay: true }), squad);
+            dialog.close();
+          } catch(error) { showError(dialog,error); }
         }),
     );
     dialog.querySelectorAll("[data-edit-squad]").forEach(
@@ -201,7 +201,7 @@ export const importOptions = () => ({
   goal: document.querySelector("#import-goal")?.value || "top",
 });
 const importSessions = new WeakMap();
-export async function openImportReview(dialog, file, existing, onConfirmed) {
+export async function openImportReview(dialog, file, existing, onConfirmed, context = {}) {
   importSessions.get(dialog)?.();
   const options = importOptions();
   let canceled = false,
@@ -254,6 +254,7 @@ export async function openImportReview(dialog, file, existing, onConfirmed) {
   showReview(dialog, result, existing, onConfirmed, {
     filename: file.name,
     objectUrl,
+    ...context,
   });
 }
 function showReview(
@@ -261,7 +262,7 @@ function showReview(
   result,
   existing,
   onConfirmed,
-  { filename = "", objectUrl = "" } = {},
+  { filename = "", objectUrl = "", match = null, team = "our" } = {},
 ) {
   if (result.formationReview) {
     rowBindings.get(dialog)?.();
@@ -271,7 +272,12 @@ function showReview(
       result.formationReview,
       existing,
       onConfirmed,
-      { filename, objectUrl },
+      { filename, objectUrl,
+        acceptPlayers: match ? candidates => {
+          const players = acceptedEnrichment(playersFor(match, team), validatePlayers(candidates), { live: hasMatchEvidence(match) });
+          assertMatchDayCapacity(players);return players;
+        } : undefined,
+      },
     );
   }
   const limited = limitMatchDayCandidates(result.players);
@@ -280,7 +286,9 @@ function showReview(
   const capacityNotice = excluded.length ? `<aside class="warning" data-import-capacity><strong>Maximum 30 named match-day players.</strong> ${excluded.length} extra candidate(s) excluded from the selection; check for footer text or an extended panel. Excluded evidence: ${excluded.map(p => esc(`${p.number || 'Blank'} ${p.name}`)).join('; ')}. Remove an incorrect selected row and add a genuine missing player manually if needed.</aside>` : '';
   dialog.innerHTML = `<form><div class="dialog-heading"><h2 id="event-dialog-title">Review & confirm</h2>${closeButton}</div><p class="small-note">${esc(filename)}</p><p class="inline-notice">${esc(result.message)}${!result.players.length ? " No usable player rows extracted. Try a clearer/cropped image or paste text; manual entry below is a fallback." : ""}</p>${capacityNotice}<aside class="warning" data-import-checks role="status" hidden></aside>${objectUrl ? `<img class="sheet-preview" src="${objectUrl}" alt="Source team sheet for verification">` : ""}${reviewTable(result.players.length ? result.players : [{ number: "", name: "", position: "", role: "starter", confidence: "Manual fallback — nothing extracted" }])}<p class="warning" data-squad-error hidden></p><div class="dialog-actions"><button type="button" class="button subtle" data-close-squad>Cancel import</button><button type="submit" class="button primary">Confirm & add to squad</button></div><p class="small-note">Verify every row. Blank jerseys are preserved, never generated. Panel = registered, not selected. Duplicate numbered jerseys must be corrected or removed.</p></form>`;
   const read = bindRows(dialog, result.players);
+  const acceptance = bindEnrichmentReview(dialog, read, existing, { match, team });
   const refreshChecks=()=>{
+    acceptance.refresh();
     const node=dialog.querySelector("[data-import-checks]");if(!node)return;
     const players=read(), issues=programmeRowWarnings(players,{programme:result.programme===true});
     const warnings=[...new Set(issues.flat())];
@@ -305,8 +313,7 @@ function showReview(
   dialog.querySelector("form").onsubmit = (event) => {
     event.preventDefault();
     try {
-      assertMatchDayCapacity(read(), existing);
-      const players = validatePlayers(read(), existing);
+      const players = acceptance.accept();
       onConfirmed(players);
       dialog.close();
     } catch (error) {
@@ -314,7 +321,7 @@ function showReview(
     }
   };
 }
-export function openPasteImport(dialog, existing, onConfirmed) {
+export function openPasteImport(dialog, existing, onConfirmed, context = {}) {
   importSessions.get(dialog)?.();
   const options = importOptions();
   dialog.innerHTML = `<form><div class="dialog-heading"><h2 id="event-dialog-title">Paste team-sheet text</h2>${closeButton}</div><label class="field"><span>Team-sheet text</span><textarea name="sheetText" rows="10" required placeholder="Paste numbered names, copied PDF text, or tab/comma-separated columns. Include Name, Jersey, Position, Starting headers when available."></textarea></label><p class="small-note">Selected layout: ${esc(options.layout)}. Plain registered-panel names keep blank jerseys; only explicit Starting marks can identify starters.</p><p class="warning" data-squad-error hidden></p><div class="dialog-actions"><button class="button primary" type="submit">Extract & review text</button></div></form>`;
@@ -337,6 +344,7 @@ export function openPasteImport(dialog, existing, onConfirmed) {
         },
         existing,
         onConfirmed,
+        context,
       );
     } catch (error) {
       showError(dialog, error);

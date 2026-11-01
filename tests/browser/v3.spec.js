@@ -64,8 +64,9 @@ test("lineup toggles retain squad; manual substitutions store on/off/time and ed
   await add(page, 6, "Six");
   await add(page, 22, "Twenty Two", "substitute");
   await nav(page, "Make starter Twenty Two");
-  expect((await state(page)).players).toHaveLength(2);
-  expect((await state(page)).players[1].role).toBe("starter");
+  expect((await state(page)).players).toHaveLength(23);
+  expect((await state(page)).players.filter(p=>p.name)).toHaveLength(2);
+  expect((await state(page)).players.find(p=>p.number===22).role).toBe("starter");
   await nav(page, "Make substitute Twenty Two");
   await nav(page, "Live match");
   await nav(page, "Substitution");
@@ -84,16 +85,16 @@ test("lineup toggles retain squad; manual substitutions store on/off/time and ed
   });
   await nav(page, "Squad");
   await expect(
-    page.locator("[data-lineup-player]").filter({ hasText: "on field" }),
-  ).toContainText("Substitute");
+    page.locator("[data-lineup-player]").filter({ hasText: "on field" }).filter({hasText:"Substitute"}),
+  ).toHaveCount(1);
   await nav(page, "Edit last event");
   await page.getByLabel("Player on (substitution)").fill("23");
   await nav(page, "Save changes");
   expect((await state(page)).events[0].playerOn).toBe("23");
   await nav(page, "Undo last event");
   await expect(
-    page.locator("[data-lineup-player]").filter({ hasText: "on field" }),
-  ).toContainText("Starter");
+    page.locator("[data-lineup-player]").filter({ hasText: "on field" }).filter({hasText:"Starter"}),
+  ).toHaveCount(15);
 });
 
 test("voice roadmap cannot create proposed scores or substitutions; tap capture stays available", async ({
@@ -234,8 +235,9 @@ test("offline tap mode survives roadmap taps and new blank match preserves old s
   const blank = await state(page);
   expect(blank.setup.ourTeam).toBe("");
   expect(blank.setup.opposition).toBe("");
-  expect(blank.players).toEqual([]);
-  expect(blank.oppositionPlayers).toEqual([]);
+  expect(blank.players).toHaveLength(23);
+  expect(blank.oppositionPlayers).toHaveLength(23);
+  expect(blank.players.every(p=>!p.name && p.playerId===null)).toBe(true);
   expect(blank.events).toEqual([]);
   expect(
     await page.evaluate(

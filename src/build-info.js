@@ -1,4 +1,4 @@
-export const APP_VERSION = '0.3.9.3';
+export const APP_VERSION = '0.3.10.1';
 export const BUILD_INFO = Object.freeze({
   version: APP_VERSION,
   sourceCommit: import.meta.env?.VITE_BUILD_COMMIT || 'unknown',

@@ -75,7 +75,7 @@ test("exact Foireann photograph imports English detail names with isolated colum
     await page.evaluate(
       () => JSON.parse(localStorage.getItem("sideline.match.v1")).players,
     ),
-  ).toHaveLength(0);
+  ).toHaveLength(23);
   await testInfo.attach("foireann-review-rows.json", {
     body: JSON.stringify(rows, null, 2),
     contentType: "application/json",
@@ -100,7 +100,7 @@ test("exact Foireann photograph imports English detail names with isolated colum
   const saved = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("sideline.match.v1")),
   );
-  expect(saved.players).toHaveLength(26);
+  expect(saved.players.filter(p => p.name)).toHaveLength(26);
   expect(saved.players.filter((p) => p.number === null)).toHaveLength(4);
   expect(saved.events).toEqual(events);
 });

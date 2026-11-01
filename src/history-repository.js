@@ -1,3 +1,4 @@
+import { withBlankMatchPlayers } from "./match-squad-enrichment.js";
 import { blankMatch, migrateMatch } from "./domain.js";
 import { persistMatch } from "./storage.js";
 import {
@@ -197,7 +198,7 @@ export function createHistoryRepository({
     return next;
   }
   async function startNew(current) {
-    const next = blankMatch();
+    const next = withBlankMatchPlayers(blankMatch());
     next.lifecycle = {
       status: "paused",
       createdAt: new Date(now()).toISOString(),

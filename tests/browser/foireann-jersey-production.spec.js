@@ -178,7 +178,7 @@ for (const core of ["default", "scalar"])
       const saved = await page.evaluate(() =>
         JSON.parse(localStorage.getItem("sideline.match.v1")),
       );
-      expect(saved.players).toHaveLength(37);
+      expect(saved.players.filter(p => p.name)).toHaveLength(37);
       expect(
         saved.players.find((p) => p.name === "Katie Doolan"),
       ).toMatchObject({ number: 14, role: "starter" });

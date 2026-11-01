@@ -121,7 +121,7 @@ export function parseProgrammeSegments(
       name + (markers ? " " + markers : ""),
       inSubs(s)
         ? "substitute"
-        : +number <= 15 || s.y > startY
+        : +number <= 15
           ? "starter"
           : "substitute",
       "",
@@ -354,6 +354,18 @@ export function parseProgrammeSegments(
       node.position = positions[+node.sourceNumber - 1];
       node.confidence += " · jersey position suggestion; editable";
     }
+  }
+  // A Starting XV heading does not turn every later listed player into a
+  // starter. Formation placement wins; otherwise a conventional ordered XV
+  // supports the first fifteen, including a non-standard starting jersey.
+  if(grid){
+    const bottom=Math.max(...grid.flatMap(row=>row.nodes).map(n=>n.y+n.h));
+    for(const node of accepted)if(!placed.has(node)&&node.y>bottom)node.role="substitute";
+  }else if(Number.isFinite(startY)){
+    const body=cards.filter(n=>inBody(n)&&n.y>startY).sort((a,b)=>a.y-b.y||a.x-b.x);
+    const first=body.slice(0,15);
+    if(first.length===15 && new Set(first.map(n=>n.sourceNumber)).size===15 && first.filter(n=>+n.sourceNumber<=15).length>=12)
+      body.forEach((node,i)=>node.role=i<15?"starter":"substitute");
   }
   return accepted
     .sort((a, b) =>

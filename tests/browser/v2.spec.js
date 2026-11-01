@@ -156,19 +156,19 @@ test("saved squads load for both teams and library edits leave the match unchang
   await page.getByLabel("Squad name", { exact: true }).fill("Offaly U15");
   await nav(page, "Save squad");
   await nav(page, "Saved squads");
-  await nav(page, "Edit");
+  await page.getByRole("dialog").getByRole("button",{name:"Edit",exact:true}).click();
   await page
     .getByLabel("Player name row 1", { exact: true })
     .fill("Library Name");
   await nav(page, "Save library changes");
   await nav(page, "Close squad dialog");
-  expect((await state(page)).players[0].name).toBe("Original Name");
+  expect((await state(page)).players.find(p=>p.number===7).name).toBe("Original Name");
   await page.locator('[data-squad-team="opposition"]').click();
   await nav(page, "Saved squads");
   await nav(page, "Load");
   let match = await state(page);
   expect(match.oppositionPlayers[0].name).toBe("Library Name");
-  expect(match.players[0].name).toBe("Original Name");
+  expect(match.players.find(p=>p.number===7).name).toBe("Original Name");
   await nav(page, "Set today’s team");
   await page.getByLabel("Today's jersey 1", { exact: true }).fill("7");
   await page
@@ -196,18 +196,18 @@ test("CSV review is editable and rejects existing or within-file duplicate jerse
   await expect(
     page.getByRole("heading", { name: "Review & confirm" }),
   ).toBeVisible();
-  expect((await state(page)).players).toHaveLength(1);
+  expect((await state(page)).players.filter(p=>p.name)).toHaveLength(1);
   await nav(page, "Confirm & add to squad");
   await expect(page.locator("[data-squad-error]")).toContainText(
-    "Duplicate jersey #7",
+    "Review identity",
   );
   await page.getByLabel("Jersey number row 1", { exact: true }).fill("9");
   await page
     .getByLabel("Player name row 1", { exact: true })
     .fill("Reviewed Name");
   await nav(page, "Confirm & add to squad");
-  expect((await state(page)).players.map((player) => player.number)).toEqual([
-    7, 9, 8,
+  expect((await state(page)).players.filter(p=>p.name).map((player) => player.number)).toEqual([
+    7, 8, 9,
   ]);
   await expect(page.getByText("Reviewed Name", { exact: true })).toBeVisible();
 });
@@ -269,7 +269,7 @@ test("XLSX, text PDF and photo OCR extract locally with mandatory review", async
     page.getByRole("columnheader", { name: "Position", exact: true }),
   ).toBeVisible();
   await nav(page, "Cancel import");
-  expect((await state(page)).players.map((player) => player.name)).toEqual([
+  expect((await state(page)).players.filter(p=>p.name).map((player) => player.name)).toEqual([
     "Excel Player",
   ]);
 });

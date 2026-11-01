@@ -22,6 +22,9 @@ const metrics = [
   "interceptions",
   "turnoversWon",
   "turnoversLost",
+  "passes",
+  "passesReceived",
+  "recordedEvents",
   "kickoutMarks",
   "kickoutPossessionsWon",
   "otherKickoutPossessionsWon",
@@ -115,6 +118,9 @@ export function playerReviews(records, squads = [], active = null) {
         total[key] = keepers
           .filter((g) => g.playerId === id)
           .reduce((n, g) => n + g[key], 0);
+      total.recordedEvents = new Set(m.events.filter(e => !["substitution","goalkeeper-change"].includes(e.event) && ["player","blocker","markWinner","receiver","kickoutWinner","turnoverWinner","turnoverLoser","playerOn","playerOff"].some(role => {
+        const ref=participantRef(e,role);return ref?.team==="our" && ref.playerId===id;
+      })).map(e=>e.id)).size;
       q.matches.push({
         matchId: m.id,
         seasonId: m.seasonId || null,
@@ -137,6 +143,23 @@ export function playerReviews(records, squads = [], active = null) {
         (s) => s.id === (p.sourceSquadId || m.squadId),
       );
       if (source) q.squads.add(source.name);
+    }
+    if(m.matchDayPlayersVersion===1)for(const s of stats.filter(s=>!s.playerId && s.matchPlayerId)){
+      const events=m.events.filter(e=>["player","blocker","markWinner","receiver","kickoutWinner","turnoverWinner","turnoverLoser","playerOn","playerOff"].some(role=>{
+        const ref=participantRef(e,role);return ref?.team==="our" && ref.matchPlayerId===s.matchPlayerId;
+      }));
+      if(!events.length)continue;
+      const p=m.players.find(p=>(p.matchPlayerId||p.id)===s.matchPlayerId);
+      if(!p)continue;
+      const profileKey=`match:${m.id}:${s.matchPlayerId}`;
+      const total=Object.fromEntries(metrics.map(k=>[k,s[k]||0]));
+      total.recordedEvents=new Set(events.filter(e=>!["substitution","goalkeeper-change"].includes(e.event)).map(e=>e.id)).size;
+      for(const k of goalkeeperMetrics)total[k]=keepers.filter(g=>g.matchPlayerId===s.matchPlayerId).reduce((n,g)=>n+g[k],0);
+      profiles.set(profileKey,{playerId:null,profileKey,unlinked:true,name:p.name||`#${p.number} · unnamed`,squads:new Set(),matches:[{
+        matchId:m.id,seasonId:m.seasonId||null,nameSnapshot:p.name,opponent:m.setup.opposition||"Opposition",date:m.setup.date||"",jersey:p.number,role:p.role,
+        ...participationFor(m,p),named:true,...total,
+        scoringSources:scoringSourceTotals(events.filter(e=>participantRef(e)?.matchPlayerId===s.matchPlayerId && e.team==="our")),current:!!record.current,
+      }]});
     }
   }
   return [...profiles.values()]
@@ -207,6 +230,6 @@ export function playerReviews(records, squads = [], active = null) {
     })
     .sort(
       (a, b) =>
-        a.name.localeCompare(b.name) || a.playerId.localeCompare(b.playerId),
+        a.name.localeCompare(b.name) || (a.profileKey || a.playerId).localeCompare(b.profileKey || b.playerId),
     );
 }

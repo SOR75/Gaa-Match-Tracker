@@ -1,4 +1,9 @@
+import { blankMatch } from "../../src/domain.js";
 import { test, expect } from '@playwright/test';
+test.beforeEach(async({page})=>{
+ // Legacy saved matches remain empty; new numbered identities are covered in stage1-0310.spec.js.
+ await page.addInitScript(m=>{if(!localStorage.getItem('sideline.match.v1'))localStorage.setItem('sideline.match.v1',JSON.stringify(m));},blankMatch());
+});
 const state=p=>p.evaluate(()=>JSON.parse(localStorage.getItem('sideline.match.v1')));
 for(const team of ['our','opposition']) test(`${team}: number-only shots, Other number, later squad resolution without event mutation`,async({page})=>{
  await page.goto('/');await page.getByLabel('Our team',{exact:true}).fill('Home');await page.getByLabel('Opposition',{exact:true}).fill('Away');await page.getByRole('button',{name:'Continue to squad',exact:true}).click();await page.getByRole('button',{name:'Live match',exact:true}).click();

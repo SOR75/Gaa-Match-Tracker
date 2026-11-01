@@ -138,8 +138,10 @@ test("substitution persistence, edit and undo derive on-field players; scoring s
   const next = startBlankMatch(match);
   assert.equal(next.error, "");
   assert.equal(next.match.setup.ourTeam, "");
-  assert.deepEqual(next.match.players, []);
-  assert.deepEqual(next.match.oppositionPlayers, []);
+  assert.equal(next.match.players.length, 23);
+  assert.equal(next.match.oppositionPlayers.length, 23);
+  assert.equal(next.match.players.filter(p=>p.role==='starter').length, 15);
+  assert.ok(next.match.players.every(p=>!p.name && p.matchPlayerId && p.playerId===null));
   assert.equal(
     JSON.parse(map.get(`sideline.match.archive.${match.id}`)).events.length,
     3,

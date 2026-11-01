@@ -145,7 +145,7 @@ test("clock recovers elapsed time, half resets preserve events, and offline relo
   );
 });
 
-test("blank setup and squad stay blank on a fresh browser; iPad and desktop fit", async ({
+test("blank setup creates unnamed numbered match slots; iPad and desktop fit", async ({
   page,
 }) => {
   await page.goto("/");
@@ -161,5 +161,6 @@ test("blank setup and squad stay blank on a fresh browser; iPad and desktop fit"
     ).toBe(true);
   }
   await page.getByRole("button", { name: "Squad", exact: true }).click();
-  await expect(page.getByText("A blank team sheet.")).toBeVisible();
+  await expect(page.locator("[data-edit-player]")).toHaveCount(23);
+  await expect(page.getByText("Unnamed · number only", { exact: true })).toHaveCount(23);
 });
