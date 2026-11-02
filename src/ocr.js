@@ -9,6 +9,7 @@ import {
   detectFoireannRows,
   readFoireannProgramme,
 } from "./foireann-programme.js";
+import { recoverOrderedList } from "./ordered-list-recovery.js";
 import { readNumberedList } from "./list-programme.js";
 import {
   lightCardRects,
@@ -168,10 +169,12 @@ async function recognizeProgrammeImage(
       if (blockPlayers && blockPlayers.length > listPlayers.length) {
         listScan = blockScan; listPlayers = blockPlayers;
       }
+      const recovered = await recoverOrderedList({ scans: [originalScan, scan, blockScan], source, normalized, read, onProgress });
       return {
         ...listScan,
-        players: listPlayers,
-        diagnostics: { layout: "numbered-list" },
+        ...(recovered || {}),
+        players: recovered?.players || listPlayers,
+        diagnostics: recovered?.diagnostics || { layout: "numbered-list" },
       };
     }
     if (!grid) {
