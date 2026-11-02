@@ -1,3 +1,4 @@
+import { imageCanvas, recognizeImage } from "./ocr.js";
 import { limitMatchDayCandidates } from "./programme-integrity.js";
 // Local adapters return candidates, never mutate a squad or auto-confirm recognition.
 export function parseDelimited(text) {
@@ -186,7 +187,6 @@ async function extractFileCandidates(file, options = {}) {
               canvasContext: canvas.getContext("2d"),
               viewport: rendering,
             }).promise;
-            const { recognizeImage } = await import("./ocr.js");
             const result = await recognizeImage(canvas, { signal, onProgress });
             players.push(
               ...(result.players ??
@@ -209,7 +209,6 @@ async function extractFileCandidates(file, options = {}) {
     file.type.startsWith("image/") ||
     /^(png|jpe?g|webp|heic|heif)$/.test(extension)
   ) {
-    const { imageCanvas, recognizeImage } = await import("./ocr.js");
     const canvas = await imageCanvas(file);
     try {
       const result = await recognizeImage(canvas, { signal, onProgress });

@@ -1,6 +1,6 @@
 {
-  "buildId": "0.3.10.2",
-  "version": "0.3.10.2",
+  "buildId": "0.3.10.3-dev",
+  "version": "0.3.10.3-dev",
   "photoOcr": "bundled-local-tesseract",
   "jpegPng": true,
   "heic": false,

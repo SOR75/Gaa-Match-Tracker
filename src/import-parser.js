@@ -130,12 +130,10 @@ export function parseTextPlayers(text, { layout = "auto" } = {}) {
         : substitutes
           ? "substitute"
           : explicitStarters
-            ? players.filter(p=>p.role==='starter').length<15 ? "starter" : "substitute"
+            ? players.length<15 ? "starter" : "substitute"
             : layout === "formation"
               ? "starter"
-              : jersey && +jersey > 15
-                ? "substitute"
-                : "starter";
+              : players.length < 15 ? "starter" : "substitute";
     const position =
       !registered && layout !== "formation" && !substitutes && +jersey <= 15
         ? POSITIONS[+jersey - 1] || ""
@@ -203,40 +201,27 @@ export function parseTablePlayers(rows, { layout = "auto" } = {}) {
     throw new Error(
       "More than 1,000 rows. Import the team-sheet section only.",
     );
-  const openingNumbers=data.slice(0,15).map(row=>numberOrBlank(row[hasHeader ? numberAt : 0]));
-  const conventionalOrder=data.length>=15 && new Set(openingNumbers.filter(Boolean)).size===15 && openingNumbers.filter(n=>+n>=1&&+n<=15).length>=12;
-  return data
-    .map((row,index) => {
-      const number = numberOrBlank(row[hasHeader ? numberAt : 0]);
-      const name = String(row[hasHeader ? nameAt : 1] ?? "").trim();
-      const statedRole = String(row[hasHeader ? roleAt : 2] ?? "")
-        .toLowerCase()
-        .trim();
-      const role = registered
-        ? number
-          ? ticked(row[startingAt])
-            ? "starter"
-            : "substitute"
-          : "panel"
-        : /^(sub|substitute)$/.test(statedRole)
-          ? "substitute"
-          : /^(panel|not selected|registered)$/.test(statedRole)
-            ? "panel"
-            : /^(starter|starting|start)$/.test(statedRole)
-              ? "starter"
-              : conventionalOrder ? index<15 ? "starter" : "substitute"
-                : number && +number>15 ? "substitute" : "starter";
-      return candidate(
-        number,
-        name,
-        role,
-        String(row[positionAt] ?? ""),
-        registered
-          ? "Table: jersey + first Starting column — verify marks"
-          : "Structured table — Review required",
-      );
-    })
-    .filter((player) => player.name);
+  const players = [];
+  let substitutes = false;
+  for (const row of data) {
+    const first = String(row.find(value => String(value ?? "").trim()) ?? "").trim();
+    if (isFooter(first)) break;
+    if (/^(subs(?:titutes)?|replacements?|fir\s+ionaid)\b/i.test(first)) { substitutes = true; continue; }
+    const number = numberOrBlank(row[hasHeader ? numberAt : 0]);
+    const name = String(row[hasHeader ? nameAt : 1] ?? "").trim();
+    if (!name) continue;
+    if (isFooter(name)) break;
+    const statedRole = String(row[hasHeader ? roleAt : 2] ?? "").toLowerCase().trim();
+    const role = registered
+      ? number ? ticked(row[startingAt]) ? "starter" : "substitute" : "panel"
+      : /^(sub|substitute)$/.test(statedRole) ? "substitute"
+        : /^(panel|not selected|registered)$/.test(statedRole) ? "panel"
+          : /^(starter|starting|start)$/.test(statedRole) ? "starter"
+            : substitutes || players.length >= 15 ? "substitute" : "starter";
+    players.push(candidate(number, name, role, String(row[positionAt] ?? ""),
+      registered ? "Table: jersey + first Starting column — verify marks" : "Structured table — Review required"));
+  }
+  return players;
 }
 // Group spatial words into visual rows and split widely separated formation columns.
 export function spatialSegments(words) {

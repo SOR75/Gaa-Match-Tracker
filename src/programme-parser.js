@@ -361,11 +361,11 @@ export function parseProgrammeSegments(
   if(grid){
     const bottom=Math.max(...grid.flatMap(row=>row.nodes).map(n=>n.y+n.h));
     for(const node of accepted)if(!placed.has(node)&&node.y>bottom)node.role="substitute";
-  }else if(Number.isFinite(startY)){
-    const body=cards.filter(n=>inBody(n)&&n.y>startY).sort((a,b)=>a.y-b.y||a.x-b.x);
-    const first=body.slice(0,15);
-    if(first.length===15 && new Set(first.map(n=>n.sourceNumber)).size===15 && first.filter(n=>+n.sourceNumber<=15).length>=12)
-      body.forEach((node,i)=>node.role=i<15?"starter":"substitute");
+  }else{
+    // Without a formation, the first fifteen identified entries form the XV.
+    // Explicit Subs/footer bounds remain authoritative, regardless of jersey.
+    const body=accepted.filter(n=>inBody(n)).sort((a,b)=>a.y-b.y||a.x-b.x);
+    body.forEach((node,i)=>{node.role=i<15?"starter":"substitute";if(i>=15)node.position="";});
   }
   return accepted
     .sort((a, b) =>

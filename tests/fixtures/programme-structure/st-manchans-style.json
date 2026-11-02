@@ -1,0 +1,788 @@
+{
+  "description": "Controlled structural regression, not a recreation of the real photograph: isolated number above the first name; then a numbered column and dense inline/continued Subs. The old reader produces 14 starters and no substitutes. Real St Manchans originals remain separately protected.",
+  "words": [
+    {
+      "text": "1",
+      "x": 140,
+      "y": 10,
+      "w": 14,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Nora",
+      "x": 60,
+      "y": 45,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Quinn",
+      "x": 160,
+      "y": 45,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "2",
+      "x": 20,
+      "y": 100,
+      "w": 14,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Beth",
+      "x": 105,
+      "y": 100,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Rowan",
+      "x": 240,
+      "y": 100,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "3",
+      "x": 20,
+      "y": 140,
+      "w": 14,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Cara",
+      "x": 105,
+      "y": 140,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Lane",
+      "x": 240,
+      "y": 140,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "4",
+      "x": 20,
+      "y": 180,
+      "w": 14,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Dara",
+      "x": 105,
+      "y": 180,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Walsh",
+      "x": 240,
+      "y": 180,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "5",
+      "x": 20,
+      "y": 220,
+      "w": 14,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Eva",
+      "x": 105,
+      "y": 220,
+      "w": 39,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Doyle",
+      "x": 240,
+      "y": 220,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "6",
+      "x": 20,
+      "y": 260,
+      "w": 14,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Faye",
+      "x": 105,
+      "y": 260,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Byrne",
+      "x": 240,
+      "y": 260,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "7",
+      "x": 20,
+      "y": 300,
+      "w": 14,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Grace",
+      "x": 105,
+      "y": 300,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Kelly",
+      "x": 240,
+      "y": 300,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "8",
+      "x": 20,
+      "y": 340,
+      "w": 14,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Holly",
+      "x": 105,
+      "y": 340,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Reed",
+      "x": 240,
+      "y": 340,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "9",
+      "x": 20,
+      "y": 380,
+      "w": 14,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Iris",
+      "x": 105,
+      "y": 380,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Flynn",
+      "x": 240,
+      "y": 380,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "10",
+      "x": 20,
+      "y": 420,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Jane",
+      "x": 105,
+      "y": 420,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Blake",
+      "x": 240,
+      "y": 420,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "11",
+      "x": 20,
+      "y": 460,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Kate",
+      "x": 105,
+      "y": 460,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Ryan",
+      "x": 240,
+      "y": 460,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "12",
+      "x": 20,
+      "y": 500,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Leah",
+      "x": 105,
+      "y": 500,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Burke",
+      "x": 240,
+      "y": 500,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "13",
+      "x": 20,
+      "y": 540,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Mia",
+      "x": 105,
+      "y": 540,
+      "w": 39,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Hayes",
+      "x": 240,
+      "y": 540,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "14",
+      "x": 20,
+      "y": 580,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Nina",
+      "x": 105,
+      "y": 580,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Cole",
+      "x": 240,
+      "y": 580,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "15",
+      "x": 20,
+      "y": 620,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Orla",
+      "x": 105,
+      "y": 620,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Ward",
+      "x": 240,
+      "y": 620,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Subs:",
+      "x": 20,
+      "y": 680,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "16",
+      "x": 110,
+      "y": 680,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Paula",
+      "x": 150,
+      "y": 680,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Hart",
+      "x": 225,
+      "y": 680,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "18",
+      "x": 370,
+      "y": 680,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Rosa",
+      "x": 410,
+      "y": 680,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Shaw",
+      "x": 485,
+      "y": 680,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "19",
+      "x": 630,
+      "y": 680,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Sara",
+      "x": 670,
+      "y": 680,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Wood",
+      "x": 745,
+      "y": 680,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "20",
+      "x": 890,
+      "y": 680,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Tara",
+      "x": 930,
+      "y": 680,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "King",
+      "x": 1005,
+      "y": 680,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Management:",
+      "x": 20,
+      "y": 1030,
+      "w": 143,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Coach",
+      "x": 220,
+      "y": 1030,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Person",
+      "x": 330,
+      "y": 1030,
+      "w": 78,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "70",
+      "x": 20,
+      "y": 1100,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Footer",
+      "x": 105,
+      "y": 1100,
+      "w": 78,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Person",
+      "x": 240,
+      "y": 1100,
+      "w": 78,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "21",
+      "x": 110,
+      "y": 740,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Una",
+      "x": 150,
+      "y": 740,
+      "w": 39,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Bell",
+      "x": 240,
+      "y": 740,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "22",
+      "x": 410,
+      "y": 740,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Vera",
+      "x": 450,
+      "y": 740,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Rose",
+      "x": 540,
+      "y": 740,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "24",
+      "x": 710,
+      "y": 740,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Willa",
+      "x": 750,
+      "y": 740,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Fox",
+      "x": 840,
+      "y": 740,
+      "w": 39,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "25",
+      "x": 110,
+      "y": 800,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Zara",
+      "x": 150,
+      "y": 800,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Hill",
+      "x": 240,
+      "y": 800,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "27",
+      "x": 410,
+      "y": 800,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Ava",
+      "x": 450,
+      "y": 800,
+      "w": 39,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "West",
+      "x": 540,
+      "y": 800,
+      "w": 52,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "29",
+      "x": 710,
+      "y": 800,
+      "w": 26,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Clara",
+      "x": 750,
+      "y": 800,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    },
+    {
+      "text": "Green",
+      "x": 840,
+      "y": 800,
+      "w": 65,
+      "h": 24,
+      "confidence": 96
+    }
+  ],
+  "expected": [
+    {
+      "number": "1",
+      "name": "Nora Quinn",
+      "role": "starter"
+    },
+    {
+      "number": "2",
+      "name": "Beth Rowan",
+      "role": "starter"
+    },
+    {
+      "number": "3",
+      "name": "Cara Lane",
+      "role": "starter"
+    },
+    {
+      "number": "4",
+      "name": "Dara Walsh",
+      "role": "starter"
+    },
+    {
+      "number": "5",
+      "name": "Eva Doyle",
+      "role": "starter"
+    },
+    {
+      "number": "6",
+      "name": "Faye Byrne",
+      "role": "starter"
+    },
+    {
+      "number": "7",
+      "name": "Grace Kelly",
+      "role": "starter"
+    },
+    {
+      "number": "8",
+      "name": "Holly Reed",
+      "role": "starter"
+    },
+    {
+      "number": "9",
+      "name": "Iris Flynn",
+      "role": "starter"
+    },
+    {
+      "number": "10",
+      "name": "Jane Blake",
+      "role": "starter"
+    },
+    {
+      "number": "11",
+      "name": "Kate Ryan",
+      "role": "starter"
+    },
+    {
+      "number": "12",
+      "name": "Leah Burke",
+      "role": "starter"
+    },
+    {
+      "number": "13",
+      "name": "Mia Hayes",
+      "role": "starter"
+    },
+    {
+      "number": "14",
+      "name": "Nina Cole",
+      "role": "starter"
+    },
+    {
+      "number": "15",
+      "name": "Orla Ward",
+      "role": "starter"
+    },
+    {
+      "number": "16",
+      "name": "Paula Hart",
+      "role": "substitute"
+    },
+    {
+      "number": "18",
+      "name": "Rosa Shaw",
+      "role": "substitute"
+    },
+    {
+      "number": "19",
+      "name": "Sara Wood",
+      "role": "substitute"
+    },
+    {
+      "number": "20",
+      "name": "Tara King",
+      "role": "substitute"
+    },
+    {
+      "number": "21",
+      "name": "Una Bell",
+      "role": "substitute"
+    },
+    {
+      "number": "22",
+      "name": "Vera Rose",
+      "role": "substitute"
+    },
+    {
+      "number": "24",
+      "name": "Willa Fox",
+      "role": "substitute"
+    },
+    {
+      "number": "25",
+      "name": "Zara Hill",
+      "role": "substitute"
+    },
+    {
+      "number": "27",
+      "name": "Ava West",
+      "role": "substitute"
+    },
+    {
+      "number": "29",
+      "name": "Clara Green",
+      "role": "substitute"
+    }
+  ]
+}

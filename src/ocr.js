@@ -149,14 +149,31 @@ async function recognizeProgrammeImage(
       });
       if (result) return result;
     }
-    const grid = fitFormation(scan.words);
-    const listPlayers = !grid && readNumberedList(originalScan.words);
-    if (listPlayers)
+    // Either independent pass can establish geometry; keep the existing confidence rules.
+    const grid = [fitFormation(scan.words), fitFormation(originalScan.words)]
+      .filter(Boolean).sort((a, b) => b.count - a.count)[0] || null;
+    let listScan = originalScan;
+    let listPlayers = !grid && readNumberedList(originalScan.words);
+    const normalizedList = !grid && readNumberedList(scan.words);
+    if (normalizedList && (!listPlayers || normalizedList.length > listPlayers.length)) {
+      listScan = scan; listPlayers = normalizedList;
+    }
+    if (listPlayers) {
+      // Sparse-page mode can miss isolated single digits in a number column.
+      // Once a printed ordered list is established, check the actual pixels
+      // using block mode; never fill numbers from list indices or sequence.
+      onProgress("Checking complete ordered team list");
+      const blockScan = await read(source, "6");
+      const blockPlayers = readNumberedList(blockScan.words);
+      if (blockPlayers && blockPlayers.length > listPlayers.length) {
+        listScan = blockScan; listPlayers = blockPlayers;
+      }
       return {
-        ...originalScan,
+        ...listScan,
         players: listPlayers,
         diagnostics: { layout: "numbered-list" },
       };
+    }
     if (!grid) {
       const notebook = await detectNotebook(
         source,
