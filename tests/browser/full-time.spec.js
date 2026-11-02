@@ -222,6 +222,9 @@ test("Full-Time with missing locations and unknown kickouts shows neutral eviden
   expect(Number.isFinite(Date.parse(completed.lifecycle.completedAt))).toBe(
     true,
   );
-  const { lifecycle, ...payload } = completed;
-  expect(payload).toEqual(m);
+  const { lifecycle, clock, ...payload } = completed;
+  const {clock:oldClock,...previous}=m;
+  expect(payload).toEqual(previous);
+  expect(clock).toMatchObject(oldClock);
+  expect(clock.periods.H2.completedDurationMs).toBe(oldClock.elapsedMs);
 });

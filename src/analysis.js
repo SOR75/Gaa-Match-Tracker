@@ -1,3 +1,4 @@
+import {playerPlayingTime} from "./participation.js";
 import { isPairedTurnover } from "./turnovers.js";
 import { roleTeam } from "./identity.js";
 import {
@@ -120,7 +121,7 @@ export function summarize(events, team) {
 }
 export function playerStatistics(match, team) {
   if (hasIdentityAttribution(match, team))
-    return identityPlayerStatistics(match, team, summarize);
+    return identityPlayerStatistics(match, team, summarize).map(row=>{const p=(team==="our"?match.players:match.oppositionPlayers).find(p=>(p.matchPlayerId||p.id)===row.matchPlayerId);return {...row,playingTimeMs:p?playerPlayingTime(match,p,team):null};});
   const squad = team === "our" ? match.players : match.oppositionPlayers;
   const numbers = new Set([
     ...squad
@@ -147,6 +148,7 @@ export function playerStatistics(match, team) {
       const summary = summarize(events, team);
       return {
         number,
+        playingTimeMs: squad.filter(p=>String(p.number)===number).length===1?playerPlayingTime(match,squad.find(p=>String(p.number)===number),team):null,
         name:
           squad.find((player) => String(player.number) === number)?.name ||
           "Unlisted player",

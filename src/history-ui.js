@@ -1,3 +1,4 @@
+import {periodId} from "./periods.js";
 import { esc } from "./ui.js";
 import { gaelicScore } from "./shots.js";
 import { formatTime } from "./domain.js";
@@ -68,7 +69,7 @@ export function createHistoryUI({
             : panel === "detail"
               ? analysisScreen(m, filters, report)
               : fullTimeScreen(m, { actions: [], historical: true });
-      return `${top}<div class="history-readonly"><button class="button subtle" data-history-action="back">← Back to History</button><strong>READ-ONLY · ${esc(teams(m))}</strong><span>${summary.status} · ${selected.match.clock.startedAt !== null && !selected.archivedAt ? "Last recorded" : "Saved"} H${m.clock.half} ${formatTime(m.clock.elapsedMs)}${m.setup.matchCode ? ` · ${esc(m.setup.matchCode)}` : ""} · Current match is unchanged</span></div><nav class="history-tabs" aria-label="Historical match views">${[
+      return `${top}<div class="history-readonly"><button class="button subtle" data-history-action="back">← Back to History</button><strong>READ-ONLY · ${esc(teams(m))}</strong><span>${summary.status} · ${selected.match.clock.startedAt !== null && !selected.archivedAt ? "Last recorded" : "Saved"} ${m.clock.phase==="SHOOTOUT"?"SHOOTOUT":periodId(m.clock.half)} ${formatTime(m.clock.elapsedMs)}${m.setup.matchCode ? ` · ${esc(m.setup.matchCode)}` : ""} · Current match is unchanged</span></div><nav class="history-tabs" aria-label="Historical match views">${[
         ["full", "Full Match Analysis"],
         ["half", "Half-Time Analysis"],
         ["timeline", "Timeline"],

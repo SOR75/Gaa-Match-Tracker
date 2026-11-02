@@ -1,3 +1,4 @@
+import {periodId} from "./periods.js";
 import { fortyMetreArcPaths, PITCH_GEOMETRY } from "./pitch-geometry.js";
 import { isBlockedShot } from "./shots.js";
 import { isDefensiveBlockEvent } from "./defensive-blocks.js";
@@ -43,10 +44,10 @@ export function pitchMarkup(
                 ? "#ffffff"
                 : "#ffb0a3";
         if (blocked)
-          return `<g class="shot-marker blocked-shot-marker" data-shot-id="${esc(event.id)}" data-marker-kind="blocked-shot"><title>Blocked shot · #${esc(event.playerNumber || "—")} · H${event.half}</title><rect x="${x - 14}" y="${y - 14}" width="28" height="28" rx="4" fill="#ffc65b" stroke="#102e29" stroke-width="3"/><text x="${x}" y="${y + 6}" text-anchor="middle" fill="#102e29" font-size="18" font-weight="bold">B</text></g>`;
+          return `<g class="shot-marker blocked-shot-marker" data-shot-id="${esc(event.id)}" data-marker-kind="blocked-shot"><title>Blocked shot · #${esc(event.playerNumber || "—")} · ${periodId(event.half)}</title><rect x="${x - 14}" y="${y - 14}" width="28" height="28" rx="4" fill="#ffc65b" stroke="#102e29" stroke-width="3"/><text x="${x}" y="${y + 6}" text-anchor="middle" fill="#102e29" font-size="18" font-weight="bold">B</text></g>`;
         if (defensive)
-          return `<g class="defensive-block-marker" data-defensive-block-id="${esc(event.id)}" data-marker-kind="defensive-block"><title>Defensive Block · #${esc(event.playerNumber || "—")} · H${event.half}</title><path d="M${x} ${y - 19}l19 19-19 19-19-19z" fill="#c5b2ff" stroke="#102e29" stroke-width="3"/><text x="${x}" y="${y + 6}" text-anchor="middle" fill="#102e29" font-size="18" font-weight="bold">D</text></g>`;
-        return `<g class="shot-marker" data-shot-id="${esc(event.id)}" data-marker-kind="${type === "miss" ? "miss" : "score"}"><title>${esc(type)} · #${esc(event.playerNumber || "—")} · H${event.half}</title>${type === "miss" ? `<path d="M${x - 10} ${y - 10}l20 20m-20 0l20-20" stroke="${color}" stroke-width="6"/>` : `<circle cx="${x}" cy="${y}" r="12" fill="${color}" stroke="#102e29" stroke-width="3"/>${type === "two-point" ? `<circle cx="${x}" cy="${y}" r="19" fill="none" stroke="${color}" stroke-width="3"/>` : ""}`}</g>`;
+          return `<g class="defensive-block-marker" data-defensive-block-id="${esc(event.id)}" data-marker-kind="defensive-block"><title>Defensive Block · #${esc(event.playerNumber || "—")} · ${periodId(event.half)}</title><path d="M${x} ${y - 19}l19 19-19 19-19-19z" fill="#c5b2ff" stroke="#102e29" stroke-width="3"/><text x="${x}" y="${y + 6}" text-anchor="middle" fill="#102e29" font-size="18" font-weight="bold">D</text></g>`;
+        return `<g class="shot-marker" data-shot-id="${esc(event.id)}" data-marker-kind="${type === "miss" ? "miss" : "score"}"><title>${esc(type)} · #${esc(event.playerNumber || "—")} · ${periodId(event.half)}</title>${type === "miss" ? `<path d="M${x - 10} ${y - 10}l20 20m-20 0l20-20" stroke="${color}" stroke-width="6"/>` : `<circle cx="${x}" cy="${y}" r="12" fill="${color}" stroke="#102e29" stroke-width="3"/>${type === "two-point" ? `<circle cx="${x}" cy="${y}" r="19" fill="none" stroke="${color}" stroke-width="3"/>` : ""}`}</g>`;
       })
       .join("")}
   </svg>`;

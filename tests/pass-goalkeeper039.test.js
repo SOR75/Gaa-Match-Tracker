@@ -176,7 +176,7 @@ test("half transition preserves measured added time, resets/pauses exactly as be
   const original = structuredClone(clock);
   const next = advanceHalfClock(clock, 2, 65000);
   assert.deepEqual(clock, original);
-  assert.deepEqual(next, {
+  assert.deepEqual({half:next.half,elapsedMs:next.elapsedMs,startedAt:next.startedAt,completedHalves:next.completedHalves}, {
     half: 2,
     elapsedMs: 0,
     startedAt: null,

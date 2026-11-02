@@ -270,6 +270,8 @@ test("Dublin 6/6 retained and #8 on five kickouts visibly enhance the WATCH in H
   await expect(observation).toContainText("#8 was credited on 5");
   await nav(page, "Return to Live Match");
   await nav(page, "END MATCH / FULL TIME");
+  await expect(page.getByRole("heading",{name:"MATCH LEVEL AT FULL TIME"})).toBeVisible();
+  await nav(page,"Finish as Draw");
   observation = page.locator(".ht-observation.watch").filter({
     has: page.getByRole("heading", { name: /Opposition kickout.*#8/ }),
   });

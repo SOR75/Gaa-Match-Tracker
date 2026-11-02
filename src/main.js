@@ -1,3 +1,4 @@
+import {periodId, PERIODS, completedDuration, completePeriod, advancePeriod, pausePeriod, shootoutClock, periodReferenceMs} from "./periods.js";
 import { openBookedCapture } from "./booked-capture.js";
 import { acceptedEnrichment, enrichmentOptions, withNumberedEventPlayers, retainLiveRoster } from "./match-squad-enrichment.js";
 import { APP_VERSION, BUILD_INFO } from "./build-info.js";
@@ -348,7 +349,14 @@ function scoreboard() {
     const tally = totals(match.events, team);
     return `<div class="score-team ${team}"><span class="score-team-label">${team === "our" ? "OUR TEAM" : "OPPOSITION"}</span><h2>${esc(teamName(team))}</h2><div class="score-total">${gaelicScore(tally)}</div><div class="score-calculated" aria-label="Calculated total points">(${tally.total})</div><div class="score-breakdown"><span><b>${tally.goals}</b> goals</span><span><b>${tally.points}</b> points</span><span><b>${tally.twoPointers}</b> 2-pointers</span></div></div>`;
   };
-  return `<section class="scoreboard" aria-label="Live scoreboard">${score("our")}<div class="score-clock"><span class="half-label">${match.clock.half === 1 ? "FIRST" : "SECOND"} HALF</span><div class="clock-digits" data-clock>${formatTime(elapsedMs(match.clock))}</div><span class="clock-status" data-clock-status></span><button class="clock-button" data-action="clock" aria-label="${match.clock.startedAt === null ? "Start clock" : "Pause clock"}">${match.clock.startedAt === null ? `${icon("live")} Start clock` : '<span class="pause-icon">Ⅱ</span> Pause clock'}</button><button class="half-button" data-action="half">${match.clock.half === 1 ? "Start second half" : "Return to first half"}</button></div>${score("opposition")}<span class="score-save-status" data-save-status></span></section>`;
+  return `<section class="scoreboard" aria-label="Live scoreboard">${score("our")}<div class="score-clock"><span class="half-label">${match.clock.phase==="SHOOTOUT"?"SHOOTOUT":match.clock.half<=2 ? (match.clock.half===1?"FIRST HALF":"SECOND HALF") : periodId(match.clock)}</span><div class="clock-digits" data-clock>${formatTime(elapsedMs(match.clock))}</div><span class="clock-status" data-clock-status></span><button class="clock-button" ${completedDuration(match.clock,match.clock.half)!==null||["INTERVAL","SHOOTOUT","REVIEW"].includes(match.clock.phase)?"disabled":""} data-action="clock" aria-label="${match.clock.startedAt === null ? "Start clock" : "Pause clock"}">${match.clock.startedAt === null ? `${icon("live")} Start clock` : '<span class="pause-icon">Ⅱ</span> Pause clock'}</button>${match.clock.half<=2?`<button class="half-button" data-action="half">${match.clock.phase==="REVIEW"?"Return to current period":match.clock.half === 1 ? "Start second half" : "Return to first half"}</button>`:""}</div>${score("opposition")}<span class="score-save-status" data-save-status></span></section>`;
+}
+function periodIntervalMarkup() {
+ const clock=match.clock;
+ if(clock.phase==='SHOOTOUT')return '<section class="card" role="status"><h2>SHOOTOUT</h2><p>Untimed phase. Penalty shootout capture is coming in the next stage. Football time is frozen.</p></section>';
+ if(clock.phase!=='INTERVAL')return '';
+ if(clock.half===3)return '<section class="card" role="status"><h2>ET1 completed</h2><p>Extra Time interval · match score is preserved.</p><button class="button primary" data-action="start-et2">Start ET2</button></section>';
+ return `<section class="card" role="status"><h2>${clock.half===2?'MATCH LEVEL AT FULL TIME':'EXTRA TIME FINISHED LEVEL'}</h2><button class="button subtle" data-action="finish-draw">Finish as Draw</button><button class="button primary" data-action="${clock.half===2?'start-et':'start-shootout'}">${clock.half===2?'Start Extra Time':'Start Penalty Shootout'}</button></section>`;
 }
 function liveTeamControls() {
   return `<div class="event-team-picker"><div class="recording-team" role="status" aria-live="polite" aria-atomic="true"><span class="recording-team-label">Recording for:</span> <strong>${esc(teamName(selectedTeam))}</strong></div><div class="team-toggle live-team-toggle" role="group" aria-label="Event team">${[
@@ -364,7 +372,7 @@ function liveTeamControls() {
 function liveScreen() {
   return `${heading("FROM THE SIDELINE", "Every moment counts.", "Tap an event. Keep your eyes on the game.", `<span class="match-status"><span class="local-dot"></span>${match.clock.startedAt === null ? "MATCH WORKSPACE" : "LIVE TRACKING"}</span>`)}
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
-    <div class="matchday-toolbar"><span class="build-tag">V${APP_VERSION}</span><button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>${match.clock.half === 2 ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone voice-roadmap-button" data-action="voice-mode" aria-label="Voice Match Mode — Coming soon">${icon("mic")}<span>Voice Match Mode<small class="voice-roadmap-label">COMING SOON</small></span></button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
+    ${periodIntervalMarkup()}<div class="matchday-toolbar"><span class="build-tag">V${APP_VERSION}</span>${match.clock.half===3&&match.clock.phase==="PLAY"?'<button class="button primary" data-action="et-interval">END ET1</button>':''}${match.clock.half<=2?'<button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>':''}${[2,4].includes(match.clock.half)&&match.clock.phase!=="SHOOTOUT" ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone voice-roadmap-button" data-action="voice-mode" aria-label="Voice Match Mode — Coming soon">${icon("mic")}<span>Voice Match Mode<small class="voice-roadmap-label">COMING SOON</small></span></button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
     ${starterWarningMarkup(match)}${scoreboard()}
     <section class="event-controls recording-${selectedTeam}">${liveTeamControls()}<div class="controls-heading booked-controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div><button class="button subtle" data-event="booked" ${ready() ? "" : "disabled"}>Booked</button></div>
     <div class="scoring-grid">${EVENT_TYPES.slice(0, 4)
@@ -398,7 +406,7 @@ function eventRow(event, displayMatch = match, readOnly = false) {
   const type = eventType(event.event);
   const label = isBlockedShot(event) ? "Shot · Blocked" : type.label;
   const player = resolveParticipant(displayMatch, event, "player");
-  return `<${readOnly ? "div" : "button"} class="event-row" ${readOnly ? "" : `data-edit-event="${event.id}" aria-label="Edit ${esc(label)} at ${formatTime(event.timeMs)}"`}><span class="event-time">${formatTime(event.timeMs)}<small>H${event.half}</small></span><span class="timeline-dot ${event.team} ${isDefensiveBlockEvent(event) ? "defensive-block" : isBlockedShot(event) ? "blocked-shot" : ""}">${icon(isDefensiveBlockEvent(event) ? "block" : type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(label)} ${event.event === "substitution" ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team, displayMatch))}${player ? ` · ${esc(player.name)}` : ""}${isKickout(event) ? ` · ${esc(kickoutLabel(event))}${kickoutDetails(event).kickoutWinnerNumber ? ` · Winner #${esc(kickoutDetails(event).kickoutWinnerNumber)} ${esc(resolveParticipant(displayMatch, event, "kickoutWinner")?.name || "")}` : ""}${kickoutDetails(event).markPlayerNumber ? ` · Mark #${kickoutDetails(event).markPlayerNumber}` : ""}` : !type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.event === "pass" ? `<small>${event.passType === "hand" ? "Hand Pass" : "Kick Pass"} · #${esc(event.playerNumber || "—")} → #${esc(event.receiverNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "receiver")?.name || "")}</small>` : ""}${["turnover-won", "turnover-lost"].includes(event.event) ? event.pairedTurnoverVersion === 1 ? `<small>Won: ${esc(teamName(event.winningTeam, displayMatch))} #${esc(event.turnoverWinnerNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "turnoverWinner")?.name || "")} · Lost: ${esc(teamName(event.losingTeam, displayMatch))} #${esc(event.turnoverLoserNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "turnoverLoser")?.name || "")}</small>` : `<small>Won #${esc(event.turnoverWinnerNumber || (event.event === "turnover-won" ? event.playerNumber : "") || "—")} · Lost #${esc(event.turnoverLoserNumber || (event.event === "turnover-lost" ? event.playerNumber : "") || "—")}</small>` : ""}${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}${(isBlockedShot(event) || isDefensiveBlockEvent(event)) && hasLocation(event) ? "<small>Pitch location recorded</small>" : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}${readOnly ? "" : `<span class="row-edit">${icon("edit")}</span>`}</${readOnly ? "div" : "button"}>`;
+  return `<${readOnly ? "div" : "button"} class="event-row" ${readOnly ? "" : `data-edit-event="${event.id}" aria-label="Edit ${esc(label)} at ${formatTime(event.timeMs)}"`}><span class="event-time">${formatTime(event.timeMs)}<small>${periodId(event.half)}</small></span><span class="timeline-dot ${event.team} ${isDefensiveBlockEvent(event) ? "defensive-block" : isBlockedShot(event) ? "blocked-shot" : ""}">${icon(isDefensiveBlockEvent(event) ? "block" : type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(label)} ${event.event === "substitution" ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team, displayMatch))}${player ? ` · ${esc(player.name)}` : ""}${isKickout(event) ? ` · ${esc(kickoutLabel(event))}${kickoutDetails(event).kickoutWinnerNumber ? ` · Winner #${esc(kickoutDetails(event).kickoutWinnerNumber)} ${esc(resolveParticipant(displayMatch, event, "kickoutWinner")?.name || "")}` : ""}${kickoutDetails(event).markPlayerNumber ? ` · Mark #${kickoutDetails(event).markPlayerNumber}` : ""}` : !type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.event === "pass" ? `<small>${event.passType === "hand" ? "Hand Pass" : "Kick Pass"} · #${esc(event.playerNumber || "—")} → #${esc(event.receiverNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "receiver")?.name || "")}</small>` : ""}${["turnover-won", "turnover-lost"].includes(event.event) ? event.pairedTurnoverVersion === 1 ? `<small>Won: ${esc(teamName(event.winningTeam, displayMatch))} #${esc(event.turnoverWinnerNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "turnoverWinner")?.name || "")} · Lost: ${esc(teamName(event.losingTeam, displayMatch))} #${esc(event.turnoverLoserNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "turnoverLoser")?.name || "")}</small>` : `<small>Won #${esc(event.turnoverWinnerNumber || (event.event === "turnover-won" ? event.playerNumber : "") || "—")} · Lost #${esc(event.turnoverLoserNumber || (event.event === "turnover-lost" ? event.playerNumber : "") || "—")}</small>` : ""}${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}${(isBlockedShot(event) || isDefensiveBlockEvent(event)) && hasLocation(event) ? "<small>Pitch location recorded</small>" : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}${readOnly ? "" : `<span class="row-edit">${icon("edit")}</span>`}</${readOnly ? "div" : "button"}>`;
 }
 function timelineScreen(displayMatch = match, readOnly = false) {
   const filtered = displayMatch.events
@@ -416,11 +424,11 @@ function timelineScreen(displayMatch = match, readOnly = false) {
   return `${heading("THE STORY OF THE MATCH", "Every event. In order.", readOnly ? "Read-only recorded events. Your active match is unchanged." : "Your event log is the source of truth. Tap any event to review or edit it.", `<span class="total-events">${displayMatch.events.length} events recorded</span>`)}
     <section class="card timeline-card"><div class="timeline-toolbar"><h2>Event timeline</h2>${readOnly ? "" : `<div class="timeline-filters"><label class="sr-only" for="timeline-team">Filter team</label><select id="timeline-team"><option value="all">Both teams</option><option value="our" ${timelineTeam === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${timelineTeam === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select><label class="sr-only" for="timeline-kind">Filter event type</label><select id="timeline-kind"><option value="all">All events</option><option value="scores" ${timelineKind === "scores" ? "selected" : ""}>Scores</option><option value="other" ${timelineKind === "other" ? "selected" : ""}>Other events</option></select></div>`}</div>${
       filtered.length
-        ? [2, 1]
+        ? [4, 3, 2, 1]
             .map((half) => {
               const events = filtered.filter((event) => event.half === half);
               return events.length
-                ? `<div class="timeline-half"><span>${half === 1 ? "FIRST" : "SECOND"} HALF</span><span>${events.length} events</span></div>${events.map((event) => eventRow(event, displayMatch, readOnly)).join("")}`
+                ? `<div class="timeline-half"><span>${half<=2?(half===1?"FIRST HALF":"SECOND HALF"):periodId(half)}</span><span>${events.length} events</span></div>${events.map((event) => eventRow(event, displayMatch, readOnly)).join("")}`
                 : "";
             })
             .join("")
@@ -430,7 +438,7 @@ function timelineScreen(displayMatch = match, readOnly = false) {
 function lastEventSummary() {
   const last = match.events.at(-1);
   return last
-    ? `<span class="footer-dot"></span><div><span class="last-label">LAST RECORDED</span><strong>${esc(isBlockedShot(last) ? "Shot · Blocked" : eventType(last.event).label)} <span>· ${formatTime(last.timeMs)} · H${last.half}</span></strong></div>`
+    ? `<span class="footer-dot"></span><div><span class="last-label">LAST RECORDED</span><strong>${esc(isBlockedShot(last) ? "Shot · Blocked" : eventType(last.event).label)} <span>· ${formatTime(last.timeMs)} · ${periodId(last.half)}</span></strong></div>`
     : `<span class="footer-dot muted"></span><div><span class="last-label">READY WHEN YOU ARE</span><strong>No events recorded yet</strong></div>`;
 }
 function updateClock() {
@@ -438,11 +446,11 @@ function updateClock() {
   const time = elapsedMs(match.clock);
   document
     .querySelectorAll("[data-clock]")
-    .forEach((node) => (node.textContent = formatTime(time)));
+    .forEach((node) => (node.textContent = match.clock.phase==="SHOOTOUT"?"—":formatTime(time)));
   const status = document.querySelector("[data-clock-status]");
   if (status)
     status.textContent =
-      time >= match.setup.halfLength * 60000
+      match.clock.phase === "SHOOTOUT" ? "Shootout · untimed" : completedDuration(match.clock,match.clock.half)!==null ? "Period completed" : time >= periodReferenceMs(match)
         ? "Added time"
         : match.clock.startedAt === null
           ? "Clock paused"
@@ -461,7 +469,7 @@ function openEvent(event, editing = false, liveCredit = false) {
   const playerRelevant =
     (type.player || editing) &&
     !["pass", "turnover-won", "turnover-lost"].includes(event.event);
-  dialog.innerHTML = `<form id="event-form"><div class="dialog-heading"><div><p class="eyebrow">${editing ? "EDIT EVENT" : "RECORD EVENT"} · H${event.half} · ${formatTime(event.timeMs)}</p><h2 id="event-dialog-title">${esc(displayLabel)}</h2></div><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cancel event">${icon("close")}</button></div><p class="dialog-team"><span class="local-dot"></span>${esc(teamName(event.team))}${scoring ? ` <span>+${type.value} ${type.value === 1 ? "point" : "points"}</span>` : ""}</p>
+  dialog.innerHTML = `<form id="event-form"><div class="dialog-heading"><div><p class="eyebrow">${editing ? "EDIT EVENT" : "RECORD EVENT"} · ${periodId(event.half)} · ${formatTime(event.timeMs)}</p><h2 id="event-dialog-title">${esc(displayLabel)}</h2></div><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cancel event">${icon("close")}</button></div><p class="dialog-team"><span class="local-dot"></span>${esc(teamName(event.team))}${scoring ? ` <span>+${type.value} ${type.value === 1 ? "point" : "points"}</span>` : ""}</p>
     ${
       playerRelevant
         ? `<label class="field"><span>Player number / Other number <small>Optional</small></span><input name="playerNumber" type="number" min="1" max="99" step="1" inputmode="numeric" placeholder="Jersey number" value="${esc(event.playerNumber)}"></label>${
@@ -488,7 +496,7 @@ function openEvent(event, editing = false, liveCredit = false) {
     <div data-linked-fields>${linkedEventFields(event, match, { includeInactive: !liveCredit })}</div>
     <div data-edit-shot-fields>${shotFieldsMarkup(event, match, { editing: true })}</div><div data-edit-kickout-fields>${kickoutFieldsMarkup(event, match)}</div>
     <details class="event-details" ${editing ? "open" : ""}><summary>${editing ? "Event details" : "Add details"} <span>Optional</span></summary><div class="detail-fields">
-    ${editing ? `<div class="form-grid"><label class="field"><span>Event</span><select name="event" aria-label="Event">${EVENT_TYPES.map((item) => `<option value="${item.id}" ${item.id === event.event ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><label class="field"><span>Team</span><select name="team" aria-label="Team" ${type.team || event.pairedTurnoverVersion === 1 ? "disabled" : ""}><option value="our" ${event.team === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${event.team === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select></label><label class="field"><span>Half</span><select name="half" aria-label="Half"><option value="1" ${event.half === 1 ? "selected" : ""}>First half</option><option value="2" ${event.half === 2 ? "selected" : ""}>Second half</option></select></label>${input("Half time (mm:ss)", "time", formatTime(event.timeMs), 'required pattern="[0-9]{1,3}:[0-5][0-9]" inputmode="text" title="Use minutes:seconds, for example 05:30"')}</div>` : ""}
+    ${editing ? `<div class="form-grid"><label class="field"><span>Event</span><select name="event" aria-label="Event">${EVENT_TYPES.map((item) => `<option value="${item.id}" ${item.id === event.event ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><label class="field"><span>Team</span><select name="team" aria-label="Team" ${type.team || event.pairedTurnoverVersion === 1 ? "disabled" : ""}><option value="our" ${event.team === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${event.team === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select></label><label class="field"><span>Half</span><select name="half" aria-label="Half"><option value="1" ${event.half === 1 ? "selected" : ""}>First half</option><option value="2" ${event.half === 2 ? "selected" : ""}>Second half</option><option value="3" ${event.half === 3 ? "selected" : ""}>ET1</option><option value="4" ${event.half === 4 ? "selected" : ""}>ET2</option></select></label>${input("Half time (mm:ss)", "time", formatTime(event.timeMs), 'required pattern="[0-9]{1,3}:[0-5][0-9]" inputmode="text" title="Use minutes:seconds, for example 05:30"')}</div>` : ""}
     <div class="form-grid">${!scoring && event.event !== "miss" && !kickout && !isDefensiveBlockEvent(event) ? selectField("Outcome", "outcome", event.outcome, ["won", "lost", "retained", "completed", "incomplete"]) : ""}${selectField("Zone", "zone", event.zone, ["Defensive third", "Middle third", "Attacking third"])}${selectField("Side", "side", event.side, ["Left", "Centre", "Right"])}${kickout || editing ? selectField("Kickout length", "kickoutLength", event.kickoutLength, ["Short", "Medium", "Long"]) : ""}${!isShot(event) && editing ? selectField("Score origin", "scoreOrigin", event.scoreOrigin, ["Open play", "Free", "45", "Penalty", "Sideline"]) : ""}${selectField("Possession result", "possessionResult", event.possessionResult, ["Retained", "Lost", "Shot", "Score"])}${input("Attack pattern", "attackPattern", event.attackPattern, 'maxlength="120" placeholder="Optional"')}</div>
     ${noteMarkup(event)}${input("Coach observation", "coachObservation", event.coachObservation, 'maxlength="500" placeholder="Optional"')}
     <label class="field"><span>Direct score link</span><select name="directScoreLink"><option value="">No linked score</option>${match.events
@@ -500,7 +508,7 @@ function openEvent(event, editing = false, liveCredit = false) {
       )
       .map(
         (item) =>
-          `<option value="${item.id}" ${event.directScoreLink === item.id ? "selected" : ""}>H${item.half} ${formatTime(item.timeMs)} · ${esc(teamName(item.team))} · ${esc(eventType(item.event).label)}</option>`,
+          `<option value="${item.id}" ${event.directScoreLink === item.id ? "selected" : ""}>${periodId(item.half)} ${formatTime(item.timeMs)} · ${esc(teamName(item.team))} · ${esc(eventType(item.event).label)}</option>`,
       )
       .join("")}</select></label>
     <div class="form-grid">${input("Player on (substitution)", "playerOn", event.playerOn || "", 'min="1" max="99" inputmode="numeric"', "number")}${input("Player off (substitution)", "playerOff", event.playerOff || "", 'min="1" max="99" inputmode="numeric"', "number")}</div>
@@ -718,6 +726,7 @@ document.addEventListener("click", async (event) => {
   }
 
   if (button.dataset.view) {
+    if(button.dataset.view==="halftime"&&match.clock.half===1&&match.clock.startedAt!==null){match.clock=pausePeriod(match.clock);persist();}
     view = button.dataset.view;
     if (view === "analysis") {
       analysisHalf = null;
@@ -775,6 +784,7 @@ document.addEventListener("click", async (event) => {
     render();
   }
   if (button.dataset.event) {
+    if(["INTERVAL","SHOOTOUT","REVIEW"].includes(match.clock.phase)||completedDuration(match.clock,match.clock.half)!==null){toast("This period is completed. Start the next period or edit an existing event.");return;}
     if (!ready()) {
       view = "setup";
       render();
@@ -930,7 +940,16 @@ document.addEventListener("click", async (event) => {
           saveEventNote,
         );
       break;
+    case "et-interval":
+      match.clock={...completePeriod(match.clock),phase:"INTERVAL"};persist();render();break;
+    case "start-et":
+    case "start-et2":
+      match.clock=advancePeriod(match.clock,button.dataset.action==="start-et"?3:4);persist();render();break;
+    case "start-shootout":
+      match.clock=shootoutClock(match.clock);persist();render();break;
     case "end-match":
+      if([2,4].includes(match.clock.half)&&totals(match.events,"our").total===totals(match.events,"opposition").total){match.clock={...completePeriod(match.clock),phase:"INTERVAL"};persist();render();break;}
+    case "finish-draw":
       match = completeMatch(match);
       persist();
       view = "fulltime";
@@ -1010,15 +1029,9 @@ document.addEventListener("click", async (event) => {
       render();
       break;
     case "half": {
-      const next = match.clock.half === 1 ? 2 : 1;
-      if (
-        confirm(
-          `Switch to the ${next === 2 ? "second" : "first"} half? The clock will reset to 00:00 and pause. All recorded events are kept.`,
-        )
-      ) {
-        match.clock = advanceHalfClock(match.clock, next);
-        persist();
-        render();
+      const next=match.clock.phase==='REVIEW'?(match.clock.activeHalf||2):match.clock.half===1?2:1;
+      if(next>match.clock.half || confirm('View the completed first half? Its recorded duration is preserved.')) {
+        match.clock=advancePeriod(match.clock,next);persist();render();
       }
       break;
     }

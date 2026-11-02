@@ -1,3 +1,4 @@
+import {completePeriod, syncPeriod} from "./periods.js";
 import { migrateMatch, totals, elapsedMs, toggleClock } from "./domain.js";
 export const ARCHIVE_PREFIX = "sideline.match.archive.";
 export const ACTIVE_KEY = "sideline.match.v1";
@@ -31,9 +32,7 @@ export function completeMatch(match, now = Date.now()) {
   return {
     ...match,
     clock:
-      match.clock.startedAt === null
-        ? { ...match.clock }
-        : toggleClock(match.clock, now),
+      completePeriod(match.clock, now),
     lifecycle: {
       ...match.lifecycle,
       status: "completed",
@@ -55,6 +54,7 @@ export function historySnapshot(record) {
               .map((e) => e.timeMs),
           );
     match.clock.startedAt = null;
+    if(match.clock.periodVersion===1)match.clock=syncPeriod(match.clock);
   }
   return match;
 }

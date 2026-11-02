@@ -1,3 +1,4 @@
+import {durationBetween, playingEnd} from "./periods.js";
 import { rowId, participantRef } from "./identity.js";
 const rosterFor = (match, team) =>
   (team === "our" ? match.players : match.oppositionPlayers) || [];
@@ -131,4 +132,17 @@ export function participationFor(match, player, team = "our") {
             ? "Review starting lineup: more than 15 starters recorded"
             : "No appearance recorded",
   };
+}
+
+// Unknown legacy boundaries remain unknown; never substitute nominal half lengths.
+export function playerPlayingTime(match,player,team='our',now=Date.now()) {
+ let active=player.role==='starter',from={half:1,timeMs:0},total=0,unknown=false;
+ const add=to=>{const duration=durationBetween(match,from,to);if(duration===null)unknown=true;else total+=duration;};
+ for(const e of match.events.filter(e=>e.team===team&&e.event==='substitution').slice().sort((a,b)=>a.half-b.half||a.timeMs-b.timeMs)){
+  const off=substitutionKey(match,e,'playerOff'),on=substitutionKey(match,e,'playerOn'),key=playerKey(player);
+  if(active&&off===key){add(e);active=false;}
+  if(!active&&on===key){from=e;active=true;}
+ }
+ if(active)add(playingEnd(match,now));
+ return unknown?null:total;
 }

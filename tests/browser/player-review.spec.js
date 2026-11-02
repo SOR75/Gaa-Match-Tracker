@@ -120,6 +120,8 @@ test("active XV: off player disappears from shot, Mark, block and turnover/inter
   const d = fixture();
   d.active = d.a;
   delete d.active.lifecycle;
+  // This scenario starts a fresh in-progress fixture, not a completed period.
+  d.active.clock={half:d.active.clock.half,elapsedMs:0,startedAt:null};
   d.active.events = [];
   await seed(page, d);
   await nav(page, "Live match");

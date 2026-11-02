@@ -1,3 +1,4 @@
+import {advancePeriod, durationBetween, completedDuration, playingEnd} from "./periods.js";
 import { elapsedMs } from "./domain.js";
 import { participantRef, rowId, validPlayerId } from "./identity.js";
 import { kickoutDetails } from "./kickouts.js";
@@ -169,9 +170,8 @@ export function activeGoalkeepers(match) {
   return active;
 }
 
-// Objective keeper periods, derived from the existing match clock/substitutions.
-// Cross-half duration stays unknown: the archive does not retain the exact H1
-// end clock, so nominal half length must not manufacture minutes in goal.
+// Keeper spans use measured period boundaries and recorded substitutions.
+// Missing legacy boundaries remain unknown; nominal lengths never manufacture time.
 export function goalkeeperPeriods(
   match,
   now = Date.now(),
@@ -189,8 +189,7 @@ export function goalkeeperPeriods(
     },
     periods = [];
   const halfEnd = (h) => {
-    const value = match.clock.completedHalves?.[h];
-    return Number.isFinite(value) && value >= 0 ? value : null;
+    return completedDuration(match.clock,h);
   };
   const close = (team, to) => {
     const ref = current[team],
@@ -206,8 +205,7 @@ export function goalkeeperPeriods(
     let durationMs = null;
     if (end.timeMs !== null && start.half === end.half)
       durationMs = Math.max(0, end.timeMs - start.timeMs);
-    else if (end.timeMs !== null && halfEnd(start.half) !== null)
-      durationMs = Math.max(0, halfEnd(start.half) - start.timeMs) + end.timeMs;
+    else if (end.timeMs !== null) durationMs = durationBetween(match,start,end);
     periods.push({ ...ref, from: start, to: end, durationMs });
   };
   const prefix = [];
@@ -222,21 +220,7 @@ export function goalkeeperPeriods(
     current[e.team] = next;
     starts[e.team] = boundary;
   }
-  const latest = ordered.at(-1)?.e;
-  const clock = {
-    half: match.clock.half,
-    timeMs:
-      match.clock.elapsedMs +
-      (match.clock.startedAt === null
-        ? 0
-        : Math.max(0, now - match.clock.startedAt)),
-  };
-  const end =
-    latest &&
-    (latest.half > clock.half ||
-      (latest.half === clock.half && latest.timeMs > clock.timeMs))
-      ? { half: latest.half, timeMs: latest.timeMs }
-      : clock;
+  const end = playingEnd(match,now);
   for (const team of ["our", "opposition"]) close(team, end);
   return periods;
 }
@@ -244,7 +228,5 @@ export function goalkeeperPeriods(
 // Preserve the established reset/pause behaviour, retaining only the measured
 // outgoing-half duration for derived periods. No nominal minutes are inferred.
 export function advanceHalfClock(clock, half, now = Date.now()) {
-  const completedHalves = { ...clock.completedHalves };
-  if (half > clock.half) completedHalves[clock.half] = elapsedMs(clock, now);
-  return { ...clock, half, elapsedMs: 0, startedAt: null, completedHalves };
+  return advancePeriod(clock,half,now);
 }

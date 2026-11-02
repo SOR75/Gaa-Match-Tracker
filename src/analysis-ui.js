@@ -1,3 +1,4 @@
+import {periodId} from "./periods.js";
 import { scoringSourceSummary } from './scoring-sources.js';
 import { isReportShooter, hasReportEventData, REPORT_EVENT_METRICS, reportPlayerStatistics } from './report-player-data.js';
 import { coachReportScreen } from "./coach-report-ui.js";
@@ -115,7 +116,7 @@ export function analysisScreen(
         )
       : ""
   }
-  ${section(report ? "Recorded score — current / final" : "Match summary", `<div class="analysis-scores">${teams.map((team) => `<div><span>${esc(name(team))}</span><strong>${gaelicScore(stats[team])}</strong><small>(${stats[team].total})</small><small>${stats[team].goals} goals · ${stats[team].points} points · ${stats[team].twoPointers} 2-pointers</small></div>`).join("")}</div><p class="small-note">${match.events.length} recorded events · ${match.clock.half === 1 ? "First" : "Second"} half · ${report ? "Report uses all recorded events; no full-time status is assumed." : "No independent score totals are stored."}</p>`)}
+  ${section(report ? "Recorded score — current / final" : "Match summary", `<div class="analysis-scores">${teams.map((team) => `<div><span>${esc(name(team))}</span><strong>${gaelicScore(stats[team])}</strong><small>(${stats[team].total})</small><small>${stats[team].goals} goals · ${stats[team].points} points · ${stats[team].twoPointers} 2-pointers</small></div>`).join("")}</div><p class="small-note">${match.events.length} recorded events · ${periodId(match.clock.half)} · ${report ? "Report uses all recorded events; no full-time status is assumed." : "No independent score totals are stored."}</p>`)}
   ${section(
     "Score by half",
     table(
@@ -167,7 +168,7 @@ export function analysisScreen(
             [
               ["all", "Both halves"],
               ["1", "First half"],
-              ["2", "Second half"],
+              ["2", "Second half"],["3", "ET1"],["4", "ET2"],
             ],
             filters.half,
           )}</select></label><label class="field"><span>Shot map player</span><select id="shot-player">${options([["all", "All players"], ...players], filters.player)}</select></label><label class="field"><span>Shot map result</span><select id="shot-result">${options(
@@ -270,7 +271,7 @@ export function analysisScreen(
       ? table(
           ["Time", "Team", "Score", "Running score"],
           timeline.map(({ event, our, opposition }) => [
-            `H${event.half} ${formatTime(event.timeMs)}`,
+            `${periodId(event.half)} ${formatTime(event.timeMs)}`,
             name(event.team),
             event.event === "two-point" ? "2 Point" : event.event,
             `${our} — ${opposition}`,
@@ -284,7 +285,7 @@ export function analysisScreen(
       ? `<ol class="observation-list">${observations
           .map(
             (event) =>
-              `<li><strong>H${event.half} ${formatTime(event.timeMs)} · ${esc(name(event.team))}${event.playerNumber ? ` · #${esc(event.playerNumber)}` : ""}</strong>${[
+              `<li><strong>${periodId(event.half)} ${formatTime(event.timeMs)} · ${esc(name(event.team))}${event.playerNumber ? ` · #${esc(event.playerNumber)}` : ""}</strong>${[
                 ["Dictation", event.dictatedNote],
                 ["Coach", event.coachObservation],
                 ["Note", event.notes],

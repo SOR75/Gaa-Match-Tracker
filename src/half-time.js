@@ -1,3 +1,4 @@
+import {periodNumber} from "./periods.js";
 import { enhanceKickoutObservations } from "./kickout-patterns.js";
 import { summarize, playerStatistics, percentage } from "./analysis.js";
 import { isShot } from "./domain.js";
@@ -80,13 +81,13 @@ export function halfTimeObservations(
     });
   return enhanceKickoutObservations(result, match, data.events || []);
 }
-export const ANALYSIS_SCOPES = ["H1", "H2", "FULL_MATCH"];
+export const ANALYSIS_SCOPES = ["H1", "H2", "ET1", "ET2", "FULL_MATCH"];
 export function analysisForScope(match, scope = "H1") {
   if (!ANALYSIS_SCOPES.includes(scope))
     throw new Error("Unknown analysis scope");
   const events = match.events.filter(
     (event) =>
-      scope === "FULL_MATCH" || event.half === (scope === "H1" ? 1 : 2),
+      scope === "FULL_MATCH" || event.half === periodNumber(scope),
   );
   const shots = events.filter((e) => e.team === "our" && isShot(e));
   const { zones, invalidTwoPointers } = shotLocationAnalysis(events);

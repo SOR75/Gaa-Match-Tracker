@@ -1,3 +1,4 @@
+import {periodId} from "./periods.js";
 import {
   attributionRoster,
   bindOtherCredit,
@@ -63,7 +64,7 @@ export function openKickoutCapture(dialog, event, match, onSave, onClose) {
   let draft = { ...event },
     recorded = false,
     finished = false;
-  dialog.innerHTML = `<div class="dialog-heading"><div><p class="eyebrow">KICKOUT · H${event.half} · ${formatTime(event.timeMs)}</p><h2 id="event-dialog-title">${esc(eventType(event.event).label)}</h2></div><button type="button" class="icon-button" data-kickout-close aria-label="Close kickout">×</button></div><p class="capture-instruction">Who secured possession?</p><p class="small-note">WON means our team secured possession. LOST means opposition secured possession.</p><div class="quick-length" role="group" aria-label="Optional kickout length"><span>Length · optional</span>${["Short", "Long"].map((l) => `<button type="button" class="button subtle" data-ko-length="${l}" aria-pressed="false">${l.toUpperCase()}</button>`).join("")}</div><div class="kickout-outcomes">${kickoutChoices(
+  dialog.innerHTML = `<div class="dialog-heading"><div><p class="eyebrow">KICKOUT · ${periodId(event.half)} · ${formatTime(event.timeMs)}</p><h2 id="event-dialog-title">${esc(eventType(event.event).label)}</h2></div><button type="button" class="icon-button" data-kickout-close aria-label="Close kickout">×</button></div><p class="capture-instruction">Who secured possession?</p><p class="small-note">WON means our team secured possession. LOST means opposition secured possession.</p><div class="quick-length" role="group" aria-label="Optional kickout length"><span>Length · optional</span>${["Short", "Long"].map((l) => `<button type="button" class="button subtle" data-ko-length="${l}" aria-pressed="false">${l.toUpperCase()}</button>`).join("")}</div><div class="kickout-outcomes">${kickoutChoices(
     event.event,
   )
     .map(

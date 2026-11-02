@@ -1,3 +1,4 @@
+import {periodId, togglePeriod, validPeriodClock} from "./periods.js";
 import { pairedTurnoverFields, validPairedTurnover } from "./turnovers.js";
 import { uid } from "./ids.js";
 import {
@@ -110,9 +111,7 @@ export function elapsedMs(clock, now = Date.now()) {
   );
 }
 export function toggleClock(clock, now = Date.now()) {
-  return clock.startedAt === null
-    ? { ...clock, startedAt: now }
-    : { ...clock, elapsedMs: elapsedMs(clock, now), startedAt: null };
+  return togglePeriod(clock, now);
 }
 export function formatTime(milliseconds) {
   const seconds = Math.floor(milliseconds / 1000);
@@ -136,10 +135,13 @@ export function totals(events, team) {
     );
 }
 export function createEvent(match, typeId, team, now = Date.now()) {
+  if(["SHOOTOUT","INTERVAL","REVIEW"].includes(match.clock.phase))throw new Error("Football capture is unavailable in this phase");
   const type = eventType(typeId);
   if (!type) throw new Error("Unknown event type");
   return {
     id: uid(),
+    period: periodId(match.clock),
+    periodElapsedMs: Math.floor(elapsedMs(match.clock, now) / 1000) * 1000,
     half: match.clock.half,
     timeMs: Math.floor(elapsedMs(match.clock, now) / 1000) * 1000,
     team: type.team || team,
@@ -193,7 +195,7 @@ export function createEvent(match, typeId, team, now = Date.now()) {
   };
 }
 export function normalizeEvent(event) {
-  event = { ...event, ...pairedTurnoverFields(event) };
+  event = { ...event, ...pairedTurnoverFields(event), ...(event.period ? {period:periodId(event.half),periodElapsedMs:event.timeMs} : {}) };
   if (!validPairedTurnover(event)) throw new Error("Choose our turnover player (jersey 1–99).");
   const type = eventType(event.event);
   if (!type) throw new Error("Unknown event type");
@@ -312,7 +314,7 @@ export function validMatch(value) {
         validPairedTurnover(event) &&
         eventType(event.event) &&
         ["our", "opposition"].includes(event.team) &&
-        [1, 2].includes(event.half) &&
+        [1, 2, 3, 4].includes(event.half) && (!value.clock?.periodVersion || !event.period || (event.period===periodId(event.half)&&event.periodElapsedMs===event.timeMs)) &&
         Number.isFinite(event.timeMs) &&
         event.timeMs >= 0 &&
         typeof event.outcome === "string" &&
@@ -329,7 +331,7 @@ export function validMatch(value) {
                 event.shotY <= 1)))),
     ) &&
     value.clock &&
-    [1, 2].includes(value.clock.half) &&
+    validPeriodClock(value.clock) &&
     Number.isFinite(value.clock.elapsedMs) &&
     value.clock.elapsedMs >= 0 &&
     (value.clock.startedAt === null || Number.isFinite(value.clock.startedAt))

@@ -270,7 +270,7 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
   await page
     .getByRole("button", { name: "START SECOND HALF →", exact: true })
     .click();
-  expect((await state(page)).clock).toEqual({
+  expect((await state(page)).clock).toMatchObject({
     half: 2,
     elapsedMs: 0,
     startedAt: null,

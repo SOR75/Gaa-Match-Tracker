@@ -13,7 +13,7 @@ export function createTapGuard(delay = 650) {
 }
 export function attackingDirection(match, team, half) {
   const first = match.setup.ourFirstHalfAttacks || "top";
-  const reverse = (team === "opposition") !== (half === 2);
+  const reverse = (team === "opposition") !== (half % 2 === 0);
   return reverse ? (first === "top" ? "bottom" : "top") : first;
 }
 // Canonical storage always faces the attacking goal at top (as in V2).
