@@ -1,3 +1,4 @@
+import {fieldState} from './field-state.js';
 import {shootoutPlayerStatistics,mergeShootoutStats} from "./shootout.js";
 import { scoringSourceTotals, mergeScoringSources } from './scoring-sources.js';
 import {
@@ -71,7 +72,9 @@ export function playerReviews(records, squads = [], active = null) {
       recordedTime(b) - recordedTime(a) ||
       b.match.id.localeCompare(a.match.id),
   )) {
-    const m = record.match;
+    const snapshot=record.match;
+    const valid=snapshot.events.some(e=>e.disciplineVersion===1)?fieldState(snapshot).validEventIds:null;
+    const m=valid?{...snapshot,events:snapshot.events.filter(e=>valid.has(e.id))}:snapshot;
     if (!hasMatchEvidence(m)&&!m.shootout?.attempts?.length) continue;
     const roster = new Map();
     for (const p of m.players)

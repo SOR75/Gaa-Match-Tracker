@@ -169,6 +169,7 @@ test("Excel permanent player keeps identity through default 23 and three match j
       m.squadId = s.id;
       m.players[0].number = number;
       m.players[0].jerseyNumber = number;
+      m.players[0].role = "starter"; // Match selection, independent of Default No. 23.
       m.events = saveEvent(
         [],
         { ...createEvent(m, "point", "our"), playerNumber: String(number) },

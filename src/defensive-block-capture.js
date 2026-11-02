@@ -1,3 +1,4 @@
+import {captureAttempt} from './capture-error.js';
 import { ourCreditRoster, playerCreditPicker, bindOtherCredit } from "./player-credit.js";
 import { attackingDirection, transformLocation } from "./matchday.js";
 import { normalizedLocation } from "./domain.js";
@@ -22,8 +23,7 @@ export function openDefensiveBlockDetails(
     interactiveLabel: "Defensive block location pitch",
   };
   const save = (patch) => {
-    draft = { ...draft, ...patch };
-    onUpdate(draft);
+    const next={...draft,...patch};if(!captureAttempt(dialog,()=>onUpdate(next)))return false;draft=next;return true;
   };
   dialog.innerHTML = `<div class="dialog-heading"><div><p class="eyebrow">DEFENSIVE BLOCK ALREADY RECORDED · ${esc(match.setup.ourTeam || "Our team")}</p><h2 id="event-dialog-title">Defensive Block</h2></div><button type="button" class="icon-button" data-defensive-close aria-label="Close defensive block">×</button></div><p class="capture-instruction">Who made the block? · optional</p><div data-defensive-player>${playerCreditPicker(ourCreditRoster(match), { groupLabel: "Our defensive blocker", attribute: "data-defensive-player", actionLabel: "Credit defensive block to", selected: String(draft.playerNumber || "") })}</div><p class="small-note">The block is saved. A player tap saves credit and returns to the match. No possession change is assumed.</p><details class="optional-defensive-location"><summary>Add location · optional</summary><p class="small-note">${esc(opponent)} attacks the ${direction.toUpperCase()} goal. Tap where our block happened; no shooting attempt is created.</p><div class="capture-pitch">${pitchMarkup(draft.shotX === null ? [] : [draft], true, options)}</div><button type="button" class="button subtle" data-clear-defensive-location>Clear location</button></details><button type="button" class="button subtle full-width" data-defensive-close>Skip / Close</button>`;
   dialog
@@ -33,12 +33,12 @@ export function openDefensiveBlockDetails(
     (b) =>
       (b.onclick = () => {
         if (finished) return;
+        if(!save({ playerNumber: b.dataset.defensivePlayer }))return;
         finished = true;
-        save({ playerNumber: b.dataset.defensivePlayer });
         dialog.close();
       }),
   );
-  bindOtherCredit(dialog, (_, number) => { if (finished) return; finished = true; save({ playerNumber: number }); dialog.close(); });
+  bindOtherCredit(dialog, (_, number) => { if (finished) return; if(!save({playerNumber:number}))return;finished=true;dialog.close(); });
   const pitch = dialog.querySelector(".gaelic-pitch");
   const paint = () => {
     pitch.innerHTML = pitchMarkup([draft], false, options).match(

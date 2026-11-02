@@ -1,3 +1,4 @@
+import {captureAttempt} from './capture-error.js';
 import {periodId} from "./periods.js";
 import {
   attributionRoster,
@@ -77,7 +78,7 @@ export function openKickoutCapture(dialog, event, match, onSave, onClose) {
   const save = () => {
     for (const key of ["notes", "dictatedNote"])
       draft[key] = dialog.querySelector(`[name="${key}"]`)?.value || "";
-    onSave({ ...draft });
+    return captureAttempt(dialog,()=>onSave({...draft}));
   };
   dialog.querySelector("[data-kickout-close]").onclick = () => dialog.close();
   dialog.querySelectorAll("[data-ko-length]").forEach(
@@ -97,12 +98,12 @@ export function openKickoutCapture(dialog, event, match, onSave, onClose) {
   );
   const credit = (number) => {
     if (finished || !recorded) return;
-    finished = true;
+    const before={...draft};
     draft.kickoutWinnerNumber = number;
     draft.markPlayerNumber =
       draft.mark && draft.outcome === "won" ? number : "";
-    save();
-    dialog.close();
+    if(!save()){draft=before;return;}
+    finished=true;dialog.close();
   };
   dialog.querySelectorAll("[data-ko-result]").forEach(
     (b) =>

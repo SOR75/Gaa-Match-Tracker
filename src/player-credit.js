@@ -30,7 +30,7 @@ export function attributionRoster(
   return {
     players: roster.length
       ? players
-      : Array.from({ length: 15 }, (_, i) => ({ number: i + 1, name: "" })),
+      : [...active].filter(key=>key.startsWith("number:")).map(key=>({number:Number(key.slice(7)),name:""})).sort((a,b)=>a.number-b.number),
     guidance,
     fallback: !roster.length,
     allowOther: match.matchDayPlayersVersion === 1,

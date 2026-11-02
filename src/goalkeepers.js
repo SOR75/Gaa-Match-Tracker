@@ -1,3 +1,4 @@
+import {disciplineState,disciplineKey,disciplineAbsenceMs,substitutionDisciplineConflict,fieldState} from './discipline.js';
 import {advancePeriod, durationBetween, completedDuration, playingEnd} from "./periods.js";
 import { elapsedMs } from "./domain.js";
 import { participantRef, rowId, validPlayerId } from "./identity.js";
@@ -72,6 +73,8 @@ export function goalkeeperStatistics(
     return groups.get(key);
   };
   Object.values(active).forEach(group);
+  const reconstruction=fieldState(match,{now});
+  const subs=new Map(reconstruction.substitutions.map(s=>[s.event.id,s]));
   const seen = new Set();
   for (const { e } of match.events
     .map((e, i) => ({ e, i }))
@@ -80,9 +83,10 @@ export function goalkeeperStatistics(
     )) {
     if (seen.has(e.id)) continue;
     seen.add(e.id);
+    if(!reconstruction.validEventIds.has(e.id))continue;
     if (e.event === "goalkeeper-change")
       active[e.team] = participantRef(e) || null;
-    if (e.event === "substitution") {
+    if (subs.has(e.id)) {
       const off = participantRef(e, "playerOff"),
         on = participantRef(e, "playerOn");
       if (off && active[e.team]?.matchPlayerId === off.matchPlayerId)
@@ -100,9 +104,11 @@ export function goalkeeperStatistics(
       const g = group(ref);
       if (g) g.goalkeeperAppearances = 1;
     }
+    const discipline=disciplineState(match,{beforeEvent:e});
+    const eligibleKeeper=team=>{const ref=active[team];return ["SIN_BIN","SENT_OFF"].includes(discipline.players.get(disciplineKey(ref,match))?.state)?null:ref;};
     const ko = kickoutDetails(e);
     if (ko) {
-      const g = group(active[e.team]);
+      const g = group(eligibleKeeper(e.team));
       const retained = e.team === "our" ? "won" : "lost";
       const lost = e.team === "our" ? "lost" : "won";
       if (g) {
@@ -123,7 +129,7 @@ export function goalkeeperStatistics(
     }
     const shot = shotDetails(e);
     if (["goal", "point", "two-point", "miss"].includes(e.event)) {
-      const g = group(active[other(e.team)]);
+      const g = group(eligibleKeeper(other(e.team)));
       if (g && e.event === "goal" && e.outcome === "scored")
         g.gkGoalsConceded++;
       if (g && e.event === "miss" && shot.missReason === "short") g.gkSaves++;
@@ -150,13 +156,15 @@ export function goalkeeperStatistics(
 }
 export function activeGoalkeepers(match) {
   const active = startingGoalkeepers(match);
+  const reconstruction=fieldState(match),subs=new Map(reconstruction.substitutions.map(s=>[s.event.id,s]));
   for (const { e } of match.events
     .map((e, i) => ({ e, i }))
     .sort(
       (a, b) => a.e.half - b.e.half || a.e.timeMs - b.e.timeMs || a.i - b.i,
     )) {
+    if(!reconstruction.validEventIds.has(e.id))continue;
     if (e.event === "goalkeeper-change") active[e.team] = participantRef(e);
-    if (e.event === "substitution" && active[e.team]) {
+    if (subs.has(e.id) && active[e.team]) {
       const off = participantRef(e, "playerOff");
       if (off?.matchPlayerId === active[e.team].matchPlayerId)
         active[e.team] = participantRef(e, "playerOn");
@@ -167,6 +175,8 @@ export function activeGoalkeepers(match) {
         active[e.team] = null;
     }
   }
+  const discipline=disciplineState(match);
+  for(const team of ["our","opposition"])if(["SIN_BIN","SENT_OFF"].includes(discipline.players.get(disciplineKey(active[team],match))?.state))active[team]=null;
   return active;
 }
 
@@ -206,14 +216,17 @@ export function goalkeeperPeriods(
     if (end.timeMs !== null && start.half === end.half)
       durationMs = Math.max(0, end.timeMs - start.timeMs);
     else if (end.timeMs !== null) durationMs = durationBetween(match,start,end);
+    if(durationMs!==null){const absence=disciplineAbsenceMs(match,{id:ref.matchPlayerId,playerId:ref.playerId},team,start,end,now);durationMs=absence===null?null:Math.max(0,durationMs-absence);}
     periods.push({ ...ref, from: start, to: end, durationMs });
   };
+  const reconstruction=fieldState(match,{now});
+  const subIds=new Set(reconstruction.substitutions.map(s=>s.event.id));
   const prefix = [];
   for (const { e } of ordered) {
     prefix.push(e);
-    if (!["substitution", "goalkeeper-change"].includes(e.event)) continue;
+    if(!reconstruction.validEventIds.has(e.id)||!subIds.has(e.id)&&e.event!=="goalkeeper-change")continue;
     const next =
-      activeGoalkeepers({ ...match, events: prefix })[e.team] || null;
+      activeGoalkeepers({ ...match, events: prefix.filter(e=>reconstruction.validEventIds.has(e.id)&&e.disciplineVersion!==1||subIds.has(e.id)).map(e=>subIds.has(e.id)?{...e,event:"substitution",disciplineVersion:undefined}:e) })[e.team] || null;
     if (next?.matchPlayerId === current[e.team]?.matchPlayerId) continue;
     const boundary = { half: e.half, timeMs: e.timeMs };
     close(e.team, boundary);

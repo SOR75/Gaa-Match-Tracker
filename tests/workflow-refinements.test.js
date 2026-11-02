@@ -260,6 +260,7 @@ test("Mark winner is credited on opposition kickouts independently of the opposi
 });
 test("scoped observations update after edits/undo and same-name players are never merged", () => {
   const { m } = setup();
+  m.players.find(p=>p.number===18).role="starter";
   m.players[1].name = m.players[0].name;
   for (let i = 0; i < 2; i++) {
     record(m, "our-kickout", { outcome: "won", playerNumber: "9" });

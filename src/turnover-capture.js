@@ -41,8 +41,8 @@ export function openTurnoverCapture(dialog, event, match, onRecord) {
   dialog.querySelector('[data-turnover-close]').onclick = () => dialog.close();
   record.onclick = () => {
     if (recorded || !draft[role('our')]) return;
+    if(onRecord({ ...draft, ...pairedTurnoverFields(draft) })===false)return;
     recorded = true;
-    onRecord({ ...draft, ...pairedTurnoverFields(draft) });
     dialog.close();
   };
   dialog.showModal();

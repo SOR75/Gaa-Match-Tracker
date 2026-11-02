@@ -1,8 +1,12 @@
+import {captureAttempt} from './capture-error.js';
+import {disciplineState,currentDisciplinePoint,pendingETChoices} from './discipline.js';
+import {disciplineIndicators,disciplineTimeline,openETReplacement,disciplineRef,openDisciplineReturn} from './discipline-ui.js';
+import './discipline.css';
 import {initialShootout,penaltyResult,resetShootoutResult,shootoutStatus} from "./shootout.js";
 import {createShootoutUI,shootoutTimeline} from "./shootout-ui.js";
 import {activeGoalkeepers} from "./goalkeepers.js";
 import "./shootout.css";
-import {periodId, PERIODS, completedDuration, completePeriod, advancePeriod, pausePeriod, shootoutClock, periodReferenceMs} from "./periods.js";
+import {periodId, PERIODS, completedDuration, completePeriod, advancePeriod, pausePeriod, shootoutClock, periodReferenceMs, continuousPlayingMs} from "./periods.js";
 import { openBookedCapture } from "./booked-capture.js";
 import { acceptedEnrichment, enrichmentOptions, withNumberedEventPlayers, retainLiveRoster } from "./match-squad-enrichment.js";
 import { APP_VERSION, BUILD_INFO } from "./build-info.js";
@@ -193,11 +197,14 @@ const saveMatchEvent = (event) => {
   }
   return saved;
 };
+let lastDisciplineSave=-Infinity;
 function recordEvent(event) {
-  match.events = saveMatchEvent(event);
+  if(!captureAttempt(document.querySelector("#event-dialog"),()=>{match.events=saveMatchEvent(event);}))return false;
+  if(event.disciplineVersion===1)lastDisciplineSave=performance.now();
   persist();
   render();
   toast(`${eventType(event.event).label} recorded`);
+  return true;
 }
 function enrichShot(event) {
   openShotDetails(
@@ -362,7 +369,7 @@ function scoreboard() {
     const tally = totals(match.events, team);
     return `<div class="score-team ${team}"><span class="score-team-label">${team === "our" ? "OUR TEAM" : "OPPOSITION"}</span><h2>${esc(teamName(team))}</h2><div class="score-total">${gaelicScore(tally)}</div><div class="score-calculated" aria-label="Calculated total points">(${tally.total})</div><div class="score-breakdown"><span><b>${tally.goals}</b> goals</span><span><b>${tally.points}</b> points</span><span><b>${tally.twoPointers}</b> 2-pointers</span></div></div>`;
   };
-  return `<section class="scoreboard" aria-label="Live scoreboard">${score("our")}<div class="score-clock"><span class="half-label">${match.clock.phase==="SHOOTOUT"?"SHOOTOUT":match.clock.half<=2 ? (match.clock.half===1?"FIRST HALF":"SECOND HALF") : periodId(match.clock)}</span><div class="clock-digits" data-clock>${formatTime(elapsedMs(match.clock))}</div><span class="clock-status" data-clock-status></span><button class="clock-button" ${completedDuration(match.clock,match.clock.half)!==null||["INTERVAL","SHOOTOUT","REVIEW"].includes(match.clock.phase)?"disabled":""} data-action="clock" aria-label="${match.clock.startedAt === null ? "Start clock" : "Pause clock"}">${match.clock.startedAt === null ? `${icon("live")} Start clock` : '<span class="pause-icon">Ⅱ</span> Pause clock'}</button>${match.clock.half<=2?`<button class="half-button" data-action="half">${match.clock.phase==="REVIEW"?"Return to current period":match.clock.half === 1 ? "Start second half" : "Return to first half"}</button>`:""}</div>${score("opposition")}<span class="score-save-status" data-save-status></span></section>`;
+  return `<section class="scoreboard" aria-label="Live scoreboard">${score("our")}<div class="score-clock"><span class="half-label">${match.clock.phase==="SHOOTOUT"?"SHOOTOUT":match.clock.half<=2 ? (match.clock.half===1?"FIRST HALF":"SECOND HALF") : periodId(match.clock)}</span><div class="clock-digits" data-clock>${formatTime(elapsedMs(match.clock))}</div><span class="clock-status" data-clock-status></span><button class="clock-button" ${pendingETChoices(match).length||completedDuration(match.clock,match.clock.half)!==null||["INTERVAL","SHOOTOUT","REVIEW"].includes(match.clock.phase)?"disabled":""} data-action="clock" aria-label="${match.clock.startedAt === null ? "Start clock" : "Pause clock"}">${match.clock.startedAt === null ? `${icon("live")} Start clock` : '<span class="pause-icon">Ⅱ</span> Pause clock'}</button>${match.clock.half<=2?`<button class="half-button" data-action="half">${match.clock.phase==="REVIEW"?"Return to current period":match.clock.half === 1 ? "Start second half" : "Return to first half"}</button>`:""}</div>${score("opposition")}<span class="score-save-status" data-save-status></span></section>`;
 }
 function periodIntervalMarkup() {
  const clock=match.clock;
@@ -386,7 +393,7 @@ function liveScreen() {
   return `${heading("FROM THE SIDELINE", "Every moment counts.", "Tap an event. Keep your eyes on the game.", `<span class="match-status"><span class="local-dot"></span>${match.clock.startedAt === null ? "MATCH WORKSPACE" : "LIVE TRACKING"}</span>`)}
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
     ${periodIntervalMarkup()}<div class="matchday-toolbar"><span class="build-tag">V${APP_VERSION}</span>${match.clock.half===3&&match.clock.phase==="PLAY"?'<button class="button primary" data-action="et-interval">END ET1</button>':''}${match.clock.half<=2?'<button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>':''}${[2,4].includes(match.clock.half)&&match.clock.phase!=="SHOOTOUT" ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone voice-roadmap-button" data-action="voice-mode" aria-label="Voice Match Mode — Coming soon">${icon("mic")}<span>Voice Match Mode<small class="voice-roadmap-label">COMING SOON</small></span></button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
-    ${starterWarningMarkup(match)}${scoreboard()}
+    ${starterWarningMarkup(match)}${scoreboard()}<div data-discipline-live>${disciplineIndicators(match)}</div>
     <section class="event-controls recording-${selectedTeam}">${liveTeamControls()}<div class="controls-heading booked-controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div><button class="button subtle" data-event="booked" ${ready() ? "" : "disabled"}>Booked</button></div>
     <div class="scoring-grid">${EVENT_TYPES.slice(0, 4)
       .map(
@@ -397,7 +404,7 @@ function liveScreen() {
     <div class="form-section-label event-section-label">BUILD-UP & POSSESSION <span>Tap to log · edit details afterwards</span></div><div class="other-events">${EVENT_TYPES.slice(
       4,
     )
-      .filter((type) => !["goalkeeper-change", "pass", "booked"].includes(type.id))
+      .filter((type) => !["goalkeeper-change", "pass", "booked", "discipline-return", "discipline-replacement", "discipline-et-choice"].includes(type.id))
       .map((type) => (type.id === "possession" ? eventType("pass") : type))
       .map(
         (type) =>
@@ -417,9 +424,9 @@ function liveScreen() {
 }
 function eventRow(event, displayMatch = match, readOnly = false) {
   const type = eventType(event.event);
-  const label = isBlockedShot(event) ? "Shot · Blocked" : type.label;
+  const label = event.disciplineVersion===1&&event.event==="booked" ? `${event.card[0].toUpperCase()+event.card.slice(1)} Card` : isBlockedShot(event) ? "Shot · Blocked" : type.label;
   const player = resolveParticipant(displayMatch, event, "player");
-  return `<${readOnly ? "div" : "button"} class="event-row" ${readOnly ? "" : `data-edit-event="${event.id}" aria-label="Edit ${esc(label)} at ${formatTime(event.timeMs)}"`}><span class="event-time">${formatTime(event.timeMs)}<small>${periodId(event.half)}</small></span><span class="timeline-dot ${event.team} ${isDefensiveBlockEvent(event) ? "defensive-block" : isBlockedShot(event) ? "blocked-shot" : ""}">${icon(isDefensiveBlockEvent(event) ? "block" : type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(label)} ${event.event === "substitution" ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team, displayMatch))}${player ? ` · ${esc(player.name)}` : ""}${isKickout(event) ? ` · ${esc(kickoutLabel(event))}${kickoutDetails(event).kickoutWinnerNumber ? ` · Winner #${esc(kickoutDetails(event).kickoutWinnerNumber)} ${esc(resolveParticipant(displayMatch, event, "kickoutWinner")?.name || "")}` : ""}${kickoutDetails(event).markPlayerNumber ? ` · Mark #${kickoutDetails(event).markPlayerNumber}` : ""}` : !type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.event === "pass" ? `<small>${event.passType === "hand" ? "Hand Pass" : "Kick Pass"} · #${esc(event.playerNumber || "—")} → #${esc(event.receiverNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "receiver")?.name || "")}</small>` : ""}${["turnover-won", "turnover-lost"].includes(event.event) ? event.pairedTurnoverVersion === 1 ? `<small>Won: ${esc(teamName(event.winningTeam, displayMatch))} #${esc(event.turnoverWinnerNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "turnoverWinner")?.name || "")} · Lost: ${esc(teamName(event.losingTeam, displayMatch))} #${esc(event.turnoverLoserNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "turnoverLoser")?.name || "")}</small>` : `<small>Won #${esc(event.turnoverWinnerNumber || (event.event === "turnover-won" ? event.playerNumber : "") || "—")} · Lost #${esc(event.turnoverLoserNumber || (event.event === "turnover-lost" ? event.playerNumber : "") || "—")}</small>` : ""}${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}${(isBlockedShot(event) || isDefensiveBlockEvent(event)) && hasLocation(event) ? "<small>Pitch location recorded</small>" : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}${readOnly ? "" : `<span class="row-edit">${icon("edit")}</span>`}</${readOnly ? "div" : "button"}>`;
+  return `<${readOnly ? "div" : "button"} class="event-row" ${readOnly ? "" : `data-edit-event="${event.id}" aria-label="Edit ${esc(label)} at ${formatTime(event.timeMs)}"`}><span class="event-time">${formatTime(event.timeMs)}<small>${periodId(event.half)}</small></span><span class="timeline-dot ${event.team} ${isDefensiveBlockEvent(event) ? "defensive-block" : isBlockedShot(event) ? "blocked-shot" : ""}">${icon(isDefensiveBlockEvent(event) ? "block" : type.value ? "ball" : "pitch")}</span><span class="event-info"><strong>${esc(label)} ${(event.event === "substitution" || event.countsAsSubstitution) ? `<span class="player-chip">ON #${esc(event.playerOn)} / OFF #${esc(event.playerOff)}</span>` : ""} ${event.playerNumber ? `<span class="player-chip">#${esc(event.playerNumber)}</span>` : ""}</strong><span>${esc(teamName(event.team, displayMatch))}${player ? ` · ${esc(player.name)}` : ""}${isKickout(event) ? ` · ${esc(kickoutLabel(event))}${kickoutDetails(event).kickoutWinnerNumber ? ` · Winner #${esc(kickoutDetails(event).kickoutWinnerNumber)} ${esc(resolveParticipant(displayMatch, event, "kickoutWinner")?.name || "")}` : ""}${kickoutDetails(event).markPlayerNumber ? ` · Mark #${kickoutDetails(event).markPlayerNumber}` : ""}` : !type.value && event.outcome ? ` · ${esc(event.outcome)}` : ""}</span>${event.event === "pass" ? `<small>${event.passType === "hand" ? "Hand Pass" : "Kick Pass"} · #${esc(event.playerNumber || "—")} → #${esc(event.receiverNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "receiver")?.name || "")}</small>` : ""}${["turnover-won", "turnover-lost"].includes(event.event) ? event.pairedTurnoverVersion === 1 ? `<small>Won: ${esc(teamName(event.winningTeam, displayMatch))} #${esc(event.turnoverWinnerNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "turnoverWinner")?.name || "")} · Lost: ${esc(teamName(event.losingTeam, displayMatch))} #${esc(event.turnoverLoserNumber || "—")} ${esc(resolveParticipant(displayMatch, event, "turnoverLoser")?.name || "")}</small>` : `<small>Won #${esc(event.turnoverWinnerNumber || (event.event === "turnover-won" ? event.playerNumber : "") || "—")} · Lost #${esc(event.turnoverLoserNumber || (event.event === "turnover-lost" ? event.playerNumber : "") || "—")}</small>` : ""}${event.notes || event.dictatedNote ? `<small>${esc([event.notes, event.dictatedNote].filter(Boolean).join(" · "))}</small>` : ""}${(isBlockedShot(event) || isDefensiveBlockEvent(event)) && hasLocation(event) ? "<small>Pitch location recorded</small>" : ""}</span>${type.value && event.outcome === "scored" ? `<span class="event-score">+${type.value}</span>` : ""}${readOnly ? "" : `<span class="row-edit">${icon("edit")}</span>`}</${readOnly ? "div" : "button"}>`;
 }
 function timelineScreen(displayMatch = match, readOnly = false) {
   const filtered = displayMatch.events
@@ -446,7 +453,7 @@ function timelineScreen(displayMatch = match, readOnly = false) {
             })
             .join("")
         : `<div class="empty-state"><span class="empty-icon">${icon("timeline")}</span><h3>${displayMatch.events.length ? "No matching events." : "Your match story starts here."}</h3><p>${displayMatch.events.length ? "Try another filter to see more of the match." : "Record an event on the Live match screen.<br>Scores and the timeline will update together."}</p>${readOnly ? "" : `<button class="button primary" data-view="live">Go to live match ${icon("arrow")}</button>`}</div>`
-    }</section>${shootoutTimeline(displayMatch,readOnly)}<p class="timeline-note">${readOnly ? "Most recent recorded match time first · Read-only" : "Most recent match time first · Edits recalculate the scoreboard automatically."}</p>`;
+    }</section>${disciplineTimeline(displayMatch)}${shootoutTimeline(displayMatch,readOnly)}<p class="timeline-note">${readOnly ? "Most recent recorded match time first · Read-only" : "Most recent match time first · Edits recalculate the scoreboard automatically."}</p>`;
 }
 function lastEventSummary() {
   const last = match.events.at(-1);
@@ -456,6 +463,7 @@ function lastEventSummary() {
 }
 function updateClock() {
   if (!match) return;
+  const discipline=document.querySelector("[data-discipline-live]");if(discipline){const html=disciplineIndicators(match);if(discipline.innerHTML!==html)discipline.innerHTML=html;}
   const time = elapsedMs(match.clock);
   document
     .querySelectorAll("[data-clock]")
@@ -475,6 +483,8 @@ function selectField(label, name, value, options) {
 }
 function openEvent(event, editing = false, liveCredit = false) {
   const dialog = document.querySelector("#event-dialog");
+  if(editing&&event.disciplineVersion===1&&event.event==='booked'){openBookedCapture(dialog,event,match,updated=>{if(!captureAttempt(dialog,()=>{if(updated)match.events=saveMatchEvent(updated);else match.events=match.events.filter(e=>e.id!==event.id);} ))return false;persist();render();return true;},{editing:true});return;}
+  if(editing&&['discipline-return','discipline-replacement'].includes(event.event)){if(confirm('Remove this discipline action? Derived playing state will be recalculated.')){match.events=match.events.filter(e=>e.id!==event.id);persist();render();}return;}
   const type = eventType(event.event);
   const displayLabel = isBlockedShot(event) ? "Shot · Blocked" : type.label;
   const kickout = event.event.includes("kickout");
@@ -509,7 +519,7 @@ function openEvent(event, editing = false, liveCredit = false) {
     <div data-linked-fields>${linkedEventFields(event, match, { includeInactive: !liveCredit })}</div>
     <div data-edit-shot-fields>${shotFieldsMarkup(event, match, { editing: true })}</div><div data-edit-kickout-fields>${kickoutFieldsMarkup(event, match)}</div>
     <details class="event-details" ${editing ? "open" : ""}><summary>${editing ? "Event details" : "Add details"} <span>Optional</span></summary><div class="detail-fields">
-    ${editing ? `<div class="form-grid"><label class="field"><span>Event</span><select name="event" aria-label="Event">${EVENT_TYPES.map((item) => `<option value="${item.id}" ${item.id === event.event ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><label class="field"><span>Team</span><select name="team" aria-label="Team" ${type.team || event.pairedTurnoverVersion === 1 ? "disabled" : ""}><option value="our" ${event.team === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${event.team === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select></label><label class="field"><span>Half</span><select name="half" aria-label="Half"><option value="1" ${event.half === 1 ? "selected" : ""}>First half</option><option value="2" ${event.half === 2 ? "selected" : ""}>Second half</option><option value="3" ${event.half === 3 ? "selected" : ""}>ET1</option><option value="4" ${event.half === 4 ? "selected" : ""}>ET2</option></select></label>${input("Half time (mm:ss)", "time", formatTime(event.timeMs), 'required pattern="[0-9]{1,3}:[0-5][0-9]" inputmode="text" title="Use minutes:seconds, for example 05:30"')}</div>` : ""}
+    ${editing ? `<div class="form-grid"><label class="field"><span>Event</span><select name="event" aria-label="Event">${EVENT_TYPES.filter(item=>!["discipline-return","discipline-replacement","discipline-et-choice"].includes(item.id)).map((item) => `<option value="${item.id}" ${item.id === event.event ? "selected" : ""}>${item.label}</option>`).join("")}</select></label><label class="field"><span>Team</span><select name="team" aria-label="Team" ${type.team || event.pairedTurnoverVersion === 1 ? "disabled" : ""}><option value="our" ${event.team === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${event.team === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select></label><label class="field"><span>Half</span><select name="half" aria-label="Half"><option value="1" ${event.half === 1 ? "selected" : ""}>First half</option><option value="2" ${event.half === 2 ? "selected" : ""}>Second half</option><option value="3" ${event.half === 3 ? "selected" : ""}>ET1</option><option value="4" ${event.half === 4 ? "selected" : ""}>ET2</option></select></label>${input("Half time (mm:ss)", "time", formatTime(event.timeMs), 'required pattern="[0-9]{1,3}:[0-5][0-9]" inputmode="text" title="Use minutes:seconds, for example 05:30"')}</div>` : ""}
     <div class="form-grid">${!scoring && event.event !== "miss" && !kickout && !isDefensiveBlockEvent(event) ? selectField("Outcome", "outcome", event.outcome, ["won", "lost", "retained", "completed", "incomplete"]) : ""}${selectField("Zone", "zone", event.zone, ["Defensive third", "Middle third", "Attacking third"])}${selectField("Side", "side", event.side, ["Left", "Centre", "Right"])}${kickout || editing ? selectField("Kickout length", "kickoutLength", event.kickoutLength, ["Short", "Medium", "Long"]) : ""}${!isShot(event) && editing ? selectField("Score origin", "scoreOrigin", event.scoreOrigin, ["Open play", "Free", "45", "Penalty", "Sideline"]) : ""}${selectField("Possession result", "possessionResult", event.possessionResult, ["Retained", "Lost", "Shot", "Score"])}${input("Attack pattern", "attackPattern", event.attackPattern, 'maxlength="120" placeholder="Optional"')}</div>
     ${noteMarkup(event)}${input("Coach observation", "coachObservation", event.coachObservation, 'maxlength="500" placeholder="Optional"')}
     <label class="field"><span>Direct score link</span><select name="directScoreLink"><option value="">No linked score</option>${match.events
@@ -641,6 +651,7 @@ document.addEventListener("click", async (event) => {
   if (!match) return;
   const button = event.target.closest("button");
   if (!button || button.disabled) return;
+  if(event.detail>1&&performance.now()-lastDisciplineSave<650)return;
   if(shootoutUI.click(button))return;
   if (button.hasAttribute("data-continue-starters")) {
     match.starterCountAcknowledgement = starterLineupKey(match);
@@ -791,6 +802,9 @@ document.addEventListener("click", async (event) => {
         toast("Squad loaded as a separate match copy.");
       },
     );
+  if(button.dataset.disciplineReturn){openDisciplineReturn(document.querySelector('#event-dialog'),match,button.dataset.disciplineReturn,recordEvent);return;}
+  if(button.dataset.disciplineContinue){const choice=pendingETChoices(match).find(p=>p.card.id===button.dataset.disciplineContinue);if(!choice)return;const ref=disciplineRef(match,choice.ref.team,choice.ref.matchPlayerId)||choice.ref;const e=createEvent(match,'discipline-et-choice',ref.team);recordEvent({...e,disciplineVersion:1,cardId:choice.card.id,etDecision:'continue',playerNumber:String(ref.jerseyNumber),participants:{...e.participants,player:ref}});return;}
+  if(button.dataset.disciplineReplace){openETReplacement(document.querySelector('#event-dialog'),match,button.dataset.disciplineReplace,(ref,choice)=>{const off=disciplineRef(match,choice.ref.team,choice.ref.matchPlayerId)||choice.ref;const e=createEvent(match,'discipline-replacement',ref.team);return recordEvent({...e,disciplineVersion:1,cardId:choice.card.id,countsAsSubstitution:true,substitutionReason:'lgfa-et-replacement',playerNumber:String(ref.jerseyNumber),playerOn:String(ref.jerseyNumber),playerOff:String(off.jerseyNumber),participants:{...e.participants,player:ref,playerOn:ref,playerOff:off}});});return;}
   if (button.dataset.team) {
     selectedTeam = button.dataset.team;
     match.recordingTeam = selectedTeam;
@@ -798,6 +812,7 @@ document.addEventListener("click", async (event) => {
     render();
   }
   if (button.dataset.event) {
+    if(pendingETChoices(match).length){toast("Complete Extra Time player choices before recording play.");return;}
     if(["INTERVAL","SHOOTOUT","REVIEW"].includes(match.clock.phase)||completedDuration(match.clock,match.clock.half)!==null){toast("This period is completed. Start the next period or edit an existing event.");return;}
     if (!ready()) {
       view = "setup";
@@ -1031,6 +1046,7 @@ document.addEventListener("click", async (event) => {
       document.querySelector("#event-dialog").close();
       break;
     case "clock":
+      if(pendingETChoices(match).length){toast("Complete Extra Time player choices before starting the clock.");break;}
       match.clock = toggleClock(match.clock);
       if (
         match.clock.startedAt !== null &&

@@ -270,13 +270,15 @@ test("Our Kickout Mark visibly offers our populated squad and credits one event;
   await add(page, 8, "Our Eight");
   await page.locator('#player-form [name="role"]').selectOption("panel");
   await add(page, 9, "Our Nine");
+  await page.locator('#player-form [name="role"]').selectOption("starter");
+  await add(page,10,"Our Ten");
   await nav(page, "Live match");
   await page.locator('.event-controls [data-event="our-kickout"]').click();
   await nav(page, "Mark won by us");
   const modal = page.getByRole("dialog");
   const picker = modal.getByRole("group", { name: "Our Mark winner" });
   await expect(picker).toBeVisible();
-  await expect(picker.getByRole("button")).toHaveCount(1);
+  await expect(picker.getByRole("button")).toHaveCount(2);
   await expect(
     picker.getByRole("button", {
       name: "Credit Mark to #8 Our Eight",
@@ -290,7 +292,7 @@ test("Our Kickout Mark visibly offers our populated squad and credits one event;
     }),
   ).toHaveCount(0);
   let match = await state(page);
-  expect(match.players).toHaveLength(2);
+  expect(match.players).toHaveLength(3);
   expect(match.players.find((p) => p.number === 9).role).toBe("panel");
   expect(match.events).toHaveLength(1);
   const id = match.events[0].id;
@@ -324,8 +326,15 @@ test("Our Kickout Mark visibly offers our populated squad and credits one event;
   });
   await expect(await markCell(row8)).toHaveText("1");
   await expect(await markCell(row9)).toHaveText("0");
-  for (const [number, eight, nine] of [
-    ["9", "0", "1"],
+  const row10=page.getByRole('row').filter({has:page.getByRole('rowheader',{name:'Home · #10 Our Ten',exact:true})});
+  await nav(page,'Edit last event');
+  await page.getByLabel('Mark catcher',{exact:true}).selectOption('9');
+  await nav(page,'Save changes');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect((await state(page)).events[0].markPlayerNumber).toBe('8');
+  await nav(page,'Cancel');
+  for (const [number, eight, ten] of [
+    ["10", "0", "1"],
     ["", "0", "0"],
     ["8", "1", "0"],
   ]) {
@@ -339,7 +348,8 @@ test("Our Kickout Mark visibly offers our populated squad and credits one event;
       markPlayerNumber: number,
     });
     await expect(await markCell(row8)).toHaveText(eight);
-    await expect(await markCell(row9)).toHaveText(nine);
+    await expect(await markCell(row9)).toHaveText("0");
+    await expect(await markCell(row10)).toHaveText(ten);
   }
   await page.reload();
   expect((await state(page)).events).toHaveLength(1);

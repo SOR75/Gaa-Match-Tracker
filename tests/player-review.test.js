@@ -148,8 +148,9 @@ test("recent sample uses at most six actual qualifying matches; blank setup alon
 test("stable referenced action proves an appearance, not a squad listing or legacy number-only event", () => {
   const s = squad(),
     m = make(s);
-  m.players[0].role = "substitute";
   record(m, "interception", { playerNumber: "8" });
+  // A recovered historical action remains evidence when its old lineup is incomplete.
+  m.players[0].role = "substitute";
   assert.equal(participationFor(m, m.players[0]).appeared, true);
   delete m.events[0].identityVersion;
   delete m.events[0].participants;

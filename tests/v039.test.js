@@ -215,6 +215,7 @@ test("goals are conceded not saves, goalkeeper substitution follows chronologica
 });
 test("explicit keeper change and clearing, edit undo recalculates", () => {
   const m = fixture();
+  m.players.find(p=>p.number===16).role="starter";
   const change = add(m, "goalkeeper-change", "our", { playerNumber: "16" });
   const shot = add(m, "miss", "opposition", { missReason: "short" });
   assert.equal(keep(m, 16).gkSaves, 1);

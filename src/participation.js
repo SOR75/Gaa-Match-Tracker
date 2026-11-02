@@ -1,8 +1,9 @@
+import {fieldState,disciplineState,disciplinePlayerState,disciplinePlayerKey,disciplineKey,substitutionDisciplineConflict} from './discipline.js';
 import {durationBetween, playingEnd} from "./periods.js";
 import { rowId, participantRef } from "./identity.js";
 const rosterFor = (match, team) =>
   (team === "our" ? match.players : match.oppositionPlayers) || [];
-export const playerKey = (player) => `id:${rowId(player)}`;
+export const playerKey = player => rowId(player)?`id:${rowId(player)}`:`number:${player.number}`;
 export function substitutionKey(match, event, role) {
   const team = event.team,
     roster = rosterFor(match, team),
@@ -15,44 +16,7 @@ export function substitutionKey(match, event, role) {
   );
   return found.length === 1 ? playerKey(found[0]) : `number:${number}`;
 }
-export function onFieldKeys(match, team, { beforeEvent = null } = {}) {
-  const active = new Set(
-    rosterFor(match, team)
-      .filter((p) => p.role === "starter")
-      .map(playerKey),
-  );
-  const ordered = match.events
-    .map((event, index) => ({ event, index }))
-    .filter(
-      ({ event }) => event.team === team && event.event === "substitution",
-    )
-    .sort(
-      (a, b) =>
-        a.event.half - b.event.half ||
-        a.event.timeMs - b.event.timeMs ||
-        a.index - b.index,
-    );
-  const boundary = beforeEvent
-    ? match.events.findIndex((e) => e.id === beforeEvent.id)
-    : -1;
-  for (const { event, index } of ordered) {
-    if (
-      beforeEvent &&
-      (event.half > beforeEvent.half ||
-        (event.half === beforeEvent.half &&
-          (event.timeMs > beforeEvent.timeMs ||
-            (event.timeMs === beforeEvent.timeMs &&
-              boundary >= 0 &&
-              index >= boundary))))
-    )
-      continue;
-    const off = substitutionKey(match, event, "playerOff"),
-      on = substitutionKey(match, event, "playerOn");
-    if (off) active.delete(off);
-    if (on) active.add(on);
-  }
-  return active;
-}
+export function onFieldKeys(match,team,options={}){return fieldState(match,options).activeKeys(team);}
 export function onFieldPlayers(match, team, options) {
   const active = onFieldKeys(match, team, options);
   return rosterFor(match, team).filter((p) => active.has(playerKey(p)));
@@ -63,7 +27,7 @@ export function substitutionChoices(match, event) {
       Number.isInteger(p.number),
     );
   return {
-    on: roster.filter((p) => !active.has(playerKey(p))),
+    on: roster.filter((p) => !active.has(playerKey(p)) && !["SIN_BIN","SENT_OFF"].includes(disciplinePlayerState(match,p,event.team,{beforeEvent:event}))),
     off: roster.filter((p) => active.has(playerKey(p))),
   };
 }
@@ -80,14 +44,9 @@ export function participationFor(match, player, team = "our") {
     rosterFor(match, team).filter((p) => p.role === "starter").length > 15;
   const started =
     player.role === "starter" && !ambiguousLineup && hasMatchEvidence(match);
-  const entered = match.events.some(
-    (e) =>
-      e.team === team &&
-      e.event === "substitution" &&
-      participantRef(e, "playerOn")?.matchPlayerId === rowId(player) &&
-      participantRef(e, "playerOn")?.playerId === player.playerId,
-  );
-  const action = match.events.some((e) =>
+  const reconstructed=fieldState(match);
+  const entered = reconstructed.substitutions.some(({event})=>{const on=participantRef(event,'playerOn')||(event.event==='discipline-replacement'?participantRef(event):null);return on?.team===team&&on.matchPlayerId===rowId(player)&&(on.playerId||null)===(player.playerId||null);});
+  const action = match.events.filter(e=>reconstructed.validEventIds.has(e.id)).some((e) =>
     [
       "player",
       "markWinner",
@@ -105,7 +64,8 @@ export function participationFor(match, player, team = "our") {
       );
     }),
   );
-  const appeared = started || entered || action;
+  const disciplineEntered=disciplineState(match).changes.some(c=>c.active&&c.ref.team===team&&c.ref.matchPlayerId===rowId(player)&&(c.ref.playerId||null)===(player.playerId||null));
+  const appeared = started || entered || action || disciplineEntered;
   const substituteAppearance =
     appeared &&
     !started &&
@@ -136,13 +96,13 @@ export function participationFor(match, player, team = "our") {
 
 // Unknown legacy boundaries remain unknown; never substitute nominal half lengths.
 export function playerPlayingTime(match,player,team='our',now=Date.now()) {
- let active=player.role==='starter',from={half:1,timeMs:0},total=0,unknown=false;
- const add=to=>{const duration=durationBetween(match,from,to);if(duration===null)unknown=true;else total+=duration;};
- for(const e of match.events.filter(e=>e.team===team&&e.event==='substitution').slice().sort((a,b)=>a.half-b.half||a.timeMs-b.timeMs)){
-  const off=substitutionKey(match,e,'playerOff'),on=substitutionKey(match,e,'playerOn'),key=playerKey(player);
-  if(active&&off===key){add(e);active=false;}
-  if(!active&&on===key){from=e;active=true;}
+ const reconstructed=fieldState(match,{now});
+ let active=player.role==='starter'&&!reconstructed.ambiguousTeams.has(team),from={half:1,timeMs:0},total=0,unknown=false;
+ const add=to=>{const d=durationBetween(match,from,to);if(d===null)unknown=true;else total+=d;};
+ for(const c of reconstructed.fieldChanges.filter(c=>disciplineKey(c.ref,match)===disciplinePlayerKey(player,team))){
+  if(active&&!c.active){add(c.event);active=false;}if(!active&&c.active){from=c.event;active=true;}
  }
- if(active)add(playingEnd(match,now));
- return unknown?null:total;
+ if(active)add(playingEnd(match,now));return unknown?null:total;
 }
+
+export function playingStateFor(match,player,team='our'){const state=disciplinePlayerState(match,player,team);return ['SIN_BIN','SENT_OFF'].includes(state)?state:onFieldKeys(match,team).has(playerKey(player))?'ACTIVE':'SUBSTITUTE/OFF';}

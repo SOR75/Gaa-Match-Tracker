@@ -191,6 +191,7 @@ test("new shooter attribution survives jersey edits, notes edits and replacement
 });
 test("shot player edits change/clear stable refs without changing score", () => {
   const m = setup();
+  m.players[1].role="starter"; // Both attribution choices are on field in this match.
   let e = record(m, "point", { playerNumber: "6" });
   e = { ...e, playerNumber: "22" };
   m.events = saveEvent(m.events, e, m);

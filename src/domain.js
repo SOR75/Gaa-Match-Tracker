@@ -1,3 +1,4 @@
+import {validDisciplineEvent,assertEventEligibility,pendingETChoices} from './discipline.js';
 import {validShootout} from "./shootout.js";
 import {periodId, togglePeriod, validPeriodClock} from "./periods.js";
 import { pairedTurnoverFields, validPairedTurnover } from "./turnovers.js";
@@ -73,6 +74,9 @@ export const EVENT_TYPES = [
     player: true,
   },
   { id: "substitution", label: "Substitution", value: 0, outcome: "completed" },
+  { id: "discipline-et-choice", label: "Extra Time: continue reduced", value: 0, outcome: "continued", player: true },
+  { id: "discipline-return", label: "Returned", value: 0, outcome: "returned", player: true },
+  { id: "discipline-replacement", label: "Extra Time sin-bin replacement", value: 0, outcome: "replacement", player: true },
   { id: "booked", label: "Booked", value: 0, outcome: "", player: true },
 ];
 export const eventType = (id) => EVENT_TYPES.find((type) => type.id === id);
@@ -137,6 +141,7 @@ export function totals(events, team) {
 }
 export function createEvent(match, typeId, team, now = Date.now()) {
   if(["SHOOTOUT","INTERVAL","REVIEW"].includes(match.clock.phase))throw new Error("Football capture is unavailable in this phase");
+  if(!["discipline-et-choice","discipline-replacement"].includes(typeId)&&pendingETChoices(match).length)throw new Error("Complete Extra Time player choices before recording play.");
   const type = eventType(typeId);
   if (!type) throw new Error("Unknown event type");
   return {
@@ -207,6 +212,7 @@ export function normalizeEvent(event) {
     throw new Error("Choose different on/off jerseys, 1–99.");
   if (event.event === "booked" && !/^[1-9]\d?$/.test(String(event.playerNumber || "")))
     throw new Error("Choose the player who was booked (jersey 1–99).");
+  if(!validDisciplineEvent(event))throw new Error("Invalid discipline card or player reference.");
   const shotX = event.shotX ?? null,
     shotY = event.shotY ?? null;
   if (
@@ -248,11 +254,13 @@ export function saveEvent(events, event, match = null) {
     events.find((e) => e.id === event.id),
     match,
   );
+  if(!validDisciplineEvent(normalized))throw new Error("Invalid discipline card or player reference.");
   if (!validEventIdentity(normalized))
     throw new Error("Invalid event player reference");
   const updated = events.some((item) => item.id === event.id)
     ? events.map((item) => (item.id === event.id ? normalized : item))
     : [...events, normalized];
+  if(match)assertEventEligibility({...match,events:updated},normalized);
   const scores = new Set(
     updated
       .filter(
@@ -313,7 +321,7 @@ export function validMatch(value) {
     value.events.every(
       (event) =>
         typeof event.id === "string" &&
-        validEventIdentity(event) &&
+        validEventIdentity(event) && validDisciplineEvent(event) &&
         validPairedTurnover(event) &&
         eventType(event.event) &&
         ["our", "opposition"].includes(event.team) &&

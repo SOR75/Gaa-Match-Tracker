@@ -46,8 +46,8 @@ export function openPassCapture(dialog, event, match, onRecord) {
   dialog.querySelectorAll("[data-pass-type]").forEach((button) => {
     button.onclick = () => {
       if (recorded || !draft.playerNumber || !draft.receiverNumber) return;
+      if(onRecord({ ...event, ...draft, passType: button.dataset.passType })===false)return;
       recorded = true;
-      onRecord({ ...event, ...draft, passType: button.dataset.passType });
       dialog.close();
     };
   });

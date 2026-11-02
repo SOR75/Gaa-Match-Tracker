@@ -1,3 +1,4 @@
+import {disciplinePlayerState} from './discipline.js';
 import {periodId} from "./periods.js";
 import { substitutionChoices } from "./participation.js";
 import { validSubstitution } from "./matchday.js";
@@ -52,6 +53,8 @@ export function openSubstitution(dialog, draft, match, onSaved) {
       error.textContent = "Choose different on/off jersey numbers, 1–99.";
       return;
     }
+    const chosen=(draft.team==="our"?match.players:match.oppositionPlayers).find(p=>[data.playerOn,data.playerOff].includes(String(p.number))&&["SIN_BIN","SENT_OFF"].includes(disciplinePlayerState(match,p,draft.team)));
+    if(chosen&&["SIN_BIN","SENT_OFF"].includes(disciplinePlayerState(match,chosen,draft.team))){const error=dialog.querySelector("[data-sub-error]");error.hidden=false;error.textContent="Sin-binned and sent-off players are not substitutes.";return;}
     if (
       choices.off.some((p) => String(p.number) === data.playerOn) ||
       choices.on.some((p) => String(p.number) === data.playerOff)

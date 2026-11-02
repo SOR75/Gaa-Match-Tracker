@@ -1,3 +1,4 @@
+import {captureAttempt} from './capture-error.js';
 import {
   ourCreditRoster,
   attributionRoster,
@@ -75,10 +76,9 @@ export function openShotDetails(dialog, event, match, onUpdate, onClose) {
         pending[name] = node.value;
     }
     const next = { ...draft, ...pending, ...patch };
-    draft = { ...next, ...shotDetails(next) };
-    rememberControls();
-    onUpdate(draft);
-    refreshView();
+    const accepted={...next,...shotDetails(next)};
+    if(!captureAttempt(dialog,()=>onUpdate(accepted)))return false;
+    draft=accepted;rememberControls();refreshView();return true;
   };
   const repaintFields = () => {
     dialog.querySelector("[data-shot-fields]").innerHTML = shotFieldsMarkup(
@@ -100,9 +100,15 @@ export function openShotDetails(dialog, event, match, onUpdate, onClose) {
     includePanel: false,
   });
   dialog.innerHTML = `<div class="dialog-heading"><div><p class="eyebrow">SHOT ALREADY RECORDED · ${esc(name)}</p><h2 id="event-dialog-title">${esc(isBlockedShot(draft) ? "Shot · Blocked" : eventType(event.event).label)} · optional details</h2></div><button type="button" class="icon-button" data-shot-close aria-label="Close shot details">×</button></div><p class="capture-instruction">${esc(name)} attacks the ${direction.toUpperCase()} goal this half. Tap the shot location or close immediately.</p><div data-shot-fields>${shotFieldsMarkup(draft, match)}</div><div class="shot-detail-layout"><div class="capture-pitch">${pitchMarkup(draft.shotX === null ? [] : [draft], true, { direction, teamName: name })}</div><div><p class="small-note">Player · optional</p><div class="quick-player-grid">${players.map((p) => `<button type="button" class="player-pick ${String(draft.playerNumber) === String(p.number) ? "chosen" : ""}" data-shot-player="${p.number}">${p.number}<span>${esc(p.name)}</span></button>`).join("")}</div><label class="field"><span>Other player number · optional</span><input name="playerNumber" type="number" min="1" max="99" step="1" inputmode="numeric" value="${esc(draft.playerNumber)}"></label><p class="small-note">The shot is saved. All details are optional and save as you change them.</p></div></div><div class="dialog-actions"><button type="button" class="button subtle" data-shot-close>Skip / Close</button><button type="button" class="button primary" data-shot-close>Done</button></div>`;
-  dialog
-    .querySelectorAll("[data-shot-close]")
-    .forEach((b) => (b.onclick = () => dialog.close()));
+  const closeShot=()=>{
+    const input=dialog.querySelector('[name="playerNumber"]');
+    if(input&&input.validity.valid&&input.value!==draft.playerNumber)save({playerNumber:input.value});
+    dialog.close();
+  };
+  const cancelShot=e=>{e.preventDefault();closeShot();};
+  dialog.querySelectorAll('[data-shot-close]').forEach(b=>b.onclick=closeShot);
+  dialog.addEventListener('cancel',cancelShot);
+  dialog.addEventListener('close',()=>dialog.removeEventListener('cancel',cancelShot),{once:true});
   dialog.addEventListener("close", () => onClose(), { once: true });
   rememberControls();
   bindOtherCredit(dialog, (_, number) => {
@@ -137,8 +143,8 @@ export function openShotDetails(dialog, event, match, onUpdate, onClose) {
     }
   };
   const other = dialog.querySelector("[name=playerNumber]");
-  other.oninput = () => {
-    if (other.validity.valid) save({ playerNumber: other.value });
+  other.onchange = () => {
+    if(other.validity.valid&&!save({playerNumber:other.value}))other.value=draft.playerNumber;
   };
   dialog.querySelectorAll("[data-shot-player]").forEach(
     (b) =>

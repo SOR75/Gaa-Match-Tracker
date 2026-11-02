@@ -90,6 +90,9 @@ test("legacy shot-linked Pass survives native History Resume and normal historic
   page,
 }) => {
   const m = await seed(page);
+  // Historical editing still uses players who were actually on field at that time.
+  m.players.find(p=>p.number===18).role='starter';
+  m.players.find(p=>p.number===10).role='substitute';
   m.clock.elapsedMs = 180000;
   const shot = createEvent(m, "point", "our");
   m.events = saveEvent([], shot, m);
@@ -128,6 +131,10 @@ test("legacy shot-linked Pass survives native History Resume and normal historic
   await expect(
     page.getByLabel("Receiver", { exact: true }).locator('option[value="18"]'),
   ).toHaveCount(1);
+  await page.getByLabel('Receiver',{exact:true}).selectOption('10');
+  await nav(page,'Save changes');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect((await state(page)).events.at(-1).receiverNumber).toBe('15');
   await page.getByLabel("Receiver", { exact: true }).selectOption("18");
   await page.getByLabel("Pass type", { exact: true }).selectOption("hand");
   await nav(page, "Save changes");

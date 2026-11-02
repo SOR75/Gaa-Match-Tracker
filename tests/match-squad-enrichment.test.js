@@ -51,6 +51,7 @@ test('three pre-name actions plus two later actions stay on one stats row and on
 for(const [partial,full,n] of [['Oran','Oran Murphy',20],['Sean M','Sean McCarthy',25]])test(`${partial} safely extends to ${full} without splitting the existing match identity`,()=>{
  const m=make();if(n===25)add(m,'pass',{playerNumber:'25',receiverNumber:'8',passType:'kick'});
  apply(m,[{number:n,name:partial,role:'substitute'}],'our',{mode:'manual'});const old=m.players.find(p=>p.number===n),id=old.id;
+ add(m,'substitution',{playerOn:String(n),playerOff:'5'});
  add(m,'pass',{playerNumber:String(n),receiverNumber:'8',passType:'kick'});const before=JSON.stringify(m.events);
  apply(m,[{number:n,name:full,role:'starter'}]);const now=m.players.filter(p=>p.number===n);assert.equal(now.length,1);assert.equal(now[0].id,id);assert.equal(now[0].name,full);assert.equal(now[0].role,'substitute');assert.equal(JSON.stringify(m.events),before);
 });

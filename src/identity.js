@@ -54,7 +54,7 @@ export function roleNumber(event, role) {
     return ["turnover-won", "turnover-lost"].includes(event.event)
       ? String(event[role + "Number"] || "")
       : "";
-  return event.event === "substitution" ? String(event[role] || "") : "";
+  return ["substitution","discipline-return","discipline-replacement"].includes(event.event) ? String(event[role] || "") : "";
 }
 export const roleTeam = (event, role) => {
   if (role === "kickoutWinner")
@@ -166,7 +166,8 @@ export function bindEventParticipants(event, previous, match) {
         previous &&
         roleNumber(previous, role) === number &&
         roleTeam(previous, role) === roleTeam(event, role);
-    participants[role] = !number
+    const explicit=event.disciplineVersion===1&&validRef(event.participants?.[role],event,role)&&roster(match,roleTeam(event,role)).some(p=>rowId(p)===event.participants[role].matchPlayerId&&(p.playerId||null)===(event.participants[role].playerId||null));
+    participants[role] = explicit ? event.participants[role] : !number
       ? null
       : same
         ? participantRef(previous, role)
