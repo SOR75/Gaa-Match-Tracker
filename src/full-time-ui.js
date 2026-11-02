@@ -1,9 +1,10 @@
+import {shootoutResultMarkup,shootoutTimeline,shootoutStatsMarkup} from "./shootout-ui.js";
 import { goalkeeperCards } from "./goalkeeper-ui.js";
 import { analysisForScope, periodComparison } from "./half-time.js";
 import { coachingDashboard } from "./coaching-dashboard.js";
 
 export function fullTimeScreen(match, { actions, historical = false } = {}) {
-  return `<div class="full-time-view">${coachingDashboard({
+  return `<div class="full-time-view">${shootoutResultMarkup(match)}${coachingDashboard({
     data: analysisForScope(match, "FULL_MATCH"),
     scope: "FULL_MATCH",
     comparison: periodComparison(match),
@@ -27,5 +28,5 @@ export function fullTimeScreen(match, { actions, historical = false } = {}) {
         primary: true,
       },
     ],
-  })}${goalkeeperCards(match)}</div>`;
+  })}${goalkeeperCards(match)}${match.shootout?shootoutStatsMarkup(match)+shootoutTimeline(match,true):""}</div>`;
 }

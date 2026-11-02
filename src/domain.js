@@ -1,3 +1,4 @@
+import {validShootout} from "./shootout.js";
 import {periodId, togglePeriod, validPeriodClock} from "./periods.js";
 import { pairedTurnoverFields, validPairedTurnover } from "./turnovers.js";
 import { uid } from "./ids.js";
@@ -241,6 +242,7 @@ export function normalizeEvent(event) {
   };
 }
 export function saveEvent(events, event, match = null) {
+  if(match?.clock.phase==="SHOOTOUT")throw new Error("Football events are frozen during SHOOTOUT.");
   const normalized = bindEventParticipants(
     normalizeEvent(event),
     events.find((e) => e.id === event.id),
@@ -293,6 +295,7 @@ export function validMatch(value) {
   return (
     [1, 2].includes(value?.schemaVersion) &&
     typeof value.id === "string" &&
+    validShootout(value.shootout) &&
     value.setup &&
     ["ourTeam", "opposition", "competition", "venue", "date", "coach"].every(
       (key) => typeof value.setup[key] === "string",

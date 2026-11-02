@@ -1,3 +1,4 @@
+import {penaltyResult} from "./shootout.js";
 import {completePeriod, syncPeriod} from "./periods.js";
 import { migrateMatch, totals, elapsedMs, toggleClock } from "./domain.js";
 export const ARCHIVE_PREFIX = "sideline.match.archive.";
@@ -73,6 +74,7 @@ function orderValue(r) {
 }
 export function historySummary(record, archived = true) {
   const m = record.match,
+    penalties = m.result?.decidedBy=== "penalties" ? penaltyResult(m.shootout) : null,
     our = totals(m.events, "our"),
     opposition = totals(m.events, "opposition"),
     margin = our.total - opposition.total;
@@ -81,7 +83,7 @@ export function historySummary(record, archived = true) {
     opposition,
     status: matchStatus(m, archived),
     result: completed(m)
-      ? margin > 0
+      ? penalties ? `${penalties.winner=== "our"?"WIN":"LOSS"} ${penalties.shootout[penalties.winner]}–${penalties.shootout[penalties.winner=== "our"?"opposition":"our"]} ON PENALTIES` : margin > 0
         ? `WIN +${margin}`
         : margin < 0
           ? `LOSS ${margin}`

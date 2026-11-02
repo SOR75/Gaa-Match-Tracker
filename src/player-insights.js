@@ -1,3 +1,4 @@
+import {shootoutPlayerStatistics,mergeShootoutStats} from "./shootout.js";
 import { scoringSourceTotals, mergeScoringSources } from './scoring-sources.js';
 import {
   goalkeeperStatistics,
@@ -71,7 +72,7 @@ export function playerReviews(records, squads = [], active = null) {
       b.match.id.localeCompare(a.match.id),
   )) {
     const m = record.match;
-    if (!hasMatchEvidence(m)) continue;
+    if (!hasMatchEvidence(m)&&!m.shootout?.attempts?.length) continue;
     const roster = new Map();
     for (const p of m.players)
       if (validPlayerId(p.playerId)) roster.set(p.playerId, p);
@@ -101,6 +102,8 @@ export function playerReviews(records, squads = [], active = null) {
             eventOnly: true,
           });
       }
+    const penaltyPlayers=shootoutPlayerStatistics(m).filter(p=>p.team==='our');
+    for(const p of penaltyPlayers)if(validPlayerId(p.playerId)&&!roster.has(p.playerId))roster.set(p.playerId,{id:p.matchPlayerId,matchPlayerId:p.matchPlayerId,playerId:p.playerId,name:p.name,number:p.jerseyNumber,role:'unknown',eventOnly:true});
     const stats = playerStatistics(m, "our");
     const keepers = goalkeeperStatistics(m).filter((g) => g.team === "our");
     for (const [id, p] of roster) {
@@ -136,6 +139,7 @@ export function playerReviews(records, squads = [], active = null) {
           const ref=participantRef(e, "player");
           return ref?.team === "our" && ref.playerId === id;
         })),
+        ...(penaltyPlayers.some(s=>s.playerId===id)?{shootout:mergeShootoutStats(penaltyPlayers.filter(s=>s.playerId===id))}:{}),
         current: !!record.current,
       });
       // No name/number matching: historical source Squad is shown only by stored ID.
@@ -159,6 +163,18 @@ export function playerReviews(records, squads = [], active = null) {
         matchId:m.id,seasonId:m.seasonId||null,nameSnapshot:p.name,opponent:m.setup.opposition||"Opposition",date:m.setup.date||"",jersey:p.number,role:p.role,
         ...participationFor(m,p),named:true,...total,
         scoringSources:scoringSourceTotals(events.filter(e=>participantRef(e)?.matchPlayerId===s.matchPlayerId && e.team==="our")),current:!!record.current,
+      }]});
+    }
+    for(const penalty of penaltyPlayers.filter(p=>!p.playerId)){
+      const key=`match:${m.id}:${penalty.matchPlayerId||'shootout-number:'+penalty.jerseyNumber}`;
+      const existing=profiles.get(key);
+      if(existing){const entry=existing.matches.find(r=>r.matchId===m.id);if(entry)entry.shootout=mergeShootoutStats([entry.shootout,penalty]);continue;}
+      const p=m.players.find(p=>(p.matchPlayerId||p.id)===penalty.matchPlayerId);
+      const normal=Object.fromEntries(metrics.map(k=>[k,stats.filter(s=>s.matchPlayerId===penalty.matchPlayerId).reduce((n,s)=>n+(s[k]||0),0)]));
+      for(const k of goalkeeperMetrics)normal[k]=keepers.filter(g=>g.matchPlayerId===penalty.matchPlayerId).reduce((n,g)=>n+g[k],0);
+      profiles.set(key,{playerId:null,profileKey:key,unlinked:true,name:penalty.name||`#${penalty.jerseyNumber} · number only`,squads:new Set(),matches:[{
+       matchId:m.id,seasonId:m.seasonId||null,nameSnapshot:penalty.name,opponent:m.setup.opposition||'Opposition',date:m.setup.date||'',jersey:penalty.jerseyNumber,role:p?.role||'unknown',
+       ...(p?participationFor(m,p):{appeared:false,started:false,substituteAppearance:false,didNotPlay:false,evidence:'Shootout only'}),named:!!p,...normal,shootout:mergeShootoutStats([penalty]),current:!!record.current,
       }]});
     }
   }
@@ -210,6 +226,7 @@ export function playerReviews(records, squads = [], active = null) {
           };
         }),
         ...total,
+        ...(q.matches.some(m=>m.shootout)?{shootout:mergeShootoutStats(q.matches.map(m=>m.shootout))}:{}),
         scoringSources: mergeScoringSources(q.matches.map(m=>m.scoringSources)),
         conversion: percentage(total.successful, total.attempts),
         gkRetention: keeperPercent(total.gkRetained, total.gkKickouts),
