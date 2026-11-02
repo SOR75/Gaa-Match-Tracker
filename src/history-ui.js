@@ -1,3 +1,4 @@
+import {downloadTimelineCSV} from './analysis-stream.js';
 import {periodId} from "./periods.js";
 import { esc } from "./ui.js";
 import { gaelicScore } from "./shots.js";
@@ -91,6 +92,7 @@ export function createHistoryUI({
   }
   async function click(button) {
     if (busy) return;
+    if(button.hasAttribute?.("data-timeline-csv") && selected){downloadTimelineCSV(historySnapshot(selected));return;}
     const action = button.dataset.historyAction || button.dataset.action;
     if (action === "refresh" || action === "back") {
       selected = null;

@@ -1,3 +1,4 @@
+import {matchFlowMarkup} from './match-flow-ui.js';
 import { halfTimeAnalysis } from "./half-time.js";
 import { coachingDashboard } from "./coaching-dashboard.js";
 
@@ -31,5 +32,5 @@ export function halfTimeScreen(match, { actions } = {}) {
             primary: true,
           },
     ],
-  })}</div>`;
+  })}${matchFlowMarkup(match,'H1')}</div>`;
 }

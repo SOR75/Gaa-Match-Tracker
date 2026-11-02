@@ -1,3 +1,4 @@
+import {matchFlowMarkup} from './match-flow-ui.js';
 import {shootoutResultMarkup,shootoutTimeline,shootoutStatsMarkup} from "./shootout-ui.js";
 import { goalkeeperCards } from "./goalkeeper-ui.js";
 import { analysisForScope, periodComparison } from "./half-time.js";
@@ -28,5 +29,5 @@ export function fullTimeScreen(match, { actions, historical = false } = {}) {
         primary: true,
       },
     ],
-  })}${goalkeeperCards(match)}${match.shootout?shootoutStatsMarkup(match)+shootoutTimeline(match,true):""}</div>`;
+  })}${matchFlowMarkup(match)}${goalkeeperCards(match)}${match.shootout?shootoutStatsMarkup(match)+shootoutTimeline(match,true):""}</div>`;
 }

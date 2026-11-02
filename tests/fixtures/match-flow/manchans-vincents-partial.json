@@ -1,0 +1,119 @@
+{
+  "provenance": "User-supplied factual timeline in V0.3.10.7 request; not a real event export and not a reconstructed match ledger.",
+  "teams": {
+    "our": "Manchans",
+    "opposition": "Vincents"
+  },
+  "originalMatchId": null,
+  "fullMatch": null,
+  "scoreCheckpoints": [
+    {
+      "id": null,
+      "period": "H1",
+      "timeMs": 1336000,
+      "our": 6,
+      "opposition": 1,
+      "evidenceReference": "Supplied score: H1 22:16, Manchans 0-6 to 0-1"
+    },
+    {
+      "id": null,
+      "period": "H2",
+      "timeMs": 517000,
+      "our": 7,
+      "opposition": 12,
+      "evidenceReference": "Supplied score: H2 08:37, Vincents 12-7"
+    },
+    {
+      "id": null,
+      "period": "H2",
+      "timeMs": 640000,
+      "our": 8,
+      "opposition": 12,
+      "evidenceReference": "Supplied Manchans point: H2 10:40"
+    },
+    {
+      "id": null,
+      "period": "H2",
+      "timeMs": 710000,
+      "our": 9,
+      "opposition": 12,
+      "evidenceReference": "Supplied Manchans point: H2 11:50"
+    },
+    {
+      "id": null,
+      "period": "H2",
+      "timeMs": 780000,
+      "our": 10,
+      "opposition": 12,
+      "evidenceReference": "Supplied Manchans point: H2 13:00"
+    },
+    {
+      "id": null,
+      "period": "H2",
+      "timeMs": 831000,
+      "our": 11,
+      "opposition": 12,
+      "evidenceReference": "Supplied Manchans point: H2 13:51"
+    },
+    {
+      "id": null,
+      "period": "H2",
+      "timeMs": 876000,
+      "our": 12,
+      "opposition": 12,
+      "evidenceReference": "Supplied Manchans point: H2 14:36"
+    },
+    {
+      "id": null,
+      "period": "H2",
+      "timeMs": 951000,
+      "our": 13,
+      "opposition": 12,
+      "evidenceReference": "Supplied Manchans point: H2 15:51"
+    }
+  ],
+  "factualEntries": [
+    {
+      "id": null,
+      "period": "H2",
+      "timeMs": 619000,
+      "team": "our",
+      "event": "turnover-won",
+      "playerId": null,
+      "playerNumber": null,
+      "evidenceReference": "Supplied Turnover Won: H2 10:19"
+    },
+    {
+      "id": null,
+      "period": "H2",
+      "timeMs": 726000,
+      "team": "opposition",
+      "event": "opposition-kickout",
+      "outcome": "won",
+      "kickoutPerspective": "our",
+      "kickoutLength": null,
+      "evidenceReference": "Supplied Manchans win of Vincents kickout: H2 12:06"
+    }
+  ],
+  "unverifiedClaims": [
+    "Four consecutive individual Long kickout wins: original event IDs, individual lengths and times unavailable.",
+    "Later point/restart-Mark/goal chain: original period, individual event times and IDs unavailable."
+  ],
+  "arithmeticNote": "12-7 is five points behind. Six unanswered points gives 13-12, one ahead. The narrative's four-behind phrase is not used.",
+  "unknown": [
+    "Original event IDs",
+    "Full event ledger",
+    "Half completion durations",
+    "Individual kickout lengths",
+    "Player identities",
+    "Shot locations",
+    "Later direct restart chain"
+  ],
+  "halfTime": {
+    "state": "level",
+    "ourTotal": null,
+    "oppositionTotal": null,
+    "timeMs": null,
+    "evidenceReference": "Supplied half-time state: level; exact team totals and elapsed duration unavailable"
+  }
+}

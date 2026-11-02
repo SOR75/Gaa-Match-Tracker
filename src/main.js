@@ -1,3 +1,5 @@
+import {downloadTimelineCSV} from './analysis-stream.js';
+import './match-flow.css';
 import {captureAttempt} from './capture-error.js';
 import {disciplineState,currentDisciplinePoint,pendingETChoices} from './discipline.js';
 import {disciplineIndicators,disciplineTimeline,openETReplacement,disciplineRef,openDisciplineReturn} from './discipline-ui.js';
@@ -442,7 +444,7 @@ function timelineScreen(displayMatch = match, readOnly = false) {
     .slice()
     .sort((a, b) => b.half - a.half || b.timeMs - a.timeMs);
   return `${heading("THE STORY OF THE MATCH", "Every event. In order.", readOnly ? "Read-only recorded events. Your active match is unchanged." : "Your event log is the source of truth. Tap any event to review or edit it.", `<span class="total-events">${displayMatch.events.length} events recorded</span>`)}
-    <section class="card timeline-card"><div class="timeline-toolbar"><h2>Event timeline</h2>${readOnly ? "" : `<div class="timeline-filters"><label class="sr-only" for="timeline-team">Filter team</label><select id="timeline-team"><option value="all">Both teams</option><option value="our" ${timelineTeam === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${timelineTeam === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select><label class="sr-only" for="timeline-kind">Filter event type</label><select id="timeline-kind"><option value="all">All events</option><option value="scores" ${timelineKind === "scores" ? "selected" : ""}>Scores</option><option value="other" ${timelineKind === "other" ? "selected" : ""}>Other events</option></select></div>`}</div>${
+    <section class="card timeline-card"><div class="timeline-toolbar"><h2>Event timeline</h2><button class="button subtle" data-timeline-csv>Download Timeline CSV</button>${readOnly ? "" : `<div class="timeline-filters"><label class="sr-only" for="timeline-team">Filter team</label><select id="timeline-team"><option value="all">Both teams</option><option value="our" ${timelineTeam === "our" ? "selected" : ""}>${esc(teamName("our"))}</option><option value="opposition" ${timelineTeam === "opposition" ? "selected" : ""}>${esc(teamName("opposition"))}</option></select><label class="sr-only" for="timeline-kind">Filter event type</label><select id="timeline-kind"><option value="all">All events</option><option value="scores" ${timelineKind === "scores" ? "selected" : ""}>Scores</option><option value="other" ${timelineKind === "other" ? "selected" : ""}>Other events</option></select></div>`}</div>${
       filtered.length
         ? [4, 3, 2, 1]
             .map((half) => {
@@ -745,6 +747,7 @@ document.addEventListener("click", async (event) => {
     void historyUI.open();
     return;
   }
+  if (button.hasAttribute("data-timeline-csv") && view !== "history") { downloadTimelineCSV(match); return; }
   if (view === "history" && button.closest("[data-history-root]")) {
     void historyUI.click(button);
     return;
