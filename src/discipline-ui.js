@@ -22,11 +22,11 @@ export function openDisciplineCapture(dialog,event,match,onSave,{editing=false}=
  draw();dialog.showModal();dialog.querySelector('[data-booked-close]').focus();
 }
 export function disciplineIndicators(match){
- if(match.clock.phase==='SHOOTOUT')return '';
- const bins=disciplineState(match).bins,choices=pendingETChoices(match);
+ const state=disciplineState(match),untimed=match.clock.phase==='SHOOTOUT',bins=untimed?[]:state.bins,choices=untimed?[]:pendingETChoices(match);
  const transitions=choices.map(c=>`<article class="sin-bin" data-et-choice="${esc(c.card.id)}"><div><strong>LGFA EXTRA TIME · ${esc(name(c.ref))}</strong><span>${c.reason==='two-yellows'?'Two Yellow dismissal — original player remains sent off':'Outstanding Normal Time sin bin'}</span></div><button class="button subtle" data-discipline-continue="${esc(c.card.id)}">CONTINUE WITH ${onFieldPlayers(match,c.ref.team).length}</button><button class="button primary" data-discipline-replace="${esc(c.card.id)}">REPLACE FOR EXTRA TIME</button></article>`).join('');
  const indicators=bins.map(bin=>{const team=bin.ref.team,eligible=bin.eligible,canReturn=eligible&&match.clock.phase==='PLAY'&&completedDuration(match.clock,match.clock.half)===null&&!choices.length;return `<article class="sin-bin ${eligible?'return-ready':''}"><div><strong>${eligible?'ELIGIBLE TO RETURN':'SIN BIN'} · ${esc(name(bin.ref))}</strong><span>${esc(team==='our'?match.setup.ourTeam:match.setup.opposition)} · ${eligible?'Awaiting referee permission':bin.remainingMs===null?'Review period timing':formatTime(Math.ceil(bin.remainingMs/1000)*1000)} · ${onFieldPlayers(match,team).length} on field</span>${bin.etReplaced?`<small>ET replacement · RETURNED is an additional substitution${bin.currentOccupant?` · current occupant: ${esc(name(bin.currentOccupant))}`:' · choose a player OFF'}</small>`:''}</div>${eligible?`<button class="button primary" data-discipline-return="${esc(bin.card.id)}" ${canReturn?'':'disabled'}>RETURNED</button>`:''}</article>`;}).join('');
- return transitions||indicators?`<section class="discipline-indicators" aria-label="Live sin bins">${transitions}${indicators}</section>`:'';
+ const sentOff=[...state.players.values()].filter(p=>p.state==='SENT_OFF').map(p=>`<article class="sin-bin sent-off" data-sent-off="${esc(p.ref.matchPlayerId)}" role="status"><div><strong>SENT OFF · ${esc(name(p.ref))}</strong><span>${esc(p.ref.team==='our'?match.setup.ourTeam:match.setup.opposition)} · ${onFieldPlayers(match,p.ref.team).length} on field</span></div></article>`).join('');
+ return transitions||indicators||sentOff?`<section class="discipline-indicators" aria-label="Live discipline">${transitions}${indicators}${sentOff}</section>`:'';
 }
 export function openETReplacement(dialog,match,cardId,onSelect){
  const choice=pendingETChoices(match).find(c=>c.card.id===cardId);if(!choice)return;

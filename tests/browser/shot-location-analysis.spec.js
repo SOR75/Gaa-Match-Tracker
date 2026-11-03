@@ -30,7 +30,7 @@ for(const first of ['top','bottom'])test(`${first} first-half direction: real bo
  if(first==='top'){await page.locator('.analysis-map-layout').scrollIntoViewIfNeeded();await page.screenshot({path:`${root}/02-h2-map.png`});await map.screenshot({path:`${root}/05-h2-two-pointer.png`});}
  const two=map.locator(`[data-shot-id="${h2Two.id}"] > circle`).first();expect(+(await two.getAttribute('cy'))).toBeGreaterThan(260);expect(+(await two.getAttribute('cy'))).toBeLessThan(450);
  await page.locator('#shot-team').selectOption('opposition');await topMarkers(page.getByRole('img',{name:'Shot map',exact:true}),2);
- await nav(page,'Live match');await nav(page,'END MATCH / FULL TIME');await expect(page.getByRole('heading',{name:'MATCH LEVEL AT FULL TIME'})).toBeVisible();await nav(page,'Finish as Draw');await topMarkers(page.getByRole('img',{name:'Full-match shot map',exact:true}),4);
+ await nav(page,'Live match');await nav(page,'END MATCH / FULL TIME');await expect(page.getByRole('heading',{name:'Normal-Time Analysis',exact:true})).toBeVisible();await nav(page,'Finish as Draw');await topMarkers(page.getByRole('img',{name:'Full-match shot map',exact:true}),4);
  await expect(page.locator('[data-ht-zone="inside"]')).toContainText('2 / 2');await expect(page.locator('[data-ht-zone="outside"]')).toContainText('2 / 2');
  if(first==='top'){await page.screenshot({path:`${root}/03-full-match-overlay.png`});await page.locator('.ht-map').screenshot({path:`${root}/04-inside-outside-40m.png`});}
  expect(JSON.stringify((await state(page)).events)).toBe(raw);

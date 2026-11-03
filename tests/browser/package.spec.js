@@ -1,14 +1,14 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const legacyMessage = "Photo OCR is not available " + "in this build";
-test("V0.3.10.7-dev identity and JPEG/PNG runtime path are in this exact package", async ({
+test("V0.3.10.8-dev identity and JPEG/PNG runtime path are in this exact package", async ({
   page,
   request,
 }) => {
   test.setTimeout(90000);
   const metadata = await (await request.get("/build-info.json")).json();
-  expect(metadata.buildId).toBe("0.3.10.7-dev");
-  expect(metadata.version).toBe("0.3.10.7-dev");
+  expect(metadata.buildId).toBe("0.3.10.8-dev");
+  expect(metadata.version).toBe("0.3.10.8-dev");
   expect(metadata.sourceCommit).toMatch(/^[a-f0-9]{40}$/);
   expect(metadata.assetRevision).toMatch(/^[a-f0-9]{12}$/);
   const source = readFileSync("src/imports.js", "utf8");
@@ -17,8 +17,8 @@ test("V0.3.10.7-dev identity and JPEG/PNG runtime path are in this exact package
   expect(readFileSync("src/ocr.js", "utf8")).toContain("createWorker");
   await page.goto("/");
   expect(await page.evaluate(() => window.__SIDELINE_BUILD__.sourceCommit)).toBe(metadata.sourceCommit);
-  await expect(page).toHaveTitle("Sideline V0.3.10.7-dev");
-  await expect(page.locator(".topbar .build-tag")).toHaveText("V0.3.10.7-dev");
+  await expect(page).toHaveTitle("Sideline V0.3.10.8-dev");
+  await expect(page.locator(".topbar .build-tag")).toHaveText("V0.3.10.8-dev");
   await page.getByRole("button", { name: "Squad", exact: true }).click();
   for (const file of [
     "tests/fixtures/programme.jpg",

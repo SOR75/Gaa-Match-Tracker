@@ -1,3 +1,4 @@
+import {normalTimePending} from './normal-time.js';
 import {downloadTimelineCSV} from './analysis-stream.js';
 import './match-flow.css';
 import {captureAttempt} from './capture-error.js';
@@ -33,7 +34,7 @@ import { createHistoryRepository } from "./history-repository.js";
 import { createHistoryUI } from "./history-ui.js";
 import { completeMatch } from "./history.js";
 import "./voice-roadmap.css";
-import { fullTimeScreen } from "./full-time-ui.js";
+import { fullTimeScreen, normalTimeScreen } from "./full-time-ui.js";
 import { halfTimeScreen } from "./half-time-ui.js";
 import { attributionRoster } from "./player-credit.js";
 import { openDefensiveBlockDetails } from "./defensive-block-capture.js";
@@ -117,7 +118,7 @@ const app = document.querySelector("#app");
 const loaded = loadMatch();
 let match = loaded.match;
 let storageError = loaded.error;
-let view =
+let view = normalTimePending(match)?"normaltime":
   match &&
   (match.events.length ||
     match.clock.startedAt !== null ||
@@ -152,7 +153,7 @@ const historyUI = createHistoryUI({
       squadTeam = "our";
       playerEditing = null;
     }
-    view = next ? "live" : "setup";
+    view = next ? normalTimePending(next)?"normaltime":"live" : "setup";
     render();
   },
   renderTimeline: (saved) => timelineScreen(saved, true),
@@ -321,8 +322,8 @@ function render() {
       <div class="sidebar-bottom"><span class="local-dot"></span><div>Made for the sideline<small>Your match stays on this device.</small></div></div>
     </aside>
     <div class="main-shell">
-      <header class="topbar"><span class="build-tag">V${APP_VERSION}</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${view === "halftime" ? "Half-Time Analysis" : view === "fulltime" ? "Full-Time Analysis" : tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
-      <main id="main"><p id="storage-warning" class="warning" role="alert" hidden></p>${view === "players" ? playerReviewUI.screen() : view === "history" ? historyUI.screen() : view === "setup" ? setupScreen() : view === "squad" ? squadScreen() : view === "live" ? liveScreen() : view === "timeline" ? timelineScreen() : view === "halftime" ? halfTimeScreen(match) : view === "fulltime" ? fullTimeScreen(match) : analysisScreen(match, analysisFilters, reportMode, analysisHalf)}</main>
+      <header class="topbar"><span class="build-tag">V${APP_VERSION}</span><span class="breadcrumb">Match workspace <span>/</span> <strong>${view === "normaltime" ? "Normal-Time Analysis" : view === "halftime" ? "Half-Time Analysis" : view === "fulltime" ? "Full-Time Analysis" : tabs.find((tab) => tab[0] === view)[2]}</strong></span><span class="save-status" data-save-status></span></header>
+      <main id="main"><p id="storage-warning" class="warning" role="alert" hidden></p>${view === "players" ? playerReviewUI.screen() : view === "history" ? historyUI.screen() : view === "setup" ? setupScreen() : view === "squad" ? squadScreen() : view === "live" ? liveScreen() : view === "timeline" ? timelineScreen() : view === "halftime" ? halfTimeScreen(match) : view === "fulltime" ? fullTimeScreen(match) : view === "normaltime" ? normalTimeScreen(match) : analysisScreen(match, analysisFilters, reportMode, analysisHalf)}</main>
       ${["history", "players"].includes(view) ? `<footer class="actionbar"><strong>Device records · read-only viewing</strong><button class="button subtle" data-view="live">Return to current match</button></footer>` : match.clock.phase==="SHOOTOUT"?`<footer class="actionbar shootout-footer"><strong>SHOOTOUT · football score frozen</strong><div><button class="button subtle" data-view="live">Return to Shootout</button><button class="button undo" data-so-action="undo" ${match.shootout?.attempts.length?"":"disabled"}>UNDO LAST PENALTY</button></div></footer>` : `<footer class="actionbar"><div class="last-event">${lastEventSummary()}</div><div class="history-actions"><button class="button subtle" data-action="edit-last" aria-label="Edit last event" ${match.events.length ? "" : "disabled"}>${icon("edit")}<span>Edit last<span class="wide-label"> event</span></span></button><button class="button undo" data-action="undo" aria-label="Undo last event" ${match.events.length ? "" : "disabled"}>${icon("undo")}<span>Undo last<span class="wide-label"> event</span></span></button></div></footer>`}
     </div>
     <dialog id="event-dialog" aria-labelledby="event-dialog-title"></dialog>
@@ -391,6 +392,7 @@ function liveTeamControls() {
     .join("")}</div></div>`;
 }
 function liveScreen() {
+  if(normalTimePending(match))return normalTimeScreen(match);
   if(match.clock.phase==="SHOOTOUT")return shootoutUI.screen();
   return `${heading("FROM THE SIDELINE", "Every moment counts.", "Tap an event. Keep your eyes on the game.", `<span class="match-status"><span class="local-dot"></span>${match.clock.startedAt === null ? "MATCH WORKSPACE" : "LIVE TRACKING"}</span>`)}
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
@@ -755,7 +757,7 @@ document.addEventListener("click", async (event) => {
 
   if (button.dataset.view) {
     if(button.dataset.view==="halftime"&&match.clock.half===1&&match.clock.startedAt!==null){match.clock=pausePeriod(match.clock);persist();}
-    view = button.dataset.view;
+    view = button.dataset.view==="live"&&normalTimePending(match)?"normaltime":button.dataset.view;
     if (view === "analysis") {
       analysisHalf = null;
       reportMode = false;
@@ -976,13 +978,13 @@ document.addEventListener("click", async (event) => {
       match.clock={...completePeriod(match.clock),phase:"INTERVAL"};persist();render();break;
     case "start-et":
     case "start-et2":
-      match.clock=advancePeriod(match.clock,button.dataset.action==="start-et"?3:4);persist();render();break;
+      match.clock=advancePeriod(match.clock,button.dataset.action==="start-et"?3:4);view="live";persist();render();break;
     case "start-shootout":
       match.clock=shootoutClock(match.clock);
       if(!match.shootout)match.shootout=initialShootout({our:totals(match.events,"our"),opposition:totals(match.events,"opposition")},activeGoalkeepers(match));
       persist();render();break;
     case "end-match":
-      if([2,4].includes(match.clock.half)&&totals(match.events,"our").total===totals(match.events,"opposition").total){match.clock={...completePeriod(match.clock),phase:"INTERVAL"};persist();render();break;}
+      if([2,4].includes(match.clock.half)&&totals(match.events,"our").total===totals(match.events,"opposition").total){match.clock={...completePeriod(match.clock),phase:"INTERVAL"};if(match.clock.half===2)view="normaltime";persist();render();break;}
     case "finish-draw":
       match = completeMatch(match);
       persist();

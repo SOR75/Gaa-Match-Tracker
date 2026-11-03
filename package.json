@@ -1,6 +1,6 @@
 {
   "name": "gaa-match-tracker",
-  "version": "0.3.10.7-dev",
+  "version": "0.3.10.8-dev",
   "private": true,
   "type": "module",
   "scripts": {

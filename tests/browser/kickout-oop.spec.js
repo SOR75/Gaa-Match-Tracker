@@ -30,7 +30,7 @@ test("physical 3/4 and GK #16 1/2: OOP is one kicking-team loss in both teams, H
   await expect(page.locator('[data-ht-kpi="turnovers"]')).toContainText("Won 0");
   await expect(page.locator(".ht-method")).toContainText("included as losses for the kicking team");
  };
- await checkKPIs();await nav(page,"START SECOND HALF →");await nav(page,"END MATCH / FULL TIME");await expect(page.getByRole("heading",{name:"MATCH LEVEL AT FULL TIME"})).toBeVisible();await nav(page,"Finish as Draw");await checkKPIs();
+ await checkKPIs();await nav(page,"START SECOND HALF →");await nav(page,"END MATCH / FULL TIME");await expect(page.getByRole("heading",{name:"Normal-Time Analysis",exact:true})).toBeVisible();await nav(page,"Finish as Draw");await checkKPIs();
  const g=page.locator(`[data-gk-card="our:${captured.players[15].matchPlayerId}"]`),opp=page.locator(`[data-gk-card="opposition:${captured.oppositionPlayers[0].matchPlayerId}"]`);
  const checkGK=async()=>{
   for(const [key,value] of Object.entries({taken:"2",retained:"1 · 50%",lost:"1",out:"1"}))await expect(g.locator(`[data-gk-metric="${key}"]`)).toHaveText(value);

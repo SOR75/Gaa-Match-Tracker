@@ -1,10 +1,11 @@
+import {hasNormalTimeBoundary} from './normal-time.js';
 import {downloadTimelineCSV} from './analysis-stream.js';
 import {periodId} from "./periods.js";
 import { esc } from "./ui.js";
 import { gaelicScore } from "./shots.js";
 import { formatTime } from "./domain.js";
 import { completed, historySummary, historySnapshot } from "./history.js";
-import { fullTimeScreen } from "./full-time-ui.js";
+import { fullTimeScreen, normalTimeScreen } from "./full-time-ui.js";
 import { halfTimeScreen } from "./half-time-ui.js";
 import { analysisScreen } from "./analysis-ui.js";
 import "./history.css";
@@ -63,7 +64,9 @@ export function createHistoryUI({
       const m = historySnapshot(selected),
         summary = historySummary(selected, !selected.current);
       const body =
-        panel === "timeline"
+        panel === "normal"
+          ? normalTimeScreen(m,{actions:[],historical:true})
+          : panel === "timeline"
           ? renderTimeline(m)
           : panel === "half"
             ? halfTimeScreen(m, { actions: [] })
@@ -72,6 +75,7 @@ export function createHistoryUI({
               : fullTimeScreen(m, { actions: [], historical: true });
       return `${top}<div class="history-readonly"><button class="button subtle" data-history-action="back">← Back to History</button><strong>READ-ONLY · ${esc(teams(m))}</strong><span>${summary.status} · ${selected.match.clock.startedAt !== null && !selected.archivedAt ? "Last recorded" : "Saved"} ${m.clock.phase==="SHOOTOUT"?"SHOOTOUT":periodId(m.clock.half)} ${formatTime(m.clock.elapsedMs)}${m.setup.matchCode ? ` · ${esc(m.setup.matchCode)}` : ""} · Current match is unchanged</span></div><nav class="history-tabs" aria-label="Historical match views">${[
         ["full", "Full Match Analysis"],
+        ...(hasNormalTimeBoundary(m)?[["normal","Normal-Time Analysis"]]:[]),
         ["half", "Half-Time Analysis"],
         ["timeline", "Timeline"],
         ["detail", "Player stats / shot maps / kickouts"],

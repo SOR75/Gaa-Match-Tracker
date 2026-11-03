@@ -1,3 +1,4 @@
+import {assertShootoutEligibility} from './shootout-eligibility.js';
 import {uid} from './ids.js';
 import {rowId,validPlayerId} from './identity.js';
 export const SHOOTOUT_OUTCOMES=['scored','saved','post','wide'];
@@ -50,15 +51,17 @@ export function switchShootoutTeam(s) {
  const team=otherTeam(status.next);
  return {...s,nextTeamOverride:team===status.expected?null:team};
 }
-export function changeShootoutKeeper(s,team,ref) {
+export function changeShootoutKeeper(s,team,ref,match=null) {
  if(!validShootoutRef(ref)||ref.team!==team)throw Error('Choose a goalkeeper.');
+ if(match)assertShootoutEligibility(match,ref,'keeper');
  return {...s,keepers:{...s.keepers,[team]:structuredClone(ref)}};
 }
-export function recordPenalty(s,kicker,outcome,now=Date.now()) {
+export function recordPenalty(s,kicker,outcome,now=Date.now(),match=null) {
  const state=shootoutStatus(s);
  if(!s.started||state.complete||!state.canTake(state.next))throw Error('Penalty entry is closed.');
  if(!validShootoutRef(kicker)||kicker.team!==state.next)throw Error('Choose the kicker for the expected team.');
  if(!SHOOTOUT_OUTCOMES.includes(outcome))throw Error('Choose Scored, Saved, Post or Wide.');
+ if(match){assertShootoutEligibility(match,kicker);const keeper=s.keepers[otherTeam(state.next)];if(keeper)assertShootoutEligibility(match,keeper,'keeper');}
  const team=state.next,number=state.counts[team]+1;
  const attempt={id:uid(),phase:'SHOOTOUT',order:s.attempts.length+1,team,teamAttempt:number,stage:number>5?'SUDDEN_DEATH':'FIRST_5',suddenDeathRound:number>5?number-5:null,kicker:structuredClone(kicker),defendingTeam:otherTeam(team),goalkeeper:s.keepers[otherTeam(team)]?structuredClone(s.keepers[otherTeam(team)]):null,outcome,createdAt:new Date(now).toISOString(),sequenceOverrideBefore:s.nextTeamOverride||null};
  return {...s,nextTeamOverride:null,attempts:[...s.attempts,attempt]};
@@ -66,10 +69,12 @@ export function recordPenalty(s,kicker,outcome,now=Date.now()) {
 export function undoPenalty(s) {
  const last=s.attempts.at(-1);return last?{...s,nextTeamOverride:last.sequenceOverrideBefore||null,attempts:s.attempts.slice(0,-1)}:s;
 }
-export function editPenalty(s,id,fields) {
+export function editPenalty(s,id,fields,match=null) {
  const old=s.attempts.find(a=>a.id===id);if(!old)throw Error('Penalty not found.');
  const next={...old,...fields,id:old.id,team:old.team,order:old.order,teamAttempt:old.teamAttempt,stage:old.stage,suddenDeathRound:old.suddenDeathRound};
  if(!SHOOTOUT_OUTCOMES.includes(next.outcome)||!validShootoutRef(next.kicker)||next.kicker.team!==old.team||(next.goalkeeper&&(!validShootoutRef(next.goalkeeper)||next.goalkeeper.team!==old.defendingTeam)))throw Error('Review penalty details.');
+ if(match&&JSON.stringify(next.kicker)!==JSON.stringify(old.kicker))assertShootoutEligibility(match,next.kicker);
+ if(match&&next.goalkeeper&&JSON.stringify(next.goalkeeper)!==JSON.stringify(old.goalkeeper))assertShootoutEligibility(match,next.goalkeeper,'keeper');
  return {...s,attempts:s.attempts.map(a=>a.id===id?next:a)};
 }
 export function validShootoutRef(r) {
