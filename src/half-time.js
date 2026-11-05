@@ -1,3 +1,4 @@
+import {validAnalysisEvents} from './analysis-evidence.js';
 import {periodNumber} from "./periods.js";
 import { enhanceKickoutObservations } from "./kickout-patterns.js";
 import { summarize, playerStatistics, percentage } from "./analysis.js";
@@ -85,7 +86,7 @@ export const ANALYSIS_SCOPES = ["H1", "H2", "ET1", "ET2", "FULL_MATCH"];
 export function analysisForScope(match, scope = "H1") {
   if (!ANALYSIS_SCOPES.includes(scope))
     throw new Error("Unknown analysis scope");
-  const events = match.events.filter(
+  const events = validAnalysisEvents(match).filter(
     (event) =>
       scope === "FULL_MATCH" || event.half === periodNumber(scope),
   );
@@ -98,7 +99,7 @@ export function analysisForScope(match, scope = "H1") {
     invalidTwoPointers,
     our: summarize(events, "our"),
     opposition: summarize(events, "opposition"),
-    contributors: playerStatistics({ ...match, events }, "our").filter(
+    contributors: playerStatistics(match, "our", {events}).filter(
       (p) =>
         p.successful ||
         p.defensiveBlocks ||

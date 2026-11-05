@@ -1,4 +1,5 @@
 // Read-only projections. No capture defaults, permanent links or storage writes.
+import {knownEventTime} from './analysis-evidence.js';
 import {eventType, formatTime} from './domain.js';
 import {orderedFacts, fieldState} from './field-state.js';
 import {continuousPlayingMs, periodId, playingEnd} from './periods.js';
@@ -28,11 +29,14 @@ export function canonicalAnalysisStream(match){
   const ordered=orderedFacts(match), stream=[], scores={our:0,opposition:0};
   let state=fieldState({...match,events:[]},{now:0});
   const final=fieldState(match,{now:0});
+  // Missing score timing makes in-period score order unknowable, not the total.
+  const uncertainScorePeriods=new Set(match.events.filter(e=>!final.invalidEvents.has(e.id)&&(eventType(e.event)?.value||0)>0&&e.outcome==='scored'&&!knownEventTime(e)).map(e=>[1,2,3,4].includes(e.half)?e.half:null));
   for(let index=0;index<ordered.length;index++){
     const {event:e,index:recordingIndex}=ordered[index], beforeCounts=counts(match,state), scoreBefore={...scores};
     state=fieldState({...match,events:ordered.slice(0,index+1).map(x=>x.event)},{now:0});
     const activeCounts=counts(match,state), shot=shotDetails(e), ko=kickoutDetails(e), value=eventType(e.event)?.value||0;
-    const points=value>0&&e.outcome==='scored'?value:0;
+    const valid=!final.invalidEvents.has(e.id), timed=knownEventTime(e);
+    const points=valid&&value>0&&e.outcome==='scored'?value:0;
     if(points)scores[e.team]+=points;
     const keeperTeam=ko?e.team:shot?other(e.team):e.team;
     const keeper=(ko||shot||e.event==='goalkeeper-change')?activeGoalkeepers({...match,events:ordered.slice(0,index+(e.event==='goalkeeper-change'?1:0)).map(x=>x.event)})[keeperTeam]||null:null;
@@ -41,10 +45,10 @@ export function canonicalAnalysisStream(match){
     const turnover=isPairedTurnover(e)?turnoverTeams(e):['turnover-won','turnover-lost'].includes(e.event)?{
       winningTeam:e.event==='turnover-won'?e.team:other(e.team),losingTeam:e.event==='turnover-lost'?e.team:other(e.team)}:null;
     stream.push({id:e.id,index,recordingIndex,period:periodId(e.half),half:e.half,
-      periodTimeMs:e.timeMs,periodTime:formatTime(e.timeMs),continuousTimeMs:continuousPlayingMs(match,e,0),
+      periodTimeMs:timed?e.timeMs:null,periodTime:timed?formatTime(e.timeMs):'',continuousTimeMs:timed?continuousPlayingMs(match,e,0):null,
       team:e.team,event:e.event,eventLabel:eventType(e.event)?.label||e.event,outcome:e.outcome||null,
       primaryPlayer:participants.player,secondaryPlayer:participants.receiver||participants.playerOff||participants.turnoverLoser,
-      participants,valid:!final.invalidEvents.has(e.id),reviewReason:final.invalidEvents.get(e.id)||null,
+      participants,valid,scoreOrderKnown:!uncertainScorePeriods.has(null)&&!uncertainScorePeriods.has(e.half),reviewReason:final.invalidEvents.get(e.id)||null,
       kickout:ko?{team:e.team,length:['long','short','medium'].includes(String(e.kickoutLength).toLowerCase())?String(e.kickoutLength).toLowerCase():null,
         outcome:ko.outcome,winner,mark:e.mark===undefined?null:ko.mark,markWinner:participants.markWinner,winnerPlayer:participants.kickoutWinner}:null,
       shot:shot?{type:e.event,outcome:shot.shotOutcome,source:shot.shotSource||null,missReason:shot.missReason||null,

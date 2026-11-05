@@ -1,3 +1,4 @@
+import {validAnalysisEvents} from './analysis-evidence.js';
 import { summarize,playerStatistics,scoringTimeline,percentage } from './analysis.js';
 import { isShot,formatTime } from './domain.js';
 import { SHOT_SOURCES,shotDetails,gaelicScore } from './shots.js';
@@ -13,19 +14,20 @@ export function recordedScoringRuns(events) {
  return ['our','opposition'].flatMap(team=>runs.filter(r=>r.team===team).sort((a,b)=>b.points-a.points||a.half-b.half||a.start-b.start).slice(0,1));
 }
 export function coachReportModel(match) {
- const teams=['our','opposition'];const stats=Object.fromEntries(teams.map(t=>[t,summarize(match.events,t)]));
- const halves=Object.fromEntries(teams.map(t=>[t,[1,2].map(h=>summarize(match.events.filter(e=>e.half===h),t))]));
+ const events=validAnalysisEvents(match);
+ const teams=['our','opposition'];const stats=Object.fromEntries(teams.map(t=>[t,summarize(events,t)]));
+ const halves=Object.fromEntries(teams.map(t=>[t,[1,2].map(h=>summarize(events.filter(e=>e.half===h),t))]));
  const keepers=goalkeeperStatistics(match);
  const players=teams.flatMap(team=>reportPlayerStatistics(match,team).map(p=>{
    const g=keepers.find(k=>k.team===team && (p.matchPlayerId?k.matchPlayerId===p.matchPlayerId:String(k.jerseyNumber)===String(p.number)));
    return {...p,team,keeper:g||null};
  }).filter(p=>playerReportContributions(p).length>0));
  const sources=Object.fromEntries(teams.map(team=>[team,SHOT_SOURCES.map(([id,label])=>{
-   const shots=match.events.filter(e=>e.team===team&&isShot(e)&&shotDetails(e).shotSource===id);const scores=shots.filter(e=>e.outcome==='scored').length;
+   const shots=events.filter(e=>e.team===team&&isShot(e)&&shotDetails(e).shotSource===id);const scores=shots.filter(e=>e.outcome==='scored').length;
    return {id,label,attempts:shots.length,scores,conversion:percentage(scores,shots.length)};
  })]));
- const location=Object.fromEntries(teams.map(t=>[t,shotLocationAnalysis(match.events,t)]));
- const model={setup:{...match.setup},names:Object.fromEntries(teams.map(t=>[t,reportTeamName(match,t)])),stats,halves,keepers,players,sources,location,observations:[],runs:recordedScoringRuns(match.events),shots:match.events.filter(e=>e.team==='our'&&isShot(e)),substitutions:match.events.filter(e=>e.event==='substitution').map(e=>({team:e.team,half:e.half,time:e.timeMs,on:e.playerOn,off:e.playerOff})),eventCount:match.events.length};
+ const location=Object.fromEntries(teams.map(t=>[t,shotLocationAnalysis(events,t)]));
+ const model={setup:{...match.setup},names:Object.fromEntries(teams.map(t=>[t,reportTeamName(match,t)])),stats,halves,keepers,players,sources,location,observations:[],runs:recordedScoringRuns(events),shots:events.filter(e=>e.team==='our'&&isShot(e)),substitutions:events.filter(e=>e.event==='substitution').map(e=>({team:e.team,half:e.half,time:e.timeMs,on:e.playerOn,off:e.playerOff})),eventCount:match.events.length};
  return {...model,observations:coachReportObservations(model)};
 }
 export function coachReportObservations(data){

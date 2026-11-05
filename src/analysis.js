@@ -1,4 +1,4 @@
-import {fieldState} from './field-state.js';
+import {validAnalysisEvents} from './analysis-evidence.js';
 import {playerPlayingTime} from "./participation.js";
 import { isPairedTurnover } from "./turnovers.js";
 import { roleTeam } from "./identity.js";
@@ -120,8 +120,9 @@ export function summarize(events, team) {
       .length,
   };
 }
-export function playerStatistics(match, team) {
-  if(match.events.some(e=>e.disciplineVersion===1)){const valid=fieldState(match).validEventIds;match={...match,events:match.events.filter(e=>valid.has(e.id))};}
+export function playerStatistics(match, team, {events=match.events}={}) {
+  const scope=new Set(events);
+  match={...match,events:validAnalysisEvents(match).filter(e=>scope.has(e))};
 
   if (hasIdentityAttribution(match, team))
     return identityPlayerStatistics(match, team, summarize).map(row=>{const p=(team==="our"?match.players:match.oppositionPlayers).find(p=>(p.matchPlayerId||p.id)===row.matchPlayerId);return {...row,playingTimeMs:p?playerPlayingTime(match,p,team):null};});

@@ -1,3 +1,4 @@
+import {validAnalysisEvents} from './analysis-evidence.js';
 import { scoringSourceTotals, scoringSourceSummary } from './scoring-sources.js';
 import {playerStatistics,summarize} from './analysis.js';
 import {participantKey,resolveParticipant,roleTeam} from './identity.js';
@@ -32,9 +33,10 @@ export function playerReportContributions(player) {
 // legacy statistics API. Name these explicit roles for reports only; do not
 // create squad members, link identities, or alter existing calculated fields.
 export function reportPlayerStatistics(match,team) {
+ const events=validAnalysisEvents(match);
  const rows=playerStatistics(match,team).map(p=>({...p}));
  const counts=new Map();
- for(const e of match.events.filter(e=>e.event==='pass'&&e.team===team)) {
+ for(const e of events.filter(e=>e.event==='pass'&&e.team===team)) {
   for(const [role,field] of [['player','passes'],['receiver','passesReceived']]) {
    const key=participantKey(e,role),ref=resolveParticipant(match,e,role);
    if(!key||!ref||roleTeam(e,role)!==team)continue;
@@ -47,7 +49,7 @@ export function reportPlayerStatistics(match,team) {
  for(const [row,values] of counts)for(const field of ['passes','passesReceived'])if(row[field]===undefined)row[field]=values[field];
  for(const row of rows){
   const key=row.filterKey||row.identityKey||(row.matchPlayerId?`id:${team}:${row.matchPlayerId}`:`legacy:${team}:${row.number}`);
-  row.scoringSources=scoringSourceTotals(match.events.filter(e=>e.team===team&&participantKey(e,'player')===key));
+  row.scoringSources=scoringSourceTotals(events.filter(e=>e.team===team&&participantKey(e,'player')===key));
  }
  return rows;
 }
