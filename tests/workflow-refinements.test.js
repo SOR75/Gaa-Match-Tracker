@@ -176,7 +176,7 @@ test("Delete Saved Squad changes library only: active/archive bytes, stored team
   assert.equal(after[0].total, 1);
   assert.equal(after[0].matches[0].jersey, 9);
 });
-test("Dublin retained 6/6 with #8 credited on 5 enhances existing opposition WATCH with factual player concentration", () => {
+test("Dublin retained 6/6 with #8 credited on 5 produces shared factual player concentration", () => {
   const m = blankMatch();
   m.setup.opposition = "Dublin";
   for (let i = 0; i < 6; i++)
@@ -186,11 +186,11 @@ test("Dublin retained 6/6 with #8 credited on 5 enhances existing opposition WAT
     });
   const d = halfTimeAnalysis(m),
     watch = d.observations.filter(
-      (o) => o.kind === "watch" && o.title.startsWith("Opposition kickout"),
+      (o) => o.kind === "watch" && o.family.startsWith("player-kickout wins"),
     );
   assert.equal(watch.length, 1);
   assert.match(watch[0].title, /#8/);
-  assert.match(watch[0].detail, /We won 0 of 6/);
+  assert.equal(d.opposition.kickouts.possessionWinRate,0);
   assert.match(watch[0].detail, /Dublin retained 6 of 6/);
   assert.match(watch[0].detail, /#8 was credited on 5/);
   assert.doesNotMatch(

@@ -1,87 +1,10 @@
 import {validAnalysisEvents} from './analysis-evidence.js';
 import {periodNumber} from "./periods.js";
-import { enhanceKickoutObservations } from "./kickout-patterns.js";
-import { summarize, playerStatistics, percentage } from "./analysis.js";
+import {coachingInsights} from "./coaching-insights.js";
+import { summarize, playerStatistics } from "./analysis.js";
 import { isShot } from "./domain.js";
 import { shotLocationAnalysis } from "./shot-location-analysis.js";
 
-export const OBSERVATION_RULES = Object.freeze({
-  minimumAttempts: 5,
-  minimumKnownKickouts: 5,
-  minimumZoneAttempts: 3,
-  goodRetention: 75,
-  goodConversion: 60,
-  lowRetention: 50,
-  lowOppositionWins: 35,
-  lowConversion: 40,
-  zoneGap: 20,
-});
-const known = (k) => k.won + k.lost;
-export function halfTimeObservations(
-  data,
-  match = {
-    players: [],
-    oppositionPlayers: [],
-    setup: {},
-    events: data.events || [],
-  },
-) {
-  const r = OBSERVATION_RULES,
-    result = [];
-  const k = data.our.kickouts,
-    their = data.opposition.kickouts;
-  if (known(k) >= r.minimumKnownKickouts && k.retention >= r.goodRetention)
-    result.push({
-      kind: "working",
-      title: `Our kickout — ${k.retention}% retained`,
-      detail: `We retained ${k.won} of ${known(k)} kickouts with a known outcome.`,
-    });
-  else if (
-    data.our.attempts >= r.minimumAttempts &&
-    data.our.conversion >= r.goodConversion
-  )
-    result.push({
-      kind: "working",
-      title: `Shooting — ${data.our.conversion}% converted`,
-      detail: `${data.our.successful} scores from ${data.our.attempts} recorded attempts.`,
-    });
-  if (known(k) >= r.minimumKnownKickouts && k.retention < r.lowRetention)
-    result.push({
-      kind: "watch",
-      title: "Our kickout retention",
-      detail: `We retained ${k.won} of ${known(k)} kickouts with a known outcome (${k.retention}%).`,
-    });
-  else if (
-    known(their) >= r.minimumKnownKickouts &&
-    their.possessionWinRate <= r.lowOppositionWins
-  )
-    result.push({
-      kind: "watch",
-      title: "Opposition kickout",
-      detail: `We won ${their.won} of ${known(their)} opposition restarts with a known outcome (${their.possessionWinRate}%).`,
-    });
-  else if (
-    data.our.attempts >= r.minimumAttempts &&
-    data.our.conversion < r.lowConversion
-  )
-    result.push({
-      kind: "watch",
-      title: "Shooting conversion",
-      detail: `${data.our.successful} scores from ${data.our.attempts} recorded attempts (${data.our.conversion}%).`,
-    });
-  const { inside, outside } = data.zones;
-  if (
-    inside.attempts >= r.minimumZoneAttempts &&
-    outside.attempts >= r.minimumZoneAttempts &&
-    inside.conversion - outside.conversion >= r.zoneGap
-  )
-    result.push({
-      kind: "opportunity",
-      title: "Shot selection — inside 40m",
-      detail: `${inside.successful}/${inside.attempts} converted inside (${inside.conversion}%) compared with ${outside.successful}/${outside.attempts} outside (${outside.conversion}%). Located attempts only.`,
-    });
-  return enhanceKickoutObservations(result, match, data.events || []);
-}
 export const ANALYSIS_SCOPES = ["H1", "H2", "ET1", "ET2", "FULL_MATCH"];
 export function analysisForScope(match, scope = "H1") {
   if (!ANALYSIS_SCOPES.includes(scope))
@@ -104,12 +27,22 @@ export function analysisForScope(match, scope = "H1") {
         p.successful ||
         p.defensiveBlocks ||
         p.kickoutMarks ||
+        p.kickoutPossessionsWon ||
         p.turnoversWon ||
         p.turnoversLost ||
         p.interceptions,
     ),
   };
-  return { ...data, observations: halfTimeObservations(data, match) };
+  const insights=coachingInsights(match,{scope});
+  const contributors=data.contributors.map(p=>({...p}));
+  for(const g of insights.players.filter(g=>g.ref.team==="our")){
+    const saves=g.categories.get('saves')?.size||0,retained=g.categories.get('retained goalkeeper kickouts')?.size||0,wins=g.categories.get('kickout wins')?.size||0;
+    if(!saves&&!retained&&!wins)continue;
+    let p=contributors.find(p=>g.ref.matchPlayerId?p.matchPlayerId===g.ref.matchPlayerId:p.number===String(g.ref.jerseyNumber));
+    if(!p){p={...summarize([],"our"),number:String(g.ref.jerseyNumber??'—'),name:g.ref.name||g.ref.nameSnapshot||'',matchPlayerId:g.ref.matchPlayerId};if(g.ref.team==='our')contributors.push(p);}
+    if(g.ref.team==='our'){p.recordedSaves=saves;p.retainedKeeperKickouts=retained;p.recordedKickoutWins=wins;}
+  }
+  return {...data,contributors,coachingInsights:insights,observations:insights.observations.filter(o=>o.presentation==='summary')};
 }
 
 // Compatibility wrapper: existing H1 callers keep the same event-derived results.

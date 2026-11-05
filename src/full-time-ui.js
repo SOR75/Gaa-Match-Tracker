@@ -14,8 +14,9 @@ export function normalTimeScreen(match,{actions,historical=false}={}){
 }
 export function fullTimeScreen(match, { actions, historical = false, normalTime=false } = {}) {
   if(normalTime)match=normalTimeMatch(match);
+  const data=analysisForScope(match,"FULL_MATCH");
   return `<div class="full-time-view ${normalTime?'normal-time-view':''}" ${normalTime?'data-normal-time-analysis':''}>${shootoutResultMarkup(match)}${coachingDashboard({
-    data: analysisForScope(match, "FULL_MATCH"),
+    data,
     scope: normalTime?"NORMAL_TIME":"FULL_MATCH",
     comparison: periodComparison(match),
     ourTeam: match.setup.ourTeam || "Our team",
@@ -39,5 +40,5 @@ export function fullTimeScreen(match, { actions, historical = false, normalTime=
         primary: true,
       },
     ],
-  })}${matchFlowMarkup(match)}${goalkeeperCards(match)}${match.shootout?shootoutStatsMarkup(match)+shootoutTimeline(match,true):""}</div>`;
+  })}${matchFlowMarkup(match,"FULL_MATCH",data.coachingInsights.flow)}${goalkeeperCards(match)}${match.shootout?shootoutStatsMarkup(match)+shootoutTimeline(match,true):""}</div>`;
 }

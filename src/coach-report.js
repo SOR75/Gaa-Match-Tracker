@@ -1,3 +1,4 @@
+import {coachingInsights} from './coaching-insights.js';
 import {validAnalysisEvents} from './analysis-evidence.js';
 import { summarize,playerStatistics,scoringTimeline,percentage } from './analysis.js';
 import { isShot,formatTime } from './domain.js';
@@ -28,16 +29,11 @@ export function coachReportModel(match) {
  })]));
  const location=Object.fromEntries(teams.map(t=>[t,shotLocationAnalysis(events,t)]));
  const model={setup:{...match.setup},names:Object.fromEntries(teams.map(t=>[t,reportTeamName(match,t)])),stats,halves,keepers,players,sources,location,observations:[],runs:recordedScoringRuns(events),shots:events.filter(e=>e.team==='our'&&isShot(e)),substitutions:events.filter(e=>e.event==='substitution').map(e=>({team:e.team,half:e.half,time:e.timeMs,on:e.playerOn,off:e.playerOff})),eventCount:match.events.length};
- return {...model,observations:coachReportObservations(model)};
+ const insights=coachingInsights(match);
+ return {...model,coachingInsights:insights,observations:coachReportObservations({...model,coachingInsights:insights})};
 }
 export function coachReportObservations(data){
- const {stats,halves,players,names,location}=data;const observations=[];const [h1,h2]=halves.our,k=stats.our.kickouts,opp=stats.opposition.kickouts;
- if(h1.attempts>=5&&h2.attempts>=5)observations.push(`Shooting conversion ${h2.conversion>h1.conversion?'increased':h2.conversion<h1.conversion?'decreased':'was unchanged'} from ${h1.conversion}% in H1 to ${h2.conversion}% in H2 (${h1.successful}/${h1.attempts} and ${h2.successful}/${h2.attempts}).`);
- if(k.won+k.lost>=5)observations.push(`Our kickout retention was ${k.retention}% (${k.won}/${k.won+k.lost} known outcomes${k.outOfPlay?`; ${k.outOfPlay} Out of Play / Sideline included as losses`:''}).`);
- if(k.long.won+k.long.lost>=5)observations.push(`Long kickout retention was ${k.long.success}% (${k.long.won}/${k.long.won+k.long.lost} known outcomes).`);
- if(opp.won+opp.lost>=5)observations.push(`${names.opposition} retained ${opp.retention}% of their kickouts; we won ${opp.won}/${opp.won+opp.lost} known outcomes${opp.outOfPlay?` (includes ${opp.outOfPlay} Out of Play / Sideline, not player possession credits)`:''}.`);
- if(location.our?.zones.outside.attempts>=3){const z=location.our.zones.outside;observations.push(`Outside-40m conversion was ${z.conversion}% (${z.successful}/${z.attempts} classifiable attempts).`);}
- const leader=players.filter(p=>p.team==='our'&&p.successful>=3).sort((a,b)=>b.successful-a.successful)[0];
- if(leader&&leader.successful>=stats.our.successful/2)observations.push(`#${leader.number} ${leader.name} accounted for ${leader.successful} of ${stats.our.successful} recorded scores.`);
- return observations.slice(0,5);
+ // A source-PDF snapshot is printed evidence, not an event ledger. Preserve its
+ // explicit observations rather than manufacture event-level interpretation.
+ return data.coachingInsights?data.coachingInsights.observations.map(o=>o.reportText||`${o.title}: ${o.detail}`):[...(data.observations||[])];
 }

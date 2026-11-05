@@ -178,16 +178,12 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
       .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("d"))),
   ).toEqual(arcs);
   await expect(map.locator('[data-marker-kind="miss"]')).toHaveCount(3);
-  await expect(page.locator("[data-observation]")).toHaveCount(3);
-  await expect(page.locator('[data-observation="working"]')).toContainText(
-    "80%",
-  );
-  await expect(page.locator('[data-observation="watch"]')).toContainText(
-    "1 of 5",
-  );
-  await expect(page.locator('[data-observation="opportunity"]')).toContainText(
-    "3/3",
-  );
+  // V0.3.11 shares one selection across Key Observations and Match Flow.
+  const totalFindings=await page.locator('[data-observation], [data-flow-story]').count();
+  expect(totalFindings).toBeLessThanOrEqual(3);
+  await expect(page.locator('[data-observation="opportunity"]')).toContainText('3/3');
+  await expect(page.locator('[data-ht-kpi="our-kickouts"]')).toContainText('80%');
+  await expect(page.locator('[data-ht-kpi="their-kickouts"]')).toContainText('20%');
   await expect(page.locator(".ht-contributors")).toContainText(
     "#4 Casey Defender",
   );

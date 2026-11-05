@@ -130,13 +130,13 @@ test("observation rules are deterministic, evidence-bound and capped at three", 
   const a = halfTimeAnalysis(match(events));
   assert.deepEqual(
     a.observations.map((o) => o.kind),
-    ["working", "watch", "opportunity"],
+    ["opportunity"],
   );
   assert.deepEqual(
     a.observations,
     halfTimeAnalysis(match(events)).observations,
   );
-  assert.match(a.observations[2].detail, /3\/3.*0\/3/);
+  assert.match(a.observations[0].detail, /3\/3.*0\/3/);
 });
 test("editing, deleting and undoing H1 events recomputes all results without mutating a snapshot", () => {
   const m = match([e("goal", { playerNumber: "8" })]);

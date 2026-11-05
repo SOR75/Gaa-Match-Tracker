@@ -112,7 +112,7 @@ test("whole-match observations apply the same sample thresholds to the selected 
   const kinds = analysisForScope(m, "FULL_MATCH").observations.map(
     (o) => o.kind,
   );
-  assert.deepEqual(kinds, ["working", "opportunity"]);
+  assert.deepEqual(kinds, ["opportunity"]);
 });
 test("full-time corrections recalculate scores, contributors and comparison without a cached snapshot", () => {
   const m = coachingMatch(),

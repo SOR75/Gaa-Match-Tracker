@@ -4,8 +4,9 @@ import { coachingDashboard } from "./coaching-dashboard.js";
 
 // Scope selection and match transitions stay outside the reusable dashboard.
 export function halfTimeScreen(match, { actions } = {}) {
+  const data=halfTimeAnalysis(match);
   return `<div class="half-time-view">${coachingDashboard({
-    data: halfTimeAnalysis(match),
+    data,
     scope: "H1",
     ourTeam: match.setup.ourTeam || "Our team",
     oppositionTeam: match.setup.opposition || "Opposition",
@@ -32,5 +33,5 @@ export function halfTimeScreen(match, { actions } = {}) {
             primary: true,
           },
     ],
-  })}${matchFlowMarkup(match,'H1')}</div>`;
+  })}${matchFlowMarkup(match,'H1',data.coachingInsights.flow)}</div>`;
 }
