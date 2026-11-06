@@ -138,7 +138,7 @@ test("V0.3.7 archive upgrades into read-only History with correct analysis, time
   await expect(page.locator(".analysis-view")).toContainText("Nora Defender");
   await expect(page.locator(".analysis-view")).toContainText("Rory Midfield");
   await page
-    .getByRole("button", { name: "Full Match Data", exact: true })
+    .getByRole("button", { name: "Full Match Report", exact: true })
     .first()
     .click();
   await expect(

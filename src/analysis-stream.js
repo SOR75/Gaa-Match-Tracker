@@ -90,11 +90,12 @@ export const TIMELINE_CSV_COLUMNS=[
  ['Score For',e=>e.scoreFor],['Score Against',e=>e.scoreAgainst],['Score Differential',e=>e.scoreDifferential],
  ['Score Value',e=>e.shot?.scoreValue],['Match State',e=>e.matchState],['Valid Derived Fact',e=>e.valid],['Review Reason',e=>e.reviewReason],
  ['Direct Score Link',e=>e.directScoreLink],['Build-up Link',e=>e.buildUpLink],['Notes',e=>e.notes],['Dictated Note',e=>e.details.dictatedNote],['Coach Observation',e=>e.details.coachObservation],['Zone',e=>e.details.zone],['Side',e=>e.details.side],['Attack Pattern',e=>e.details.attackPattern],['Linked Card ID',e=>e.details.cardId],['Possession Result',e=>e.possessionResult],
+ ['Original Event JSON',e=>e.originalEventJSON],
 ];
 // Quote all fields; neutralise spreadsheet formulas in user-supplied text.
 export const csvCell=value=>'"'+(typeof value==='string'?value.replace(/^[\s]*[=+@-]/,s=>"'"+s):String(value??'')).replaceAll('"','""')+'"';
 export function timelineCSV(match){
- const rows=canonicalAnalysisStream(match).map(e=>({...e,teamName:(e.team==='our'?match.setup.ourTeam:match.setup.opposition)||e.team}));
+ const rows=canonicalAnalysisStream(match).map(e=>({...e,teamName:(e.team==='our'?match.setup.ourTeam:match.setup.opposition)||e.team,originalEventJSON:JSON.stringify(match.events[e.recordingIndex])}));
  return '\uFEFF'+[TIMELINE_CSV_COLUMNS.map(([name])=>csvCell(name)).join(','),...rows.map(row=>TIMELINE_CSV_COLUMNS.map(([,get])=>csvCell(get(row))).join(','))].join('\r\n')+'\r\n';
 }
 export function downloadTimelineCSV(match){

@@ -3,7 +3,7 @@ import {mkdir} from 'node:fs/promises';
 import {blankMatch,createEvent,saveEvent} from '../../src/domain.js';
 import {createMatchPlayer,createSquadPlayer} from '../../src/identity.js';
 import {summarize,playerStatistics} from '../../src/analysis.js';
-import {coachReportModel} from '../../src/coach-report.js';
+import {fullMatchReportModel} from '../../src/full-match-report-data.js';
 const root='/workspace/sideline-v039-turnover-review';
 const nav=(p,n)=>p.getByRole('button',{name:n,exact:true}).click();
 const state=p=>p.evaluate(()=>JSON.parse(localStorage.getItem('sideline.match.v1')));
@@ -78,18 +78,17 @@ test('edit counterpart/primary and clear optional credit recalculates analysis w
  await nav(page,'Edit last event');await page.getByLabel('Player who lost possession',{exact:true}).selectOption('');await nav(page,'Save changes');m=await state(page);expect(m.events[0].participants.turnoverLoser).toBeNull();expect(summarize(m.events,'opposition').turnoversLost).toBe(1);expect(playerStatistics(m,'opposition').reduce((n,p)=>n+p.turnoversLost,0)).toBe(0);
  await nav(page,'Undo last event');expect((await state(page)).events).toHaveLength(0);
 });
-test('HT/Full Analysis, Coach Report, Full Match Data, Player Review and native History render paired attribution without a second event',async({page})=>{
+test('HT/Full Analysis, Full Match Report, Player Review and native History render paired attribution without a second event',async({page})=>{
  const original=await seed(page);await capture(page,'turnover-won',8,12);await capture(page,'turnover-lost',10,8);await page.clock.fastForward(4000);
  const m=await state(page);expect(m.events).toHaveLength(2);const before=JSON.stringify(m);
  await nav(page,'HALF-TIME ANALYSIS');await expect(page.locator('[data-ht-kpi="turnovers"]')).toContainText('Won 1');await expect(page.locator('[data-ht-kpi="turnovers"]')).toContainText('Lost 1');await expect(page.locator('.ht-contributors')).toContainText('1 turnovers lost');
- await nav(page,'Return to Live Match');await nav(page,'Match analysis');await nav(page,'Coach Report');await expect(page.locator('[data-coach-page="1"]')).toContainText('Turnovers won / lost');
- const rows=page.locator('[data-coach-page="1"] tr').filter({hasText:'Turnovers won / lost'});await expect(rows).toContainText('1/1');await page.locator('[data-coach-page="1"]').screenshot({path:`${root}/04-coach-report-reconciled-turnovers.png`});
- const contributions=page.locator('[data-coach-page="4"]');await expect(contributions).toContainText('Home Player 8');await expect(contributions).toContainText('Away Player 12');await expect(contributions).toContainText('TO won');await expect(contributions).toContainText('TO lost');await contributions.screenshot({path:`${root}/05-player-contributions-both-sides.png`});
- const model=coachReportModel(m);expect(model.stats.our.turnoversWon).toBe(model.stats.opposition.turnoversLost);
- await nav(page,'Full Match Data');const eventSection=page.locator('.player-event-section');await expect(eventSection).toContainText('Home Player 8');await expect(eventSection).toContainText('Away Player 12');await expect(eventSection).toContainText('TO won');await expect(eventSection).toContainText('TO lost');
+ await nav(page,'Return to Live Match');await nav(page,'Match analysis');await nav(page,'Full Match Report');
+ for(const label of ['Turnovers won','Turnovers lost']){const row=page.locator('.report-view tr').filter({has:page.getByRole('rowheader',{name:label,exact:true})}).first();await expect(row.locator('td')).toHaveText(['1','1']);}
+ const model=fullMatchReportModel(m);expect(model.stats.our.turnoversWon).toBe(model.stats.opposition.turnoversLost);
+ const eventSection=page.locator('.player-event-section');await expect(eventSection).toContainText('Home Player 8');await expect(eventSection).toContainText('Away Player 12');await expect(eventSection).toContainText('TO won');await expect(eventSection).toContainText('TO lost');
  await nav(page,'Player Review');await page.locator('#review-player').selectOption(original.players[7].playerId);await expect(page.locator('[data-review-match]')).toContainText('1 TO won');await expect(page.locator('[data-review-metric="contributions"]')).toHaveText('0 / 1 / 0');
  expect(JSON.stringify(await state(page))).toBe(before);
- await page.evaluate(m=>{localStorage.setItem('sideline.match.archive.'+m.id,JSON.stringify(m));localStorage.setItem('sideline.match.v1',JSON.stringify({...m,id:'turnover-review-current',events:[]}));},m);await page.reload();await nav(page,'Match History');const card=page.locator(`[data-history-id="${m.id}"]`);await card.getByRole('button',{name:'VIEW MATCH',exact:true}).click();await page.locator('.history-tabs').getByRole('button',{name:'Coach Report',exact:true}).click();await expect(page.locator('[data-coach-page="1"] tr').filter({hasText:'Turnovers won / lost'})).toContainText('1/1');
+ await page.evaluate(m=>{localStorage.setItem('sideline.match.archive.'+m.id,JSON.stringify(m));localStorage.setItem('sideline.match.v1',JSON.stringify({...m,id:'turnover-review-current',events:[]}));},m);await page.reload();await nav(page,'Match History');const card=page.locator(`[data-history-id="${m.id}"]`);await card.getByRole('button',{name:'VIEW MATCH',exact:true}).click();await page.locator('.history-tabs').getByRole('button',{name:'Full Match Report',exact:true}).click();await expect(page.locator('.report-view tr').filter({has:page.getByRole('rowheader',{name:'Turnovers won',exact:true})}).first().locator('td')).toHaveText(['1','1']);
  expect((await state(page)).events).toHaveLength(0);
 });
 test('no squad numbers plus Other number are optional away and required home without artificial squad records',async({page})=>{
@@ -107,7 +106,7 @@ test('timestamp is captured on opening; closing is harmless and running clock co
 test('unmarked historical 3/0 versus 2/1 survives generic editing, report and reload without automatic pairing',async({page})=>{
  const m=await seed(page);for(const [team,type,count,n] of [['our','turnover-won',3,'8'],['opposition','turnover-won',2,'8'],['opposition','turnover-lost',1,'12']])for(let i=0;i<count;i++)m.events=saveEvent(m.events,{...createEvent(m,type,team),playerNumber:n},m);
  await page.evaluate(m=>localStorage.setItem('sideline.match.v1',JSON.stringify(m)),m);await page.reload();await nav(page,'Live match');const before=(await state(page)).events;
- await nav(page,'Edit last event');await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();await nav(page,'Match analysis');await nav(page,'Coach Report');
- const row=page.locator('[data-coach-page="1"] tr').filter({hasText:'Turnovers won / lost'});await expect(row).toContainText('3/0');await expect(row).toContainText('2/1');expect((await state(page)).events).toEqual(before);expect(before.every(e=>e.pairedTurnoverVersion===undefined)).toBe(true);
+ await nav(page,'Edit last event');await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();await nav(page,'Match analysis');await nav(page,'Full Match Report');
+ for(const [label,values]of [['Turnovers won',['3','2']],['Turnovers lost',['0','1']]])await expect(page.locator('.report-view tr').filter({has:page.getByRole('rowheader',{name:label,exact:true})}).first().locator('td')).toHaveText(values);expect((await state(page)).events).toEqual(before);expect(before.every(e=>e.pairedTurnoverVersion===undefined)).toBe(true);
  await page.reload();expect((await state(page)).events).toEqual(before);
 });

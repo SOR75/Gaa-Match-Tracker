@@ -1,4 +1,5 @@
 // Shared read-only coaching interpretation. No capture defaults or stored fields.
+import {smallKickoutContext} from './report-evidence.js';
 import {matchFlow,mergeStories} from './match-flow.js';
 import {summarize,percentage} from './analysis.js';
 import {shotLocationAnalysis} from './shot-location-analysis.js';
@@ -13,10 +14,10 @@ const finiteTime=e=>Number.isFinite(e.periodTimeMs)&&e.scoreOrderKnown!==false;
 const refKey=p=>p?`${p.team}:${p.playerId?'player:'+p.playerId:p.matchPlayerId?'match:'+p.matchPlayerId:p.jerseyNumber!==null?'legacy:'+p.jerseyNumber:''}`:null;
 const playerLabel=p=>[p.jerseyNumber!==null?'#'+p.jerseyNumber:'',(p.name||p.nameSnapshot)].filter(Boolean).join(' ')||'Recorded player';
 const totalRate=(events,team)=>summarize(events,team);
-function finding(stream,{id,dimension,team,title,detail,evidence,significance=15,polarity='positive',topic=id,playerKey=null}){
+function finding(stream,{id,dimension,team,title,detail,evidence,significance=15,polarity='positive',topic=id,playerKey=null,priority=null}){
  const ids=new Set(evidence),rows=stream.filter(e=>e.valid&&ids.has(e.id));if(!rows.length)return null;
  const at=e=>({id:e.id,period:e.period,timeMs:e.periodTimeMs,continuousTimeMs:e.continuousTimeMs});
- return {id:`insight:${id}:${team}`,family:id,families:[id],dimension,team,title,detail,topic,playerKey,significance,polarity,
+ return {id:`insight:${id}:${team}`,family:id,families:[id],dimension,team,title,detail,topic,playerKey,significance,priority,polarity,
   kind:id.startsWith('zone-')||id.startsWith('kickout-length')?'opportunity':polarity==='problem'?'watch':'working',presentation:'summary',confidence:'OBSERVED',evidenceType:'RECORDED_COMPARISON',
   reportText:`${title}: ${detail.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim()||detail}`,
   evidenceIds:rows.map(e=>e.id),window:{from:at(rows[0]),to:at(rows.at(-1))},from:rows[0].index,to:rows.at(-1).index,supporting:[]};
@@ -109,7 +110,7 @@ function defensiveAndPlayer(match,stream,scope,flow){
     detail:`${category==='Marks'?`${ids.length} kickout Marks: `:''}${playerLabel(p)} accounted for ${ids.length} of ${teamIds.size} attributed ${category}${!(g.categories.get('scores')?.size)?', without a recorded score':''}.${spell?' At least two occurred during the recorded '+spell.title.toLowerCase()+'.':''} These are recorded actions, not a player rating.${context}`,evidence:ids,significance:15+(spell?2:0),polarity:team==='our'?'positive':'problem'}));
   }
   const kept=[...(g.categories.get('retained goalkeeper kickouts')||[])],taken=stream.filter(e=>e.valid&&e.kickout&&refKey(e.goalkeeper)===g.key&&['won','lost','out-of-play'].includes(e.kickout.outcome));
-  if(taken.length>=8&&kept.length/taken.length>=.75)result.push(finding(stream,{id:'keeper-'+g.key,topic:'player-'+g.key,dimension:'kickouts',playerKey:g.key,team,title:`${playerLabel(p)} — goalkeeper restart contribution`,detail:`${kept.length}/${taken.length} kickouts with known outcomes were retained while ${playerLabel(p)} was the recorded goalkeeper. This does not identify the receiver or establish a scoring chain.`,evidence:taken.map(e=>e.id),significance:15,polarity:team==='our'?'positive':'problem'}));
+  if(taken.length>=8&&kept.length/taken.length>=.75)result.push(finding(stream,{id:'keeper-'+g.key,topic:'player-'+g.key,dimension:'kickouts',playerKey:g.key,team,title:`Team restart outcomes with ${playerLabel(p)} in goal`,detail:`${kept.length}/${taken.length} kickouts with known outcomes were retained while ${playerLabel(p)} was the recorded goalkeeper. These are team outcomes during a recorded goalkeeper stint, not evidence of individual distribution quality or a scoring chain.`,evidence:taken.map(e=>e.id),significance:15,priority:13,polarity:team==='our'?'positive':'problem'}));
  }
  for(const team of ['our','opposition'])for(const category of ['turnovers','interceptions','blocks'])if(scope==='FULL_MATCH'){
   // Team comparison includes unattributed factual actions, not just roster rows.
@@ -154,5 +155,5 @@ export function coachingInsights(match,{scope='FULL_MATCH'}={}){
  const evidenceFlow={...flow,observations:eligible};
  const players=defensiveAndPlayer(match,flow.stream,scope,evidenceFlow),candidates=[...flowFindings(evidenceFlow),...attacking(match,flow.stream,events,scope),...kickouts(match,flow.stream,scope),...players.result];
  const observations=selectCoachingFindings(candidates,scope==='FULL_MATCH'?5:3);
- return {scope,stream:flow.stream,candidates,observations,flow:{...flow,observations:observations.filter(o=>o.presentation==='flow')},players:players.players};
+ return {scope,stream:flow.stream,candidates,observations,context:scope==='FULL_MATCH'?smallKickoutContext(events,match.setup):[],flow:{...flow,observations:observations.filter(o=>o.presentation==='flow')},players:players.players};
 }

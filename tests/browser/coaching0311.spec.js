@@ -10,10 +10,10 @@ test('actual Full-Time explains volume/conversion with a single global limit and
  await page.locator('.ht-observations summary').first().click();const ids=await page.locator('[data-insight-evidence]').evaluateAll(ns=>ns.map(n=>n.dataset.insightEvidence));expect(ids.length).toBeGreaterThan(0);expect(ids.every(id=>m.events.some(e=>e.id===id))).toBe(true);
  expect(await state(page)).toBe(before);
 });
-test('printable report shares Full-Time findings without new pages or changing current/history data',async({page})=>{
+test('Full-Time retains interpreted findings while the sole report is factual and preserves current/history data',async({page})=>{
  const m=attacking0311(),before=await open(page,m);const titles=await page.locator('[data-observation] h3, [data-flow-story] h3').allTextContents();
- await page.locator('.history-tabs').getByRole('button',{name:'Coach Report',exact:true}).click();await expect(page.locator('.coach-page')).toHaveCount(5);
- for(const title of titles)await expect(page.locator('[data-coach-page="1"] .coach-observations')).toContainText(title);
+ await page.locator('.history-tabs').getByRole('button',{name:'Full Match Report',exact:true}).click();await expect(page.locator('.report-view')).toBeVisible();
+ for(const title of titles)await expect(page.locator('.report-view')).not.toContainText(title);await expect(page.locator('[data-report-ledger]')).toHaveCount(0);await expect(page.getByRole('button',{name:'Download Timeline CSV',exact:true})).toBeVisible();
  expect(await state(page)).toBe(before);
 });
 test('kickout evidence shows known denominators, unknown exclusion and length contrast',async({page})=>{

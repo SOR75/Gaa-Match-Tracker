@@ -265,7 +265,7 @@ test("real New Match → saved team setup → automatic GK periods: 4/3 kickouts
       }),
     });
   await expect(row.getByRole("cell").first()).toHaveText("7");
-  await nav(page, "Full Match Data");
+  await nav(page, "Full Match Report");
   await expect(a.locator('[data-gk-metric="conceded"]')).toHaveText("1");
   await expect(b.locator('[data-gk-metric="taken"]')).toHaveText("3");
   const saved = await state(page);

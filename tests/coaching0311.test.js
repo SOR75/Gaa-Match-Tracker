@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {coachingInsights,recordedPlayerInfluence,selectCoachingFindings} from '../src/coaching-insights.js';
 import {canonicalAnalysisStream} from '../src/analysis-stream.js';
 import {analysisForScope} from '../src/half-time.js';
-import {coachReportModel} from '../src/coach-report.js';
+import {fullMatchReportModel} from '../src/full-match-report-data.js';
 import {halfTimeScreen} from '../src/half-time-ui.js';
 import {fullTimeScreen} from '../src/full-time-ui.js';
 import {matchFlow} from '../src/match-flow.js';
@@ -121,9 +121,9 @@ test('the global observation limit spans dashboard and Match Flow: FT five, HT t
  const html=fullTimeScreen(m);assert.ok((html.match(/data-observation=/g)||[]).length+(html.match(/data-flow-story/g)||[]).length<=5);
  assert.ok(halfTimeScreen(m).includes('START SECOND HALF')||halfTimeScreen(m).includes('Second half started'));
 });
-test('Coach Report and Full-Time use the exact same selected findings',()=>{
- const m=attacking0311(),a=analysisForScope(m,'FULL_MATCH'),r=coachReportModel(m);
- assert.deepEqual(r.coachingInsights.observations.map(o=>o.id),a.coachingInsights.observations.map(o=>o.id));assert.deepEqual(r.observations,a.coachingInsights.observations.map(o=>o.reportText||`${o.title}: ${o.detail}`));
+test('Full-Time keeps interpretation while the factual report has the same statistical totals',()=>{
+ const m=attacking0311(),a=analysisForScope(m,'FULL_MATCH'),r=fullMatchReportModel(m);
+ assert.deepEqual(r.stats.our,a.our);assert.equal(r.coachingInsights,undefined);assert.equal(r.observations,undefined);assert.ok(a.coachingInsights.observations.length);
 });
 test('invalid facts remain excluded and original IDs are retained as evidence',()=>{
  const m=flowMatch({lineup:true});let e=addFlow(m,'booked','our',1,1,{playerNumber:'8',disciplineVersion:1,matchCode:'LGFA',card:'red'});m.events[0]=bindEventParticipants(e,null,m);
@@ -148,7 +148,7 @@ test('ET remains in full-match totals but never becomes H1/H2 attack-comparison 
  assert.deepEqual(candidates(m,'attacking-halves')[0].evidenceIds,before.evidenceIds);assert.equal(analysisForScope(m,'FULL_MATCH').our.total,41);
 });
 test('scoped insights and reports do not mutate saved events, squads, clock or schema',()=>{
- const m=attacking0311(),raw=JSON.stringify(m);all(m);analysisForScope(m,'H1');analysisForScope(m,'FULL_MATCH');coachReportModel(m);fullTimeScreen(m);assert.equal(JSON.stringify(m),raw);
+ const m=attacking0311(),raw=JSON.stringify(m);all(m);analysisForScope(m,'H1');analysisForScope(m,'FULL_MATCH');fullMatchReportModel(m);fullTimeScreen(m);assert.equal(JSON.stringify(m),raw);
 });
 
 test('identical period/length kickout evidence becomes one finding with supporting contrast',()=>{

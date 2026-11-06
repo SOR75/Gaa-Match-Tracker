@@ -4067,3 +4067,60 @@ dialog::backdrop {
   min-width: 76px;
   min-height: 44px;
 }
+
+/* Detailed report print only; no live-match or screen styling changes. */
+@media print {
+ .report-view .table-scroll table{font-size:9.5pt;table-layout:fixed;break-inside:auto}
+ .report-view .table-scroll table.report-table-short{break-inside:avoid}
+ .report-view .table-scroll th:first-child,.report-view .table-scroll td:first-child{width:22%}
+ .report-view .table-scroll th,.report-view .table-scroll td{padding:5px 4px;overflow-wrap:break-word}
+ .report-view .analysis-section h2,.report-view .analysis-section h3{break-after:avoid;break-inside:avoid}
+ .report-view .analysis-map-layout,.report-view .gaelic-pitch{break-inside:avoid}
+ .report-view p,.report-view li{orphans:3;widows:3}
+ .report-view .history-tabs{display:none!important}
+}
+
+@media print {
+ .report-view .table-scroll table { table-layout:auto; }
+ .report-view .table-scroll th:first-child,.report-view .table-scroll td:first-child { width:auto; }
+ .report-view .table-scroll { break-inside:auto; }
+ .report-view .table-scroll:has(.report-table-short) { break-inside:avoid; }
+}
+@media print {
+ .report-view .analysis-section { padding-bottom:8px; margin-bottom:10px; }
+ .report-view .analysis-section h2 { margin-top:12px; margin-bottom:8px; }
+ .report-view .table-scroll th,.report-view .table-scroll td { padding:4px; }
+ .report-view>.small-note { margin:6px 0; }
+}
+/* Factual report ledger: the PDF uses ordinary visible content, not collapsed details. */
+.report-event-details { font-size:12px; line-height:1.5; }
+.report-ledger td { white-space:normal; }
+@media print {
+ body:has(.report-view) .history-view>.page-heading,
+ body:has(.report-view) .history-readonly,
+ body:has(.report-view) .history-tabs { display:none!important; }
+ .report-view .report-ledger { font-size:9.5pt; }
+ .report-view .report-ledger th:first-child { width:13%; }
+ .report-view .report-ledger th:nth-child(2) { width:16%; }
+ .report-view .report-event-details { font-size:9.5pt; }
+ .report-view .report-ledger small { font-size:8pt; }
+ .report-view .report-ledger tr { break-inside:avoid; }
+}
+/* Report-only related tables share space; no live or analysis dashboard layout change. */
+.report-view .report-pair { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px; }
+.report-view .report-pair>div { min-width:0; }
+@media(max-width:750px){.report-view .report-pair{grid-template-columns:1fr}}
+@media print {
+ .report-view .report-pair { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px; }
+ .report-view .report-pair h3 { margin:6px 0; }
+ .report-view .goalkeeper-card { padding:10px; border-radius:6px; }
+ .report-view .goalkeeper-card dl { gap:2px; margin-top:6px; }
+ .report-view .goalkeeper-card dt,.report-view .goalkeeper-card dd { font-size:9.5pt; line-height:1.25; }
+ .report-view .goalkeeper-card h3 { font-size:11pt; }
+ .report-view .goalkeeper-card p { margin:6px 0; }
+}
+@media print {
+ /* Paired short tables keep readable type while avoiding a few orphan rows. */
+ .report-view .report-pair table { line-height:1.35; }
+ .report-view .report-pair table th,.report-view .report-pair table td { padding:2px 4px; }
+}

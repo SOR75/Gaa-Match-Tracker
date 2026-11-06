@@ -5,7 +5,7 @@ import { createMatchPlayer, createSquadPlayer, participantRef } from '../src/ide
 import { pairedTurnoverFields } from '../src/turnovers.js';
 import { summarize, playerStatistics } from '../src/analysis.js';
 import { playerReviews } from '../src/player-insights.js';
-import { coachReportModel } from '../src/coach-report.js';
+import { fullMatchReportModel } from '../src/full-match-report-data.js';
 import { playerReportContributions, reportPlayerStatistics } from '../src/report-player-data.js';
 import { analysisForScope } from '../src/half-time.js';
 import { historySnapshot, completeMatch } from '../src/history.js';
@@ -78,9 +78,9 @@ test('HT/FT, Coach Report and Full Match Data share paired totals and explicitly
  const m=make();paired(m,'turnover-won','8','12');m.clock.half=2;paired(m,'turnover-lost','10','8');
  const before=JSON.stringify(m);
  for(const scope of ['H1','FULL_MATCH']){const d=analysisForScope(m,scope);assert.equal(d.our.turnoversWon,1);assert.equal(d.opposition.turnoversLost,1);assert.equal(d.our.turnoversLost,scope==='H1'?0:1);}
- const d=coachReportModel(m);assert.equal(d.eventCount,2);assert.equal(d.stats.our.turnoversWon,d.stats.opposition.turnoversLost);assert.equal(d.stats.our.turnoversLost,d.stats.opposition.turnoversWon);
+ const d=fullMatchReportModel(m);assert.equal(d.eventCount,2);assert.equal(d.stats.our.turnoversWon,d.stats.opposition.turnoversLost);assert.equal(d.stats.our.turnoversLost,d.stats.opposition.turnoversWon);
  const row=reportPlayerStatistics(m,'opposition').find(p=>p.number==='12');assert.deepEqual(playerReportContributions(row),[{label:'TO lost',value:'1'}]);
- const archived=historySnapshot({match:completeMatch(m)});assert.deepEqual(archived.events,m.events);assert.equal(coachReportModel(archived).stats.opposition.turnoversWon,1);assert.equal(JSON.stringify(m),before);
+ const archived=historySnapshot({match:completeMatch(m)});assert.deepEqual(archived.events,m.events);assert.equal(fullMatchReportModel(archived).stats.opposition.turnoversWon,1);assert.equal(JSON.stringify(m),before);
 });
 test('Player Review aggregates linked turnover roles across matches and jersey changes, never by jersey/name similarity',()=>{
  const a=make(),b=make();b.players[0]={...b.players[0],playerId:a.players[7].playerId,name:a.players[7].name,number:23};

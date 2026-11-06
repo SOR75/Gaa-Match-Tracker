@@ -23,7 +23,7 @@ test('historical Full-Time preserves cross-half scoring and long-gap factual res
  await expect(page.locator('[data-match-flow]')).toContainText('not continuous possession or tactical causation');
  expect(await raw(page)).toBe(original);
 });
-test('real Full-Time and Coach Report exclude invalid scoring facts without rewriting the historical ledger',async({page})=>{
+test('real Full-Time and Full Match Report exclude invalid scoring facts without rewriting the historical ledger',async({page})=>{
  const m=flowMatch({lineup:true});
  let e=addFlow(m,'booked','our',1,1,{playerNumber:'8',disciplineVersion:1,matchCode:'LGFA',card:'red'});m.events[0]=bindEventParticipants(e,null,m);
  e=addFlow(m,'goal','our',10,1,{playerNumber:'8'});m.events[1]=bindEventParticipants(e,null,m);
@@ -31,10 +31,10 @@ test('real Full-Time and Coach Report exclude invalid scoring facts without rewr
  const before=await openFull(page,m);
  await expect(page.locator('[data-ht-score="our"]')).toHaveText('0-01 (1)');
  await expect(page.locator('[data-ht-kpi="shooting"]')).toContainText('1 / 1');
- await page.locator('.history-tabs').getByRole('button',{name:'Coach Report',exact:true}).click();
- await expect(page.locator('[data-coach-page="1"] .coach-score')).toContainText('0-1');
- await expect(page.locator('[data-coach-page="1"] .coach-score')).not.toContainText('1-1');
- await expect(page.locator('[data-coach-page="4"]')).not.toContainText('Score 1-0');
+ await page.locator('.history-tabs').getByRole('button',{name:'Full Match Report',exact:true}).click();
+ await expect(page.locator('.analysis-scores')).toContainText('0-1');
+ await expect(page.locator('.analysis-scores')).not.toContainText('1-1');
+ await expect(page.locator('.player-shooting-section')).not.toContainText('Score 1-0');
  expect(await raw(page)).toBe(before);
 });
 test('incidental recording leaves the actual ranked Full-Time story order unchanged',async({page})=>{

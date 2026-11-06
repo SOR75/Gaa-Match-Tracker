@@ -79,12 +79,11 @@ export function createHistoryUI({
         ["half", "Half-Time Analysis"],
         ["timeline", "Timeline"],
         ["detail", "Player stats / shot maps / kickouts"],
-        ["coach", "Coach Report"],
-        ["data", "Full Match Data"],
+        ["data", "Full Match Report"],
       ]
         .map(
           ([id, label]) =>
-            `<button class="button ${(panel === id && !report) || ((id === "coach" || id === "data") && report === id) ? "primary" : "subtle"}" data-history-action="panel" data-panel="${id}">${label}</button>`,
+            `<button class="button ${(panel === id && !report) || (id === "data" && report === id) ? "primary" : "subtle"}" data-history-action="panel" data-panel="${id}">${label}</button>`,
         )
         .join("")}</nav>${body}</section>`;
     }
@@ -108,8 +107,8 @@ export function createHistoryUI({
     }
     if (action === "panel") {
       panel =
-        ["coach", "data"].includes(button.dataset.panel) ? "detail" : button.dataset.panel;
-      report = ["coach", "data"].includes(button.dataset.panel) ? button.dataset.panel : false;
+        ["data"].includes(button.dataset.panel) ? "detail" : button.dataset.panel;
+      report = ["data"].includes(button.dataset.panel) ? button.dataset.panel : false;
       onChange();
       return;
     }
@@ -130,10 +129,10 @@ export function createHistoryUI({
       }
       return;
     }
-    if (["match-report", "coach-report", "full-match-data", "analysis-back", "print-report"].includes(action)) {
+    if (["match-report", "full-match-data", "analysis-back", "print-report"].includes(action)) {
       if (action === "print-report") window.print();
       else {
-        report = action === "full-match-data" ? "data" : action === "analysis-back" ? false : "coach";
+        report = action === "analysis-back" ? false : "data";
         onChange();
       }
       return;

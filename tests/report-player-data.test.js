@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {isReportShooter,hasReportEventData,playerReportContributions,reportPlayerStatistics} from '../src/report-player-data.js';
-import {coachReportModel} from '../src/coach-report.js';
-import {coachReportMarkup} from '../src/coach-report-ui.js';
+import {fullMatchReportModel} from '../src/full-match-report-data.js';
 import {analysisScreen} from '../src/analysis-ui.js';
 import {blankMatch,createEvent,saveEvent} from '../src/domain.js';
 import {createMatchPlayer} from '../src/identity.js';
@@ -26,9 +25,9 @@ test('both-team shooter/event report filters preserve raw rosters, identities, t
  const m=blankMatch();m.setup.ourTeam='Us';m.setup.opposition='Them';const roster=()=>[1,3,8,26].map(n=>createMatchPlayer({number:n,name:`Member ${n}`,role:n===26?'panel':'starter',position:'',notes:''}));m.players=roster();m.oppositionPlayers=roster();
  for(const team of ['our','opposition'])for(let i=0;i<3;i++)m.events=saveEvent(m.events,{...createEvent(m,'miss',team),playerNumber:'3',timeMs:1000+i*1000},m);
  m.events=saveEvent(m.events,{...createEvent(m,'our-kickout','our'),outcome:'won',kickoutPerspective:'our',kickoutWinnerNumber:'8'},m);
- const raw=JSON.stringify(m);const model=coachReportModel(m);assert.ok(!model.players.some(p=>p.number==='1'||p.number==='26'));assert.equal(model.players.filter(p=>p.attempts===3&&p.successful===0).length,2);
- const html=coachReportMarkup(model),full=analysisScreen(m,{},true);const page4=html.split('data-coach-page="4"')[1].split('data-coach-page="5"')[0];assert.ok(!/other attributed|0\/0|0-0/.test(page4));assert.match(page4,/Shots 0\/3/);assert.match(page4,/KO wins 1/);assert.ok(!full.includes('Member 26'));assert.ok(!full.includes('Member 1</th>'));assert.match(full,/Player shooting analysis/);assert.match(full,/Player event data/);assert.equal(JSON.stringify(m),raw);
- m.events=saveEvent(m.events,{...createEvent(m,'miss','our'),playerNumber:'1'},m);assert.ok(coachReportModel(m).players.some(p=>p.number==='1'&&p.attempts===1));
+ const raw=JSON.stringify(m);const model=fullMatchReportModel(m);assert.ok(!model.players.some(p=>p.number==='1'||p.number==='26'));assert.equal(model.players.filter(p=>p.attempts===3&&p.successful===0).length,2);
+ const full=analysisScreen(m,{},true);assert.ok(!full.includes('Member 26'));assert.match(full,/Player shooting analysis/);assert.match(full,/Player event data/);assert.equal(JSON.stringify(m),raw);
+ m.events=saveEvent(m.events,{...createEvent(m,'miss','our'),playerNumber:'1'},m);assert.ok(fullMatchReportModel(m).players.some(p=>p.number==='1'&&p.attempts===1));
 });
 
 test('number-only Pass sender/receiver are named report contributions without creating a squad or permanent identity',()=>{

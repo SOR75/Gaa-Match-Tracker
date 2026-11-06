@@ -242,7 +242,7 @@ test("Delete saved squad has explicit Cancel/Delete confirmation and preserves n
     .click();
   await expect(page.locator("[data-ht-score=our]")).toHaveText("0-01 (1)");
 });
-test("Dublin 6/6 retained and #8 on five kickouts visibly enhance the WATCH in Half and Full Match Analysis", async ({
+test("Dublin 6/6 retained and #8 on five kickouts remain visible in shared Half and Full Match findings", async ({
   page,
 }) => {
   const d = fixture();
@@ -262,10 +262,10 @@ test("Dublin 6/6 retained and #8 on five kickouts visibly enhance the WATCH in H
   await nav(page, "Live match");
   await nav(page, "HALF-TIME ANALYSIS");
   let observation = page.locator(".ht-observation.watch").filter({
-    has: page.getByRole("heading", { name: /Opposition kickout.*#8/ }),
+    has: page.getByRole("heading", { name: /#8.*kickout contribution/ }),
   });
   await expect(observation).toHaveCount(1);
-  await expect(observation).toContainText("We won 0 of 6");
+  await expect(page.locator('[data-ht-kpi="their-kickouts"]')).toContainText("Won 0 / 6");
   await expect(observation).toContainText("Dublin retained 6 of 6");
   await expect(observation).toContainText("#8 was credited on 5");
   await nav(page, "Return to Live Match");
@@ -273,7 +273,7 @@ test("Dublin 6/6 retained and #8 on five kickouts visibly enhance the WATCH in H
   await expect(page.getByRole("heading",{name:"Normal-Time Analysis",exact:true})).toBeVisible();
   await nav(page,"Finish as Draw");
   observation = page.locator(".ht-observation.watch").filter({
-    has: page.getByRole("heading", { name: /Opposition kickout.*#8/ }),
+    has: page.getByRole("heading", { name: /#8.*kickout contribution/ }),
   });
   await expect(observation).toContainText("#8 was credited on 5");
 });

@@ -40,12 +40,11 @@ test("physical 3/4 and GK #16 1/2: OOP is one kicking-team loss in both teams, H
  const comparison=page.locator(".ht-comparison tr").filter({has:page.getByRole("rowheader",{name:"Our KO retained",exact:true})});
  await expect(comparison.locator("td")).toHaveText(["75% (3/4)","—","75% (3/4)"]);
  await nav(page,"VIEW DETAILED MATCH REPORT");await checkGK();
- const table=page.locator("section.analysis-section").filter({has:page.getByRole("heading",{name:"Kickout analysis",exact:true})}).getByRole("table");
- const ourRow=table.getByRole("row").filter({has:page.getByRole("rowheader",{name:"Our Kickouts · Home",exact:true})});
- const theirRow=table.getByRole("row").filter({has:page.getByRole("rowheader",{name:"Opposition Kickouts · Away",exact:true})});
- expect((await ourRow.getByRole("cell").allTextContents()).slice(0,5)).toEqual(["4","3","1","0","75%"]);
- expect((await theirRow.getByRole("cell").allTextContents()).slice(0,5)).toEqual(["4","1","3","0","75%"]);
- await expect(ourRow.getByRole("cell").last()).toHaveText("1");await expect(theirRow.getByRole("cell").last()).toHaveText("1");
+ // Report outcomes are now a compact kicking-team summary, separate from lengths.
+ const table=page.locator("section.analysis-section").filter({has:page.getByRole("heading",{name:"Kickout analysis",exact:true})}).getByRole("table").first();
+ const ourRow=table.getByRole("row").filter({has:page.getByRole("rowheader",{name:"Home",exact:true})});
+ const theirRow=table.getByRole("row").filter({has:page.getByRole("rowheader",{name:"Away",exact:true})});
+ for(const row of [ourRow,theirRow])expect((await row.getByRole("cell").allTextContents()).slice(0,5)).toEqual(["4","3/4 · 75%","1","0","1"]);
  // Correct an existing OOP to retained; no new kickout and keeper handover stays intact.
  await nav(page,"Timeline");const oop=captured.events.find(e=>e.event==="our-kickout"&&e.outcome==="out-of-play");await page.locator(`[data-edit-event="${oop.id}"]`).click();await page.getByLabel("Kickout result",{exact:true}).selectOption("won");await nav(page,"Save changes");
  await nav(page,"Match analysis");

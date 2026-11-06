@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {scoringSourceTotals,scoringSourceSummary} from '../src/scoring-sources.js';
 import {reportPlayerStatistics,playerReportContributions} from '../src/report-player-data.js';
 import {summarize} from '../src/analysis.js';
-import {coachReportModel} from '../src/coach-report.js';
-import {coachReportMarkup} from '../src/coach-report-ui.js';
+import {fullMatchReportModel} from '../src/full-match-report-data.js';
+import {analysisScreen} from '../src/analysis-ui.js';
 import {playerReviews} from '../src/player-insights.js';
 import {sourceSquad,sourceMatch,sourceEvent,scoringSourceExample} from './helpers/scoring-source-match.js';
 const row=(m,n)=>reportPlayerStatistics(m,'our').find(p=>p.number===String(n));
@@ -66,14 +66,14 @@ test('same display name never combines permanent players; unlinked legacy source
  const legacy={...sourceEvent(m,10,'point','45')};delete legacy.identityVersion;delete legacy.participants;m.events[m.events.length-1]=legacy;
  const p=playerReviews([{id:m.id,match:m}],[squad]);assert.equal(p.find(p=>p.playerId===squad.players[0].playerId).scoringSources.free.total,1);assert.equal(p.find(p=>p.playerId===squad.players[0].playerId).scoringSources['45'].total,0);assert.equal(p.find(p=>p.playerId===squad.players[1].playerId).scoringSources.penalty.total,3);
 });
-test('Coach Report remains inline and source categories with zero scores are absent; team source totals unchanged',()=>{
+test('Full Match Report preserves full scoring sources without zero source clutter; team totals unchanged',()=>{
  const m=scoringSourceExample(),before=JSON.stringify(m),teamBefore=summarize(m.events,'our');
- const d=coachReportModel(m),html=coachReportMarkup(d);
- assert.match(html,/Score 0-7 \(7\) · 5 Play, 2 Frees · Shots 7\/11/);
- assert.match(html,/Score 1-1 \(4\) · 1-0 Play, 0-1 Free · Shots 2\/2/);
- assert.match(html,/Score 0-2 \(2\) · 0-2 Play \(1 × 2P\) · Shots 1\/1/);
+ const d=fullMatchReportModel(m),html=analysisScreen(m,{},true);
+ assert.match(html,/5 Play, 2 Frees/);
+ assert.match(html,/1-0 Play, 0-1 Free/);
+ assert.match(html,/0-2 Play \(1 × 2P\)/);
  assert.doesNotMatch(html,/0 Penalties|0 Frees|0 45s/);
- assert.equal((html.match(/data-coach-page=/g)||[]).length,5);
+ assert.doesNotMatch(html,/data-coach-page|Coach Report/);
  assert.deepEqual(d.stats.our,teamBefore);assert.deepEqual(teamBefore.scoresBySource,{'45':1,'open-play':7,free:3,penalty:1});assert.equal(teamBefore.total,18);assert.equal(teamBefore.successful,13);assert.equal(teamBefore.attempts,17);
  assert.equal(JSON.stringify(m),before);
 });

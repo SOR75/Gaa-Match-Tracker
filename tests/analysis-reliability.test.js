@@ -4,7 +4,7 @@ import {matchFlow,reconstructPossessions,mergeStories} from '../src/match-flow.j
 import {matchFlowMarkup} from '../src/match-flow-ui.js';
 import {canonicalAnalysisStream,timelineCSV} from '../src/analysis-stream.js';
 import {analysisForScope} from '../src/half-time.js';
-import {coachReportModel} from '../src/coach-report.js';
+import {fullMatchReportModel} from '../src/full-match-report-data.js';
 import {playerStatistics} from '../src/analysis.js';
 import {bindEventParticipants} from '../src/identity.js';
 import {fieldState} from '../src/field-state.js';
@@ -111,7 +111,7 @@ test('invalid attributed scores, kickouts and contributions agree across canonic
  attributed(m,'our-kickout',20,1,{outcome:'won',kickoutPerspective:'our'});
  addFlow(m,'point','our',30);const raw=JSON.stringify(m);
  assert.equal(fieldState(m).invalidEvents.has(bad.id),true);
- const stream=canonicalAnalysisStream(m),dashboard=analysisForScope(m,'FULL_MATCH'),report=coachReportModel(m);
+ const stream=canonicalAnalysisStream(m),dashboard=analysisForScope(m,'FULL_MATCH'),report=fullMatchReportModel(m);
  assert.equal(stream.at(-1).scoreAfter.our,1);assert.equal(stream.find(e=>e.id===bad.id).valid,false);
  for(const s of [dashboard.our,report.stats.our]){assert.equal(s.total,1);assert.equal(s.attempts,1);assert.equal(s.kickouts.total,0);}
  assert.equal(report.sources.our.reduce((n,r)=>n+r.attempts,0),1);
@@ -131,13 +131,13 @@ test('valid H2 return and contributions are evaluated with H1 discipline context
  attributed(m,'discipline-return',600,2,{disciplineVersion:1,cardId:e.id});attributed(m,'point',601,2);
  assert.equal(fieldState(m).invalidEvents.size,0);
  assert.equal(analysisForScope(m,'H2').contributors.find(p=>p.number==='8').successful,1);
- assert.equal(coachReportModel(m).stats.our.successful,1);
+ assert.equal(fullMatchReportModel(m).stats.our.successful,1);
 });
 test('invalid substitution without any versioned card is consistently excluded from analysis',()=>{
  const m=flowMatch({lineup:true});addFlow(m,'substitution','our',1,1,{playerOn:'18',playerOff:'22'});
  assert.equal(canonicalAnalysisStream(m)[0].valid,false);
  assert.equal(analysisForScope(m,'FULL_MATCH').events.length,0);
- assert.equal(coachReportModel(m).substitutions.length,0);
+ assert.equal(fullMatchReportModel(m).substitutions.length,0);
 });
 test('recording extra incidental event types never raises the same scoring phase significance',()=>{
  const sparse=swingMatch(),dense=structuredClone(sparse);
@@ -164,7 +164,7 @@ test('deduplication preserves evidence union, opposite-team stories and unchange
 });
 test('all analysis projections remain read-only with corrected historical facts',()=>{
  const m=flowMatch({lineup:true});red(m);attributed(m,'point',2);const raw=JSON.stringify(m);
- matchFlow(m);analysisForScope(m,'H1');analysisForScope(m,'H2');coachReportModel(m);playerStatistics(m,'our');
+ matchFlow(m);analysisForScope(m,'H1');analysisForScope(m,'H2');fullMatchReportModel(m);playerStatistics(m,'our');
  assert.equal(JSON.stringify(m),raw);
 });
 test('five FT and three HT slots are enforced with more than five independent significant stories',()=>{
@@ -194,7 +194,7 @@ test('deleting a prerequisite substitution excludes its dependent substitution a
  assert.equal(fieldState(m).invalidEvents.size,2);
  assert.equal(canonicalAnalysisStream(m).at(-1).scoreAfter.our,0);
  assert.equal(analysisForScope(m,'H1').our.total,0);
- assert.equal(coachReportModel(m).stats.our.total,0);
+ assert.equal(fullMatchReportModel(m).stats.our.total,0);
 });
 
 test('unknown scoring times remain in totals without an invented ordered run or 00:00',()=>{

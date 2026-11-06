@@ -142,7 +142,7 @@ test("H2 live capture → Full-Time dashboard/comparison → detailed report →
     .getByRole("button", { name: "VIEW DETAILED MATCH REPORT", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Full Match Data", exact: true }),
+    page.getByRole("heading", { name: "Full Match Report", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".analysis-scores")).toContainText("(9)");
   await expect(page.locator(".inline-notice")).toHaveCount(0);

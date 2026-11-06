@@ -15,7 +15,6 @@ import { acceptedEnrichment, enrichmentOptions, withNumberedEventPlayers, retain
 import { APP_VERSION, BUILD_INFO } from "./build-info.js";
 import { registerOfflineApp } from "./pwa-updates.js";
 import { openTurnoverCapture } from "./turnover-capture.js";
-import "./coach-report.css";
 import { openPassCapture } from "./pass-capture.js";
 import { advanceHalfClock } from "./goalkeepers.js";
 import "./goalkeeper.css";
@@ -1026,9 +1025,8 @@ document.addEventListener("click", async (event) => {
       reportMode = "data";
       render();
       break;
-    case "coach-report":
     case "match-report":
-      reportMode = "coach";
+      reportMode = "data";
       render();
       break;
     case "analysis-back":

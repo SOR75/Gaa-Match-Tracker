@@ -37,7 +37,7 @@ for(const first of ['top','bottom'])test(`${first} first-half direction: real bo
  await page.evaluate(()=>navigator.serviceWorker.ready);await page.reload();await page.waitForFunction(()=>!!navigator.serviceWorker.controller);await context.setOffline(true);
  await nav(page,'Match History');const card=page.locator(`[data-history-id="${before.id}"]`);await expect(card).toBeVisible();await card.getByRole('button',{name:'VIEW MATCH',exact:true}).click();await topMarkers(page.getByRole('img',{name:'Full-match shot map',exact:true}),4);
  await nav(page,'Half-Time Analysis');await topMarkers(page.getByRole('img',{name:'First-half shot map',exact:true}),2);
- await nav(page,'Full Match Data');await topMarkers(page.getByRole('img',{name:'Shot map',exact:true}),8);await expect(page.getByText('40m shooting locations',{exact:true})).toBeVisible();expect(JSON.stringify((await state(page)).events)).toBe(raw);
+ await nav(page,'Full Match Report');await topMarkers(page.getByRole('img',{name:'Shot map',exact:true}),8);await expect(page.getByText('40m shooting locations',{exact:true})).toBeVisible();expect(JSON.stringify((await state(page)).events)).toBe(raw);
 });
 test('inside-arc two-pointer remains non-blocking and one scored event, with an explicit location-review warning instead of an invented outside location',async({page})=>{
  await load(page);await shot(page,'our',1,'two-point','top',.18);const before=await state(page);expect(before.events).toHaveLength(1);expect(before.events[0].outcome).toBe('scored');await nav(page,'HALF-TIME ANALYSIS');
