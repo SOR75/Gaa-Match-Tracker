@@ -1,3 +1,4 @@
+import './report-print.js';
 import {reportStatus,SHOT_CATEGORY_NOTE} from './report-evidence.js';
 import {reportKickoutTables,reportHalfComparison,reportScoringTimeline} from './report-tables-ui.js';
 import {periodId} from "./periods.js";
@@ -160,6 +161,7 @@ export function analysisScreen(
       ],
     ) +
       `<p class="small-note">${report?esc(SHOT_CATEGORY_NOTE)+' ':''}Conversion = successful attempts ÷ recorded attempts. Wides count only shots explicitly marked Wide; blocked attempts remain unsuccessful shots but are not wides. Possession events are counts only; no possession percentage is inferred.</p>`,
+    report ? "report-team-comparison" : "",
   )}
   ${section(
     "Shot map",

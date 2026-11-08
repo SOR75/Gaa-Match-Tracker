@@ -4159,3 +4159,46 @@ dialog::backdrop {
   .report-view .goalkeeper-cards { display: block; columns: 2; column-gap: 14px; }
   .report-view .goalkeeper-card { break-inside: avoid; margin-bottom: 8px; }
 }
+
+/* Section-aware Full Match Report pagination; all screen rules are unchanged. */
+@media print {
+  @page { size: A4 landscape; margin: 14mm; }
+  .report-view .report-print-fit {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .report-view .report-print-continuation {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+  /* Avoid grid fragmentation only when the complete section exceeds a page. */
+  .report-view .report-print-continuation > .report-pair { display: block; }
+  .report-view .goalkeeper-cards { display: block; columns: auto; break-after: avoid; }
+  .report-view [data-print-keeper-pair] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .report-view [data-print-keeper-pair]:last-child { break-after: avoid; }
+  .report-view .goalkeeper-card { padding: 8px; margin: 0; }
+  .report-view .goalkeeper-card h3 { font-size: 10.5pt; }
+  .report-view .goalkeeper-card dl { gap: 1px; margin-top: 4px; }
+  .report-view .goalkeeper-card dt,
+  .report-view .goalkeeper-card dd { font-size: 9pt; line-height: 1.2; }
+  .report-view .goalkeeper-card p { margin: 4px 0; }
+  .report-view .goalkeeper-card.report-print-continuation { break-inside: auto; }
+  .report-view .report-team-comparison table { line-height: 1.3; }
+  .report-view .report-team-comparison th,
+  .report-view .report-team-comparison td { padding: 2px 4px; }
+  .report-view thead,
+  .report-view caption { break-after: avoid; page-break-after: avoid; }
+  .report-view tbody tr:first-child { break-before: avoid; page-break-before: avoid; }
+  .report-view tbody tr:nth-last-child(2) { break-after: avoid; page-break-after: avoid; }
+  .report-view tbody tr:last-child { break-before: avoid; page-break-before: avoid; }
+  .report-view .table-scroll:has(+ p) { break-after: avoid; }
+  .report-view .table-scroll + p,
+  .report-view [data-goalkeepers] > p { break-before: avoid; }
+  .report-view .analysis-section > h2 + p,
+  .report-view .report-participation-team > h3 + p { break-after: avoid; }
+}
