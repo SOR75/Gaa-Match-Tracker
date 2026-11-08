@@ -7,10 +7,10 @@ import { esc } from "./ui.js";
 export function attributionRoster(
   match,
   team,
-  { includePanel = true, includeInactive = false } = {},
+  { includePanel = true, includeInactive = false, beforeEvent = null } = {},
 ) {
   const roster = playersFor(match, team);
-  const active = onFieldKeys(match, team);
+  const active = onFieldKeys(match, team, { beforeEvent });
   const players = roster
     .filter(
       (p) =>

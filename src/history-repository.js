@@ -219,25 +219,62 @@ export function createHistoryRepository({
     };
     return await replace(current, next);
   }
-  async function remove(id, current) {
-    if (id === current.id)
-      throw Error("The active match cannot be deleted from History");
+  async function removeMany(ids, current) {
+    const selected = [...new Set(ids)];
+    if (!selected.length) throw Error("Select at least one archived match");
+    const assertArchived = () => {
+      const active = storage.getItem(ACTIVE_KEY);
+      const activeId = active ? JSON.parse(active).id : current.id;
+      if (selected.includes(current.id) || selected.includes(activeId))
+        throw Error("The active match cannot be deleted from History");
+    };
+    assertArchived();
     const state = await list();
     if (!state.writable)
       throw Error("History storage is unavailable. No match was deleted.");
-    const record = await get(id);
-    if (!record || record.deleted)
-      throw Error("Match no longer exists in History");
-    // A verified durable copy exists before removing a legacy source. If the
-    // subsequent transaction fails, that copy remains available for recovery.
-    validate(record);
-    storage.removeItem(ARCHIVE_PREFIX + id);
-    await put({
-      repositoryVersion: 1,
-      id,
-      deleted: true,
-      deletedAt: new Date(now()).toISOString(),
-    });
+    const originals = new Map();
+    try {
+      await transaction("readwrite", (store, _done, fail) => {
+        const found = new Map();
+        for (const id of selected) {
+          const request = store.get(id);
+          request.onsuccess = () => {
+            try {
+              const record = request.result;
+              if (!record || record.deleted) throw Error("Match no longer exists in History. No matches were deleted.");
+              validate(record);
+              found.set(id, record);
+              if (found.size !== selected.length) return;
+              // Re-check after asynchronous discovery and within the batch.
+              assertArchived();
+              // Durable originals already exist in this transaction. A source
+              // cleanup or tombstone-write failure aborts ALL logical deletions.
+              for (const key of selected) {
+                const legacyKey = ARCHIVE_PREFIX + key;
+                const raw = storage.getItem(legacyKey);
+                if (raw !== null) {
+                  originals.set(legacyKey, raw);
+                  storage.removeItem(legacyKey);
+                }
+              }
+              const deletedAt = new Date(now()).toISOString();
+              for (const key of selected) store.put({ repositoryVersion: 1, id: key, deleted: true, deletedAt });
+            } catch (error) { fail(error); }
+          };
+        }
+      });
+    } catch (error) {
+      // localStorage and IndexedDB cannot share a transaction. Restore removed
+      // legacy sources on abort; verified IndexedDB copies also remain intact.
+      let recoveryFailed = false;
+      for (const [key, raw] of originals) {
+        try { if (storage.getItem(key) === null) storage.setItem(key, raw); }
+        catch { recoveryFailed = true; }
+      }
+      throw Error(`${message(error)}${message(error).includes("No matches were deleted") ? "" : " No matches were deleted."}${recoveryFailed ? ' Legacy source restoration failed; original match copies remain in IndexedDB History.' : ''}`);
+    }
+    return selected;
   }
-  return { list, startNew, resume, remove };
+  const remove = (id, current) => removeMany([id], current);
+  return { list, startNew, resume, remove, removeMany };
 }

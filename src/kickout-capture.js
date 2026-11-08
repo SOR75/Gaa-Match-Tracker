@@ -10,7 +10,7 @@ import { kickoutChoices, kickoutDetails } from "./kickouts.js";
 import { eventType, formatTime } from "./domain.js";
 import { esc } from "./ui.js";
 import { noteMarkup, bindSpeech } from "./speech.js";
-export function kickoutFieldsMarkup(event, match) {
+export function kickoutFieldsMarkup(event, match, rosterOptions = {}) {
   const data = kickoutDetails(event);
   if (!data) return "";
   const selected =
@@ -21,7 +21,7 @@ export function kickoutFieldsMarkup(event, match) {
   const ownMark = data.mark && team === "our";
   const number =
     data.kickoutWinnerNumber || (ownMark ? data.markPlayerNumber : "");
-  const roster = attributionRoster(match, team, { includeInactive: true });
+  const roster = attributionRoster(match, team, { includeInactive: true, ...rosterOptions });
   const retained =
     number && !roster.players.some((p) => String(p.number) === number)
       ? `<option selected value="${esc(number)}">#${esc(number)} · recorded player</option>`

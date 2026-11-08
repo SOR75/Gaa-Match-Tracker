@@ -130,3 +130,11 @@
   background: #eef3e8;
   border-radius: 6px;
 }
+
+.history-selection, .history-delete-confirm { margin-bottom: 20px; padding: 24px; }
+.history-select { display: flex; align-items: center; gap: 12px; min-height: 48px; font-weight: 700; }
+.history-select input { width: 24px; height: 24px; accent-color: var(--green); }
+.history-delete-confirm li { margin: 10px 0; overflow-wrap: anywhere; }
+.history-selection .button, .history-delete-confirm .button { min-height: 48px; }
+
+.history-delete-confirm ul { max-height: 30vh; overflow-y: auto; }

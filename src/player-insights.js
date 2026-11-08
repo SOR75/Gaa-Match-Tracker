@@ -8,7 +8,7 @@ import {
 } from "./goalkeepers.js";
 import { validPlayerId, participantRef } from "./identity.js";
 import { playerStatistics, percentage } from "./analysis.js";
-import { participationFor, hasMatchEvidence } from "./participation.js";
+import { participationFor } from "./participation.js";
 const metrics = [
   ...goalkeeperMetrics,
   "goals",
@@ -33,6 +33,11 @@ const metrics = [
   "possessions",
   "kickoutInvolvement",
 ];
+// A recorded match action (even one) or a separate shootout attempt is
+// performance evidence. Clock/status/roster metadata alone is not.
+export function hasPlayerReviewEvidence(match, valid = fieldState(match).validEventIds) {
+  return match.events.some(e => valid.has(e.id)) || !!match.shootout?.attempts?.length;
+}
 function dateValue(record) {
   return (
     Date.parse(
@@ -73,9 +78,9 @@ export function playerReviews(records, squads = [], active = null) {
       b.match.id.localeCompare(a.match.id),
   )) {
     const snapshot=record.match;
-    const valid=snapshot.events.some(e=>e.disciplineVersion===1)?fieldState(snapshot).validEventIds:null;
-    const m=valid?{...snapshot,events:snapshot.events.filter(e=>valid.has(e.id))}:snapshot;
-    if (!hasMatchEvidence(m)&&!m.shootout?.attempts?.length) continue;
+    const valid=fieldState(snapshot).validEventIds;
+    if (!hasPlayerReviewEvidence(snapshot, valid)) continue;
+    const m={...snapshot,events:snapshot.events.filter(e=>valid.has(e.id))};
     const roster = new Map();
     for (const p of m.players)
       if (validPlayerId(p.playerId)) roster.set(p.playerId, p);

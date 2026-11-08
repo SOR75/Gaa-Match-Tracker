@@ -19,7 +19,7 @@ function finding(stream,{id,dimension,team,title,detail,evidence,significance=15
  const at=e=>({id:e.id,period:e.period,timeMs:e.periodTimeMs,continuousTimeMs:e.continuousTimeMs});
  return {id:`insight:${id}:${team}`,family:id,families:[id],dimension,team,title,detail,topic,playerKey,significance,priority,polarity,
   kind:id.startsWith('zone-')||id.startsWith('kickout-length')?'opportunity':polarity==='problem'?'watch':'working',presentation:'summary',confidence:'OBSERVED',evidenceType:'RECORDED_COMPARISON',
-  reportText:`${title}: ${detail.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim()||detail}`,
+  reportText:`${title}: ${playerKey ? detail : detail.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim()||detail}`,
   evidenceIds:rows.map(e=>e.id),window:{from:at(rows[0]),to:at(rows.at(-1))},from:rows[0].index,to:rows.at(-1).index,supporting:[]};
 }
 function attacking(match,stream,events,scope){
@@ -90,12 +90,30 @@ export function recordedPlayerInfluence(stream){
  }
  return [...groups.values()];
 }
+const amount=n=>['zero','one','two','three','four','five','six','seven','eight','nine','ten'][n]||String(n);
+const contributionLabel=(n,category)=>({turnovers:n===1?'turnover won':'turnovers won',interceptions:n===1?'interception':'interceptions',blocks:n===1?'block':'blocks','kickout wins':n===1?'kickout win':'kickout wins',Marks:n===1?'kickout Mark':'kickout Marks',saves:n===1?'save':'saves'}[category]||category);
+function scoringComposition(rows) {
+ const labels={'open-play':'open play',free:'frees',penalty:'penalties','45':'45s'};
+ return Object.entries(labels).flatMap(([source,label])=>{
+  const scores=rows.filter(e=>e.shot.source===source);if(!scores.length)return [];
+  const goals=scores.filter(e=>e.event==='goal').length,twos=scores.filter(e=>e.event==='two-point').length,points=scores.filter(e=>e.event==='point').length;
+  const pieces=[goals?`${amount(goals)} ${goals===1?'goal':'goals'}`:'',points?`${amount(points)} ${points===1?'point':'points'}`:'',twos?`${amount(twos)} ${twos===1?'two-pointer':'two-pointers'}`:''].filter(Boolean);
+  return [`${pieces.join(' and ')} from ${label}`];
+ }).join(', ');
+}
 function defensiveAndPlayer(match,stream,scope,flow){
  const result=[],r=INSIGHT_RULES,players=recordedPlayerInfluence(stream);
  const categories=['turnovers','interceptions','blocks','kickout wins','Marks','saves'];
  for(const g of players){
   const p=g.ref,team=p.team,allScores=stream.filter(e=>e.valid&&e.team===team&&scored(e)),ownScores=allScores.filter(e=>g.categories.get('scores')?.has(e.id)),value=ownScores.reduce((n,e)=>n+e.shot.scoreValue,0),total=allScores.reduce((n,e)=>n+e.shot.scoreValue,0);
-  if(ownScores.length>=3&&value>=total*.5)result.push(finding(stream,{id:'scoring-contribution-'+g.key,topic:'player-'+g.key,dimension:'players',playerKey:g.key,team,title:`${playerLabel(p)} — concentrated scoring contribution`,detail:`${value} of ${total} recorded team points came from ${ownScores.length} successful attempts by ${playerLabel(p)}.`,evidence:ownScores.map(e=>e.id),significance:15+Math.min(3,Math.floor(value/4)),polarity:team==='our'?'positive':'problem'}));
+  if(ownScores.length>=3&&value>=total*.5)result.push(finding(stream,{id:'scoring-contribution-'+g.key,topic:'player-'+g.key,dimension:'players',playerKey:g.key,team,title:`${playerLabel(p)} — concentrated scoring contribution`,detail:`${playerLabel(p)} contributed ${amount(value)} points from ${ownScores.length} successful attempts (${value} of ${total} recorded team points)${scoringComposition(ownScores) ? ", including " + scoringComposition(ownScores) : ""}.`,evidence:ownScores.map(e=>e.id),significance:15+Math.min(3,Math.floor(value/4)),polarity:team==='our'?'positive':'problem'}));
+  const complementary=categories.filter(category=>category!=='Marks'&&g.categories.get(category)?.size);
+  const actionIds=[...new Set(complementary.flatMap(category=>[...g.categories.get(category)]))];
+  if(complementary.length>=2&&actionIds.length>=r.playerActions){
+   const contributions=complementary.map(category=>`${amount(g.categories.get(category).size)} ${contributionLabel(g.categories.get(category).size,category)}`).join(' and ');
+   result.push(finding(stream,{id:'player-combined-'+g.key,topic:'player-'+g.key,dimension:'players',playerKey:g.key,team,
+    title:`${playerLabel(p)} — contributions across the match`,detail:`${playerLabel(p)} contributed ${contributions} across ${actionIds.length} distinct recorded actions. These actions are not evidence of possession share or a player rating.`,evidence:actionIds,significance:16,polarity:team==='our'?'positive':'problem'}));
+  }
   for(const category of categories){
    const ids=[...(g.categories.get(category)||[])];if(ids.length<r.playerActions)continue;
    if(category==='kickout wins'&&g.categories.get('Marks')?.size===ids.length)continue;
@@ -107,7 +125,7 @@ function defensiveAndPlayer(match,stream,scope,flow){
    const spell=flow.observations.find(o=>o.team===team&&ids.filter(id=>o.evidenceIds.includes(id)).length>=2);
    result.push(finding(stream,{id:'player-'+category+'-'+g.key,topic:'player-'+g.key,dimension:category==='kickout wins'||category==='Marks'?'kickouts':'defence',playerKey:g.key,team,
     title:`${playerLabel(p)} — ${category==='kickout wins'?'kickout contribution':category==='Marks'?'kickout Marks':'recorded '+category}`,
-    detail:`${category==='Marks'?`${ids.length} kickout Marks: `:''}${playerLabel(p)} accounted for ${ids.length} of ${teamIds.size} attributed ${category}${!(g.categories.get('scores')?.size)?', without a recorded score':''}.${spell?' At least two occurred during the recorded '+spell.title.toLowerCase()+'.':''} These are recorded actions, not a player rating.${context}`,evidence:ids,significance:15+(spell?2:0),polarity:team==='our'?'positive':'problem'}));
+    detail:`${category==='Marks'?`${ids.length} kickout Marks: `:''}${playerLabel(p)} contributed ${amount(ids.length)} ${contributionLabel(ids.length,category)} (${ids.length} of ${teamIds.size} attributed ${category})${!(g.categories.get('scores')?.size)?', without a recorded score':''}.${spell?' At least two occurred during the recorded '+spell.title.toLowerCase()+'.':''} These are recorded actions, not a player rating.${context}`,evidence:ids,significance:15+(spell?2:0),polarity:team==='our'?'positive':'problem'}));
   }
   const kept=[...(g.categories.get('retained goalkeeper kickouts')||[])],taken=stream.filter(e=>e.valid&&e.kickout&&refKey(e.goalkeeper)===g.key&&['won','lost','out-of-play'].includes(e.kickout.outcome));
   if(taken.length>=8&&kept.length/taken.length>=.75)result.push(finding(stream,{id:'keeper-'+g.key,topic:'player-'+g.key,dimension:'kickouts',playerKey:g.key,team,title:`Team restart outcomes with ${playerLabel(p)} in goal`,detail:`${kept.length}/${taken.length} kickouts with known outcomes were retained while ${playerLabel(p)} was the recorded goalkeeper. These are team outcomes during a recorded goalkeeper stint, not evidence of individual distribution quality or a scoring chain.`,evidence:taken.map(e=>e.id),significance:15,priority:13,polarity:team==='our'?'positive':'problem'}));
@@ -136,13 +154,13 @@ function flowFindings(flow){
  });
 }
 export function selectCoachingFindings(candidates,limit=5){
- const remaining=candidates.filter(Boolean).filter(c=>c.significance>=13),selected=[],dimensions=new Map(),topics=new Set();
+ const remaining=candidates.filter(Boolean).filter(c=>c.significance>=13),selected=[],dimensions=new Map(),topics=new Set(),players=new Set();
  while(remaining.length&&selected.length<limit){
   remaining.sort((a,b)=>((b.priority??b.significance)-6*(dimensions.get(b.dimension)||0))-((a.priority??a.significance)-6*(dimensions.get(a.dimension)||0))||b.significance-a.significance||a.id.localeCompare(b.id));
-  const next=remaining.shift(),key=next.team+':'+next.topic;if(topics.has(key))continue;
+  const next=remaining.shift(),key=next.team+':'+next.topic;if(topics.has(key)||next.playerKey&&players.has(next.playerKey))continue;
   const duplicate=next.presentation==='summary'&&selected.find(o=>o.presentation==='summary'&&o.team===next.team&&o.dimension===next.dimension&&o.evidenceIds.length===next.evidenceIds.length&&o.evidenceIds.every(id=>next.evidenceIds.includes(id)));
   if(duplicate){duplicate.supporting=[...duplicate.supporting,{family:next.family,detail:next.detail,evidenceIds:next.evidenceIds}];topics.add(key);continue;}
-  topics.add(key);selected.push({...next,selectionScore:(next.priority??next.significance)-6*(dimensions.get(next.dimension)||0)});dimensions.set(next.dimension,(dimensions.get(next.dimension)||0)+1);
+  topics.add(key);if(next.playerKey)players.add(next.playerKey);selected.push({...next,selectionScore:(next.priority??next.significance)-6*(dimensions.get(next.dimension)||0)});dimensions.set(next.dimension,(dimensions.get(next.dimension)||0)+1);
  }
  return selected;
 }

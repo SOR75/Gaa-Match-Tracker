@@ -328,9 +328,8 @@ test("Our Kickout Mark visibly offers our populated squad and credits one event;
   await expect(await markCell(row9)).toHaveText("0");
   const row10=page.getByRole('row').filter({has:page.getByRole('rowheader',{name:'Home · #10 Our Ten',exact:true})});
   await nav(page,'Edit last event');
-  await page.getByLabel('Mark catcher',{exact:true}).selectOption('9');
-  await nav(page,'Save changes');
-  await expect(page.getByRole('dialog')).toBeVisible();
+  // The historical editor now excludes the ineligible panel player outright.
+  await expect(page.getByLabel('Mark catcher',{exact:true}).locator('option[value="9"]')).toHaveCount(0);
   expect((await state(page)).events[0].markPlayerNumber).toBe('8');
   await nav(page,'Cancel');
   for (const [number, eight, ten] of [

@@ -17,10 +17,10 @@ import { attackingDirection, transformLocation } from "./matchday.js";
 import { pitchMarkup } from "./pitch.js";
 import { esc } from "./ui.js";
 
-export function shotFieldsMarkup(event, match, { editing = false } = {}) {
+export function shotFieldsMarkup(event, match, { editing = false, rosterOptions = {} } = {}) {
   const shot = shotDetails(event);
   if (!shot) return "";
-  const roster = ourCreditRoster(match, { includeInactive: editing });
+  const roster = ourCreditRoster(match, { includeInactive: editing, ...rosterOptions });
   const { players: defenders, guidance } = roster;
   const reasonOptions = MISS_REASONS.map(
     (id) =>

@@ -229,11 +229,12 @@ test("Delete requires confirmation and removes only one archive and its legacy c
   const before = await activeRaw(page);
   await openHistory(page);
   await manage(page);
-  page.once("dialog", (d) => d.dismiss());
   await card(page).getByRole("button", { name: "DELETE MATCH" }).click();
+  await page.locator('[data-history-confirm]').getByRole("button", {name:"Cancel",exact:true}).click();
   await expect(card(page)).toBeVisible();
-  page.once("dialog", (d) => d.accept());
+  await manage(page);
   await card(page).getByRole("button", { name: "DELETE MATCH" }).click();
+  await page.getByRole("button", {name:"Confirm Delete",exact:true}).click();
   await expect(card(page)).toHaveCount(0);
   await expect(card(page, "other")).toBeVisible();
   expect(await activeRaw(page)).toBe(before);
@@ -489,8 +490,8 @@ test("failed deletion cannot erase the current match or the recoverable legacy c
       return remove.call(this, k);
     };
   });
-  page.once("dialog", (d) => d.accept());
   await card(page).getByRole("button", { name: "DELETE MATCH" }).click();
+  await page.getByRole("button", {name:"Confirm Delete",exact:true}).click();
   await expect(page.locator(".history-view [role=alert]")).toContainText(
     "Cannot remove source",
   );

@@ -17,7 +17,7 @@ async function sub(page,on,off){await page.clock.fastForward(1000);await page.lo
 async function picks(page,attribute,on=18,off=6){
  await expect(page.locator(`[${attribute}="${on}"]`)).toBeVisible();await expect(page.locator(`[${attribute}="${off}"]`)).toHaveCount(0);await expect(page.locator(`button[${attribute}]`)).toHaveCount(15);
 }
-for(const team of ['our','opposition'])test(`${team}: kickout/Mark, shots, actions, blocks and Pass use independent live XV; re-entry restores choices; historical edit stays broad`,async({page})=>{
+for(const team of ['our','opposition'])test(`${team}: kickout/Mark, shots, actions, blocks and Pass use independent live XV; re-entry restores choices; historical edit uses the recorded Active XV`,async({page})=>{
  await mkdir(root,{recursive:true});await seed(page);await page.locator(`[data-team="${team}"]`).click();await sub(page,18,6);
  // Winner roster follows the credited team, regardless of which team kicked.
  for(const type of ['our-kickout','opposition-kickout'])for(const mark of [false,true]){
@@ -47,7 +47,7 @@ for(const team of ['our','opposition'])test(`${team}: kickout/Mark, shots, actio
  // A blocked opposition attempt credits OUR defender from OUR independent XV.
  await page.locator('[data-team="opposition"]').click();await page.locator('[data-event="miss"]').click();await page.getByLabel('Miss reason',{exact:true}).selectOption('blocked');await picks(page,'data-block-player',team==='our'?18:6,team==='our'?6:18);await page.keyboard.press('Escape');
  await page.locator(`[data-team="${team}"]`).click();await sub(page,6,18);await page.locator('[data-event="point"]').click();await picks(page,'data-shot-player',6,18);await page.keyboard.press('Escape');
- await nav(page,'Timeline');await page.locator(`[data-edit-event="${passEvent.id}"]`).click();await expect(page.getByLabel('Passer',{exact:true}).locator('option[value="18"]')).toHaveCount(1);await expect(page.getByLabel('Passer',{exact:true}).locator('option[value="6"]')).toHaveCount(1);await nav(page,'Cancel');
+ await nav(page,'Timeline');await page.locator(`[data-edit-event="${passEvent.id}"]`).click();await expect(page.getByLabel('Passer',{exact:true}).locator('option[value="18"]')).toHaveCount(1);await expect(page.getByLabel('Passer',{exact:true}).locator('option[value="6"]')).toHaveCount(0);await nav(page,'Cancel');
  await page.reload();await nav(page,'Live match');await page.locator('[data-event="point"]').click();await picks(page,'data-shot-player',6,18);
 });
 const readRows=p=>p.locator('[data-review-row]').evaluateAll(rows=>rows.map(row=>({...Object.fromEntries([...row.querySelectorAll('input,select')].map(n=>[n.name,n.value])),confidence:row.querySelector('.uncertain').textContent})));

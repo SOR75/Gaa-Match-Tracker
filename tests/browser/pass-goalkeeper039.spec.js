@@ -131,9 +131,8 @@ test("legacy shot-linked Pass survives native History Resume and normal historic
   await expect(
     page.getByLabel("Receiver", { exact: true }).locator('option[value="18"]'),
   ).toHaveCount(1);
-  await page.getByLabel('Receiver',{exact:true}).selectOption('10');
-  await nav(page,'Save changes');
-  await expect(page.getByRole('dialog')).toBeVisible();
+  // An off-field receiver is no longer offered by the historical selector.
+  await expect(page.getByLabel('Receiver',{exact:true}).locator('option[value="10"]')).toHaveCount(0);
   expect((await state(page)).events.at(-1).receiverNumber).toBe('15');
   await page.getByLabel("Receiver", { exact: true }).selectOption("18");
   await page.getByLabel("Pass type", { exact: true }).selectOption("hand");
