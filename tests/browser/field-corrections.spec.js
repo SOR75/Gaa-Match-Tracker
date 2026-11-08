@@ -38,7 +38,7 @@ for(const team of ['our','opposition'])test(`${team}: kickout/Mark, shots, actio
    const e=(await state(page)).events.at(-1);expect(e.playerNumber).toBe(team==='our'?'18':'6');
    expect(type==='turnover-won'?e.turnoverLoserNumber:e.turnoverWinnerNumber).toBe(team==='opposition'?'18':'');
   }else{
-   await page.locator('[data-action-credit] summary').click();await picks(page,'data-action-player');await page.locator('[data-action-player="18"]').click();expect((await state(page)).events.at(-1).playerNumber).toBe('18');
+   await picks(page,'data-interception-player');await page.locator('[data-interception-player="18"]').click();expect((await state(page)).events.at(-1).playerNumber).toBe('18');
   }
  }
  await page.locator('[data-event="defensive-block"]').click();await picks(page,'data-defensive-player',team==='our'?18:6,team==='our'?6:18);await page.keyboard.press('Escape');

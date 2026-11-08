@@ -37,6 +37,7 @@ import "./voice-roadmap.css";
 import { fullTimeScreen, normalTimeScreen } from "./full-time-ui.js";
 import { halfTimeScreen } from "./half-time-ui.js";
 import { attributionRoster } from "./player-credit.js";
+import { openInterceptionCredit } from "./interception-capture.js";
 import { openDefensiveBlockDetails } from "./defensive-block-capture.js";
 import { isDefensiveBlockEvent } from "./defensive-blocks.js";
 import {
@@ -879,6 +880,15 @@ document.addEventListener("click", async (event) => {
         },
         () => render(),
       );
+    else if (record.event === "interception") {
+      if (!recordEvent(record)) return;
+      openInterceptionCredit(document.querySelector("#event-dialog"), record, match, (id, playerNumber) => {
+        const current = match.events.find(event => event.id === id);
+        if (!current) throw new Error("This interception no longer exists.");
+        match.events = saveMatchEvent({...current, playerNumber});
+        persist();
+      }, () => render());
+    }
     else {
       recordEvent(record);
       if (isShot(record))

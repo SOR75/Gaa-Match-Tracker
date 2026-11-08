@@ -1,11 +1,11 @@
 {
-  "buildId": "0.3.13-dev",
-  "version": "0.3.13-dev",
+  "buildId": "0.3.14-dev",
+  "version": "0.3.14-dev",
   "photoOcr": "bundled-local-tesseract",
   "jpegPng": true,
   "heic": false,
   "runtimeSource": "src/imports.js -> src/ocr.js",
-  "branch": "sideline-v0.3.13",
+  "branch": "sideline-v0.3.14",
   "publication": "local-review-only",
   "programmeParser": "structured-number-name-and-sections"
 }

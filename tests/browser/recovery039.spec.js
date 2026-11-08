@@ -71,9 +71,9 @@ test("real #18 on/#10 off uses roster buttons and every live our selector follow
       await page.locator('[data-turnover-our="18"]').click();
       await nav(page, "Record turnover");
     } else {
-      await page.locator("[data-action-credit] summary").click();
-      await expect(page.locator('[data-action-player="18"]')).toBeVisible();
-      await expect(page.locator('[data-action-player="10"]')).toHaveCount(0);
+      await expect(page.locator('[data-interception-player="18"]')).toBeVisible();
+      await expect(page.locator('[data-interception-player="10"]')).toHaveCount(0);
+      await page.keyboard.press("Escape");
     }
   }
   await page.locator('[data-event="defensive-block"]').click();

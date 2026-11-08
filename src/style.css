@@ -4124,3 +4124,38 @@ dialog::backdrop {
  .report-view .report-pair table { line-height:1.35; }
  .report-view .report-pair table th,.report-view .report-pair table td { padding:2px 4px; }
 }
+
+/* V0.3.14: print flow only; screen report and pitch coordinates are unchanged. */
+@media print {
+  .report-view .report-shot-map {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .report-view .report-shot-map h2 {
+    margin: 4px 0 4px;
+  }
+  .report-view .analysis-map-layout {
+    margin-top: 0;
+    gap: 12px;
+  }
+  .report-view .shot-legend {
+    padding: 10px;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  /* Protect rows and repeat headers, but allow tables to use remaining space. */
+  .report-view .table-scroll:has(.report-table-short),
+  .report-view .table-scroll table.report-table-short {
+    break-inside: auto;
+  }
+  .report-view thead { display: table-header-group; }
+  .report-view tr { break-inside: avoid; page-break-inside: avoid; }
+  .report-view .analysis-section h2,
+  .report-view .analysis-section h3 { page-break-after: avoid; }
+  .report-view .analysis-section { margin-bottom: 6px; padding-bottom: 4px; }
+  .report-view .analysis-section h2 { margin-top: 8px; }
+  .report-view .report-shot-map h2 { margin-top: 4px; }
+  /* Each card stays together; the collection can flow across pages. */
+  .report-view .goalkeeper-cards { display: block; columns: 2; column-gap: 14px; }
+  .report-view .goalkeeper-card { break-inside: avoid; margin-bottom: 8px; }
+}

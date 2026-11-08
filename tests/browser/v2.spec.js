@@ -299,6 +299,7 @@ test("browser dictation attaches a reviewed transcription to one event; typed fa
   await start(page);
   await nav(page, "Live match");
   await nav(page, "Interception");
+  await page.getByRole("dialog").getByRole("button", {name:"Skip / Close",exact:true}).click();
   await nav(page, "Add / dictate note to last event");
   await page.getByLabel("Typed notes").fill("Coach observation");
   await nav(page, "Dictate note");
@@ -360,6 +361,7 @@ test("legacy V1 is migrated in browser without losing old events or clock and ba
     "(42)",
   );
   await nav(page, "Interception");
+  await page.getByRole("dialog").getByRole("button", {name:"Skip / Close",exact:true}).click();
   const match = await state(page);
   expect(match.schemaVersion).toBe(2);
   expect(match.events).toHaveLength(86);
@@ -393,6 +395,7 @@ test("microphone denial keeps notes editable and secure UUID fallback supports L
   await start(page);
   await nav(page, "Live match");
   await nav(page, "Interception");
+  await page.getByRole("dialog").getByRole("button", {name:"Skip / Close",exact:true}).click();
   await nav(page, "Add / dictate note to last event");
   await page.getByLabel("Typed notes").fill("Keep this note");
   await nav(page, "Dictate note");

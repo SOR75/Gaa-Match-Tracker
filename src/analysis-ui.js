@@ -189,6 +189,7 @@ export function analysisScreen(
           )}</select></label></div>`
         : ""
     } ${report&&!mapped.length?'<p class="small-note">No recorded shot locations to plot.</p>':`<div class="analysis-map-layout"><div class="analysis-pitch">${pitchMarkup(shots)}</div><div><div class="shot-legend"><span><i class="legend-goal">●</i> Goal</span><span><i class="legend-point">●</i> Point</span><span><i class="legend-two">◎</i> 2 Point</span><span><i class="legend-miss">×</i> ${report?"Unsuccessful":"Wide / Miss"}</span><span><i class="legend-blocked">▣</i> Blocked shot</span></div><p class="small-note" data-map-count>${mapped.length} plotted / ${shots.length} attempts in this selection.</p><p class="small-note">${shots.length - mapped.length} attempts have no recorded location. Legacy events remain in all statistics; no location is invented. Attacking goal is at top for both halves.</p><p class="small-note">Filters affect the shot map only. Overlapping marks may hide shots taken at the same location.</p></div></div>`}`,
+    report ? "report-shot-map" : "",
   )}
   ${section("40m shooting locations", table(["Team", "Inside 40m · scores / attempts", "Inside conversion", "Outside 40m · scores / attempts", "Outside conversion", "Unclassifiable"], teams.map(team => {
     const {zones:z,invalidTwoPointers}=shotLocationAnalysis(match.events,team);

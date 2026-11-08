@@ -19,7 +19,7 @@ test("physical 3/4 and GK #16 1/2: OOP is one kicking-team loss in both teams, H
  await page.locator('[data-event="substitution"]').click();await page.locator('[data-sub-on="16"]').click();await page.locator('[data-sub-off="1"]').click();await nav(page,"Record substitution");
  await ko("our-kickout","Won by us");await ko("our-kickout","Out of Play / Sideline");
  for(let i=0;i<3;i++)await ko("opposition-kickout","Retained by opposition");await ko("opposition-kickout","Out of Play / Sideline");
- await page.locator('[data-event="interception"]').click();
+ await page.locator('[data-event="interception"]').click();await page.getByRole("dialog").getByRole("button", {name:"Skip / Close",exact:true}).click();
  const captured=await state(page);
  expect(captured.events.filter(e=>e.event==="our-kickout")).toHaveLength(4);expect(captured.events.filter(e=>e.event==="opposition-kickout")).toHaveLength(4);
  for(const e of captured.events.filter(e=>e.outcome==="out-of-play")){expect(e.kickoutWinnerNumber).toBe("");expect(e.mark).toBe(false);}
