@@ -4162,7 +4162,7 @@ dialog::backdrop {
 
 /* Section-aware Full Match Report pagination; all screen rules are unchanged. */
 @media print {
-  @page { size: A4 landscape; margin: 14mm; }
+  @page { size: A4 portrait; margin: 14mm; }
   .report-view .report-print-fit {
     break-inside: avoid;
     page-break-inside: avoid;
@@ -4201,4 +4201,33 @@ dialog::backdrop {
   .report-view [data-goalkeepers] > p { break-before: avoid; }
   .report-view .analysis-section > h2 + p,
   .report-view .report-participation-team > h3 + p { break-after: avoid; }
+}
+
+/* Portrait print wrapping does not affect the iPad or TV report. */
+@media print {
+  .report-view .table-scroll th, .report-view .table-scroll td { padding: 3px 4px; }
+  .report-view .small-note { margin-top: 6px; margin-bottom: 6px; }
+  .report-view [data-print-overview].report-print-continuation .report-details { display: block; }
+}
+
+/* Reviewed portrait refinements: print only, with no report-data changes. */
+@media print {
+  html:has(.report-view) { background: white; }
+  .report-view .report-shot-map .analysis-map-layout {
+    grid-template-columns: 210px minmax(0, 1fr);
+    align-items: start;
+  }
+  .report-view .report-shot-map .analysis-pitch { width: 210px; }
+  .report-view .shot-legend {
+    display: flex;
+    flex-wrap: wrap;
+    width: fit-content;
+    max-width: 100%;
+    padding: 8px;
+    gap: 4px 12px;
+    margin-bottom: 6px;
+  }
+  .report-view .shot-legend span { gap: 6px; line-height: 1.35; }
+  .report-view .shot-legend i { font-size: 18px; width: 18px; }
+  .report-view .analysis-scores small { display: block; }
 }

@@ -1,7 +1,7 @@
 // Transient DOM layout only: no match state, statistics or persisted data.
-// These dimensions match the A4 landscape @page rule (14mm margins).
-const PRINT_WIDTH = '269mm';
-const PRINT_HEIGHT = '182mm';
+// These dimensions match the A4 portrait @page rule (14mm margins).
+const PRINT_WIDTH = '182mm';
+const PRINT_HEIGHT = '269mm';
 let restorePrintLayout = null;
 
 export function prepareReportPrint(document) {
@@ -26,6 +26,14 @@ export function prepareReportPrint(document) {
         container.append(pair);
       }
     }
+  };
+  const groupOverview = (root, save) => {
+    const heading = root.querySelector(':scope > .page-heading');
+    const sections = [...root.querySelectorAll(':scope > .analysis-section')].slice(0, 3);
+    if (!heading || sections.length !== 3) return;
+    if (save) containers.set(root, [...root.childNodes]);
+    const overview = document.createElement('div');overview.dataset.printOverview = '';
+    root.insertBefore(overview, heading);overview.append(heading, ...sections);
   };
   // beforeprint can fire while the browser still reports screen media. Scope
   // the existing print declarations to the hidden probe so measurements always
@@ -54,6 +62,7 @@ export function prepareReportPrint(document) {
   document.body.append(probe);
   try {
     pairKeepers(probe, false);pairKeepers(report, true);
+    groupOverview(probe, false);groupOverview(report, true);
     const available = ruler.getBoundingClientRect().height;ruler.remove();
     const classify = selector => {
       const measured = [...probe.querySelectorAll(selector)], originals = [...report.querySelectorAll(selector)];
@@ -70,7 +79,8 @@ export function prepareReportPrint(document) {
         }
       });
     };
-    classify(':scope > .analysis-section, :scope > p[data-report-substitutions]');
+    classify(':scope > .analysis-section, :scope > [data-print-overview] > .analysis-section, :scope > p[data-report-substitutions]');
+    classify(':scope > [data-print-overview]');
     // Long paired tables use normal block flow; classify each resulting subgroup.
     classify('.report-pair > div, [data-print-keeper-pair], .goalkeeper-card');
   } catch (error) {
