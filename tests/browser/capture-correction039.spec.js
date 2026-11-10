@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { blankMatch, createEvent, saveEvent } from "../../src/domain.js";
 import { snapshotSquad, loadSquadPlayers } from "../../src/squads.js";
@@ -35,7 +36,7 @@ async function seed(page) {
   return m;
 }
 async function pass(page, from, to, type) {
-  await page.locator('[data-event="pass"]').click();
+  await clickCapture(page, '[data-event="pass"]');
   await page.locator(`[data-pass-from="${String(from)}"]`).click();
   await page.locator(`[data-pass-to="${String(to)}"]`).click();
   await page.locator(`[data-pass-type="${type}"]`).click();
@@ -86,16 +87,16 @@ test("Pass occupies exactly the old Possession slot; Kick #8→#11 then substitu
     receiverNumber: "11",
     passType: "kick",
   });
-  await page.locator('[data-event="substitution"]').click();
+  await clickCapture(page, '[data-event="substitution"]');
   await page.locator('[data-sub-on="18"]').click();
   await page.locator('[data-sub-off="10"]').click();
   await nav(page, "Record substitution");
-  await page.locator('[data-event="point"]').click();
+  await clickCapture(page, '[data-event="point"]');
   await expect(page.locator('[data-shot-player="18"]')).toBeVisible();
   await expect(page.locator('[data-shot-player="10"]')).toHaveCount(0);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(700);
-  await page.locator('[data-event="pass"]').click();
+  await clickCapture(page, '[data-event="pass"]');
   for (const label of ["FROM", "TO"]) {
     await expect(
       page.getByRole("group", { name: label, exact: true }).locator(':is([data-pass-from="18"], [data-pass-to="18"])'),
@@ -200,7 +201,7 @@ test("real New Match → saved team setup → automatic GK periods: 4/3 kickouts
   await nav(page, "Start clock");
   const ko = async (length, outcome) => {
     await page.clock.fastForward(60000);
-    await page.locator('[data-event="our-kickout"]').click();
+    await clickCapture(page, '[data-event="our-kickout"]');
     await nav(page, length);
     await nav(page, outcome);
     if (outcome !== "Out of Play / Sideline")
@@ -212,11 +213,11 @@ test("real New Match → saved team setup → automatic GK periods: 4/3 kickouts
   await ko("LONG", "Out of Play / Sideline");
   await page.clock.fastForward(60000);
   await page.locator('[data-team="opposition"]').click();
-  await page.locator('[data-event="goal"]').click();
+  await clickCapture(page, '[data-event="goal"]');
   await page.keyboard.press("Escape");
   await page.clock.fastForward(5 * 60000);
   await page.locator('[data-team="our"]').click();
-  await page.locator('[data-event="substitution"]').click();
+  await clickCapture(page, '[data-event="substitution"]');
   await page.locator('[data-sub-on="16"]').click();
   await page.locator('[data-sub-off="1"]').click();
   await nav(page, "Record substitution");
@@ -225,7 +226,7 @@ test("real New Match → saved team setup → automatic GK periods: 4/3 kickouts
   await ko("LONG", "Won by us");
   await page.clock.fastForward(60000);
   await page.locator('[data-team="opposition"]').click();
-  await page.locator('[data-event="goal"]').click();
+  await clickCapture(page, '[data-event="goal"]');
   await page.keyboard.press("Escape");
   await page.clock.fastForward(16 * 60000);
   await nav(page, "Pause clock");

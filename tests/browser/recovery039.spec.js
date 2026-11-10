@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { blankMatch } from "../../src/domain.js";
 import { createMatchPlayer, createSquadPlayer } from "../../src/identity.js";
@@ -31,7 +32,7 @@ async function seed(page) {
 async function substitute(page, on, off) {
   // Respect the existing 650 ms same-action double-tap guard.
   await page.waitForTimeout(700);
-  await page.locator('[data-event="substitution"]').click();
+  await clickCapture(page, '[data-event="substitution"]');
   await expect(page.locator(`[data-sub-on="${on}"]`)).toBeVisible();
   await expect(page.locator(`[data-sub-off="${off}"]`)).toBeVisible();
   await page.locator(`[data-sub-on="${on}"]`).click();
@@ -40,7 +41,7 @@ async function substitute(page, on, off) {
 }
 async function shotPlayers(page) {
   await page.waitForTimeout(700);
-  await page.locator('[data-event="point"]').click();
+  await clickCapture(page, '[data-event="point"]');
   await expect(page.locator('[data-shot-player="18"]')).toBeVisible();
   await expect(page.locator('[data-shot-player="10"]')).toHaveCount(0);
   await page.keyboard.press("Escape");
@@ -57,14 +58,14 @@ test("real #18 on/#10 off uses roster buttons and every live our selector follow
   for (const type of ["our-kickout", "opposition-kickout"])
     for (const outcome of ["Won by us", "Mark won by us"]) {
       await page.waitForTimeout(700);
-      await page.locator(`[data-event="${type}"]`).click();
+      await clickCapture(page, `[data-event="${type}"]`);
       await nav(page, outcome);
       await expect(page.locator('[data-ko-player="18"]')).toBeVisible();
       await expect(page.locator('[data-ko-player="10"]')).toHaveCount(0);
       await page.locator('[data-ko-player="18"]').click();
     }
   for (const type of ["turnover-won", "turnover-lost", "interception"]) {
-    await page.locator(`[data-event="${type}"]`).click();
+    await clickCapture(page, `[data-event="${type}"]`);
     if (type.startsWith("turnover-")) {
       await expect(page.locator('[data-turnover-our="18"]')).toBeVisible();
       await expect(page.locator('[data-turnover-our="10"]')).toHaveCount(0);
@@ -76,7 +77,7 @@ test("real #18 on/#10 off uses roster buttons and every live our selector follow
       await page.keyboard.press("Escape");
     }
   }
-  await page.locator('[data-event="defensive-block"]').click();
+  await clickCapture(page, '[data-event="defensive-block"]');
   await expect(
     page.locator('button[data-defensive-player="18"]'),
   ).toBeVisible();
@@ -84,7 +85,7 @@ test("real #18 on/#10 off uses roster buttons and every live our selector follow
     0,
   );
   await page.keyboard.press("Escape");
-  await page.locator('[data-event="pass"]').click();
+  await clickCapture(page, '[data-event="pass"]');
   for (const label of ["FROM", "TO"]) {
     await expect(
       page.getByRole("group", { name: label, exact: true }).locator(':is([data-pass-from="18"], [data-pass-to="18"])'),
@@ -109,7 +110,7 @@ for (const type of ["our-kickout", "opposition-kickout"])
     }) => {
       const m = await seed(page);
       await page.waitForTimeout(700);
-      await page.locator(`[data-event="${type}"]`).click();
+      await clickCapture(page, `[data-event="${type}"]`);
       await nav(page, "LONG");
       await nav(page, outcome);
       const d = page.getByRole("dialog");
@@ -139,13 +140,13 @@ test("automatic #1 keeper; outfield replacement sequence attributes goals to cor
   await seed(page);
   await expect(page.locator("[data-goalkeeper]")).toHaveCount(0);
   await page.locator('[data-team="opposition"]').click();
-  await page.locator('[data-event="goal"]').click();
+  await clickCapture(page, '[data-event="goal"]');
   await page.keyboard.press("Escape");
   await page.locator('[data-team="our"]').click();
   await substitute(page, 18, 4);
   await substitute(page, 4, 1);
   await page.locator('[data-team="opposition"]').click();
-  await page.locator('[data-event="goal"]').click();
+  await clickCapture(page, '[data-event="goal"]');
   await page.keyboard.press("Escape");
   await nav(page, "Match analysis");
   for (const n of [1, 4]) {
@@ -184,13 +185,13 @@ test("substitution survives native History resume; editing and undo recalculate 
   await nav(page, "Save changes");
   expect((await state(page)).events[0].id).toBe(sub.id);
   await page.waitForTimeout(700);
-  await page.locator('[data-event="point"]').click();
+  await clickCapture(page, '[data-event="point"]');
   await expect(page.locator('[data-shot-player="10"]')).toBeVisible();
   await expect(page.locator('[data-shot-player="11"]')).toHaveCount(0);
   await page.keyboard.press("Escape");
   await nav(page, "Undo last event");
   await nav(page, "Undo last event");
-  await page.locator('[data-event="substitution"]').click();
+  await clickCapture(page, '[data-event="substitution"]');
   await expect(page.locator('[data-sub-on="18"]')).toBeVisible();
   await expect(page.locator('[data-sub-off="10"]')).toBeVisible();
 });
@@ -230,7 +231,7 @@ test("editing possession outcome never silently transfers our #8 to opposition #
   page,
 }) => {
   await seed(page);
-  await page.locator('[data-event="our-kickout"]').click();
+  await clickCapture(page, '[data-event="our-kickout"]');
   await nav(page, "Won by us");
   await page.locator('[data-ko-player="8"]').click();
   await nav(page, "Edit last event");

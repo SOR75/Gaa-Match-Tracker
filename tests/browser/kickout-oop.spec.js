@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { blankMatch } from "../../src/domain.js";
 import { snapshotSquad, loadSquadPlayers } from "../../src/squads.js";
@@ -12,14 +13,14 @@ test("physical 3/4 and GK #16 1/2: OOP is one kicking-team loss in both teams, H
  m.players=loadSquadPlayers(snapshotSquad("Home",roster));m.oppositionPlayers=loadSquadPlayers(snapshotSquad("Away",roster));
  await page.goto("/");await page.evaluate(m=>localStorage.setItem("sideline.match.v1",JSON.stringify(m)),m);await page.reload();await nav(page,"Live match");await nav(page,"Start clock");
  const ko=async(type,outcome)=>{
-  await page.clock.fastForward(1000);await page.locator(`[data-event="${type}"]`).click();await nav(page,"LONG");await nav(page,outcome);
+  await page.clock.fastForward(1000);await clickCapture(page, `[data-event="${type}"]`);await nav(page,"LONG");await nav(page,outcome);
   if(outcome!=="Out of Play / Sideline")await page.locator('[data-ko-player="8"]').click();
  };
  await ko("our-kickout","Won by us");await ko("our-kickout","Won by us");
- await page.locator('[data-event="substitution"]').click();await page.locator('[data-sub-on="16"]').click();await page.locator('[data-sub-off="1"]').click();await nav(page,"Record substitution");
+ await clickCapture(page, '[data-event="substitution"]');await page.locator('[data-sub-on="16"]').click();await page.locator('[data-sub-off="1"]').click();await nav(page,"Record substitution");
  await ko("our-kickout","Won by us");await ko("our-kickout","Out of Play / Sideline");
  for(let i=0;i<3;i++)await ko("opposition-kickout","Retained by opposition");await ko("opposition-kickout","Out of Play / Sideline");
- await page.locator('[data-event="interception"]').click();await page.getByRole("dialog").getByRole("button", {name:"Skip / Close",exact:true}).click();
+ await clickCapture(page, '[data-event="interception"]');await page.getByRole("dialog").getByRole("button", {name:"Skip / Close",exact:true}).click();
  const captured=await state(page);
  expect(captured.events.filter(e=>e.event==="our-kickout")).toHaveLength(4);expect(captured.events.filter(e=>e.event==="opposition-kickout")).toHaveLength(4);
  for(const e of captured.events.filter(e=>e.outcome==="out-of-play")){expect(e.kickoutWinnerNumber).toBe("");expect(e.mark).toBe(false);}

@@ -1,3 +1,4 @@
+import {startCaptureFixture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { blankMatch, createEvent } from "../../src/domain.js";
 import { readFileSync } from "node:fs";
@@ -16,9 +17,11 @@ async function addPlayer(page, number, name) {
 const state = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem("sideline.match.v1")));
 async function nav(page, name) {
+  if(await page.getByRole("button", { name, exact: true }).getAttribute("data-event"))await startCaptureFixture(page);
   await page.getByRole("button", { name, exact: true }).click();
 }
 async function shot(page, type = "Point", player = "") {
+  await startCaptureFixture(page);
   await page.getByRole("button", { name: new RegExp(`^${type} \\+`) }).click();
   await page
     .getByRole("button", { name: "Shot location pitch" })

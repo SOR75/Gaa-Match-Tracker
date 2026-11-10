@@ -1,3 +1,4 @@
+import {startCaptureFixture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 async function setup(page) {
   await page.goto("/");
@@ -7,8 +8,10 @@ async function setup(page) {
 }
 const state = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem("sideline.match.v1")));
-const nav = (page, name) =>
-  page.getByRole("button", { name, exact: true }).click();
+const nav = async (page, name) => {
+  await page.getByRole("button", { name, exact: true }).click();
+  if(name==="Live match")await startCaptureFixture(page);
+};
 async function add(page, number, name, role = "starter") {
   await page.getByLabel("Jersey number", { exact: true }).fill(String(number));
   await page.getByLabel("Player name", { exact: true }).fill(name);

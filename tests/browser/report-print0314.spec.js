@@ -5,7 +5,7 @@ import {reportCases0312} from '../helpers/reports0312.js';
 import {scoringTimeline} from '../../src/analysis.js';
 import {validAnalysisEvents} from '../../src/analysis-evidence.js';
 import {formatTime} from '../../src/domain.js';
-const root='/workspace/sideline-0315-refinement-review';
+const root='/workspace/sideline-0315-workflow-review';
 for(const name of ['short','normal','heavy'])test(`A4 portrait ${name}: every H1/H2 scoring row survives PDF pagination`,async({page})=>{
  test.setTimeout(120000);await mkdir(root,{recursive:true});await page.setViewportSize({width:1024,height:768});const m=reportCases0312()[name];
  await page.goto('/');await page.evaluate(m=>localStorage.setItem('sideline.match.v1',JSON.stringify(m)),m);await page.reload();await page.getByRole('button',{name:'Match analysis',exact:true}).click();await page.getByRole('button',{name:'Full Match Report',exact:true}).click();

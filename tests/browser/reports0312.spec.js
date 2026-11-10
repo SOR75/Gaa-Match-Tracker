@@ -10,17 +10,18 @@ test('factual PDFs paginate short/normal/heavy reports by content, without embed
   await load(page,m);const before=await page.evaluate(()=>localStorage.getItem('sideline.match.v1'));await nav(page,'Full Match Report');await expect(page.getByRole('button',{name:'Coach Report',exact:true})).toHaveCount(0);await expect(page.locator('[data-report-event]')).toHaveCount(0);await page.emulateMedia({media:'print'});const pages=await pdf(page);counts[name]=pages.length;
   // Whole-section pagination permits whitespace, but not missing/split rows or
   // a sparse continuation page containing just one avoidable table row.
-  const rows=await page.locator('.report-view tbody tr').evaluateAll(ns=>ns.map(r=>[...r.children].map(c=>c.textContent.trim()).join(' ').replace(/\s+/g,' ').trim()));
+  const rows=await page.locator('.report-view .analysis-section:not([data-report-minutes]) tbody tr').evaluateAll(ns=>ns.map(r=>[...r.children].map(c=>c.textContent.trim()).join(' ').replace(/\s+/g,' ').trim()));
   const normalised=pages.map(p=>p.replace(/\s+/g,' ').trim());
   for(const row of rows)expect(normalised.some(p=>p.includes(row))).toBe(true);
   for(const p of normalised){expect(p.length).toBeGreaterThan(0);if(p.length<=300)expect(rows.filter(r=>p.includes(r)).length).toBeGreaterThanOrEqual(2);}
-  const firstContent=await page.locator('.report-view > .analysis-section, .report-view > p[data-report-substitutions]').evaluateAll(nodes=>nodes.map(node=>{
+  const firstContent=await page.locator('.report-view > .analysis-section:not([data-report-minutes]), .report-view > p[data-report-substitutions]').evaluateAll(nodes=>nodes.map(node=>{
    const heading=(node.querySelector(':scope > h2')||node.querySelector('b')).textContent.trim(),row=node.querySelector('tbody tr, dl > div'),p=node.querySelector('p');
    return {heading,text:(row?[...row.children].map(c=>c.textContent.trim()).join(' '):p?p.textContent:node.textContent.replace(heading,'')).replace(/\s+/g,' ').trim()};
   }));
-  const all=pages.join(' ');for(const heading of ['Match details','Score by period','Player shooting analysis','Substitutions','Recorded participation & playing time']){
+  const all=pages.join(' ');for(const heading of ['Match details','Score by period','Player shooting analysis','Substitutions']){
    expect(all).toContain(heading);const sheet=normalised.find(p=>p.includes(heading));expect(sheet).toContain(firstContent.find(c=>c.heading===heading).text);
   }
+  expect(all).not.toContain('Recorded participation & playing time');expect(all).not.toContain('Times use recorded clock and field changes');
   expect(all).not.toContain('Coach Report');expect(all).not.toContain('no established trend inferred');expect(all).not.toContain('Recorded match events');expect(all).not.toContain('Event ID:');
   if(name==='heavy')for(const team of ['our','opposition'])for(let n=1;n<=30;n++)expect(all).toContain(`Synthetic ${team} Player ${n}`);
   expect(await page.locator('.report-view table').evaluateAll(ns=>ns.every(n=>parseFloat(getComputedStyle(n).fontSize)>=12))).toBe(true);await page.emulateMedia({media:'screen'});expect(await page.evaluate(()=>localStorage.getItem('sideline.match.v1'))).toBe(before);

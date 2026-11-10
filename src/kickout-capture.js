@@ -120,7 +120,7 @@ export function openKickoutCapture(dialog, event, match, onSave, onClose) {
           kickoutPerspective: "our",
         });
         recorded = true;
-        save();
+        if(!save()){recorded=false;return;}
         if (c.outcome === "out-of-play") {
           finished = true;
           dialog.close();

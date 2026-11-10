@@ -1,3 +1,5 @@
+import {completePeriod} from '../../src/periods.js';
+import {clickCapture,startCaptureFixture} from '../helpers/live-capture.js';
 import {test,expect} from '@playwright/test';
 import {mkdir} from 'node:fs/promises';
 import {blankMatch,createEvent,saveEvent} from '../../src/domain.js';
@@ -12,11 +14,11 @@ async function seed(page,viewport={width:1024,height:768},fallback=false){
  const m=blankMatch();m.setup.ourTeam='Home Club';m.setup.opposition='Visitors';
  const roster=team=>Array.from({length:18},(_,i)=>createMatchPlayer({...createSquadPlayer({number:i+1,name:`${team} Player ${i+1}`,role:i<15?'starter':'substitute'}),id:undefined}));
  m.players=fallback?[]:roster('Home');m.oppositionPlayers=fallback?[]:roster('Away');
- await page.goto('/');await page.evaluate(m=>localStorage.setItem('sideline.match.v1',JSON.stringify(m)),m);await page.reload();await nav(page,'Live match');return m;
+ await page.goto('/');await page.evaluate(m=>localStorage.setItem('sideline.match.v1',JSON.stringify(m)),m);await page.reload();await nav(page,'Live match');await startCaptureFixture(page);return await state(page);
 }
 const pick=(p,team,n)=>p.locator(`[data-turnover-${team}="${n}"]`);
 async function capture(page,type,ours,theirs){
- await page.clock.fastForward(1000);await page.locator(`[data-event="${type}"]`).click();
+ await page.clock.fastForward(1000);await clickCapture(page, `[data-event="${type}"]`);
  await pick(page,'our',ours).click();if(theirs)await pick(page,'opposition',theirs).click();await nav(page,'Record turnover');
 }
 async function panel(page,type){
@@ -32,7 +34,7 @@ async function panel(page,type){
 }
 for(const type of ['turnover-won','turnover-lost'])for(const opponent of [true,false])test(`${type}: both grids, ${opponent?'both credits':'opposition unknown'}, one event and reconciled totals despite opposition active selection`,async({page})=>{
  const original=await seed(page);await page.locator('[data-team="opposition"]').click();const ours=type==='turnover-won'?8:10,theirs=type==='turnover-won'?12:8;
- await page.locator(`[data-event="${type}"]`).click();await panel(page,type);
+ await clickCapture(page, `[data-event="${type}"]`);await panel(page,type);
  await expect(page.getByRole('button',{name:'Record turnover',exact:true})).toBeDisabled();
  expect((await state(page)).events).toHaveLength(0);
  if(opponent)await pick(page,'opposition',theirs).click();
@@ -52,24 +54,24 @@ for(const type of ['turnover-won','turnover-lost'])for(const opponent of [true,f
  await page.reload();expect((await state(page)).events).toEqual(m.events);
 });
 test('selection changes, optional clearing, cancel and rapid completion never fabricate/double-record',async({page})=>{
- await seed(page);const before=await state(page);await page.locator('[data-event="turnover-won"]').click();await pick(page,'our',8).click();await pick(page,'opposition',12).click();await nav(page,'Close turnover');expect(await state(page)).toEqual(before);
- await page.clock.fastForward(1000);await page.locator('[data-event="turnover-won"]').click();await pick(page,'our',10).click();await pick(page,'our',8).click();await pick(page,'opposition',12).click();await nav(page,'Clear opposition player');
+ await seed(page);const before=await state(page);await clickCapture(page, '[data-event="turnover-won"]');await pick(page,'our',8).click();await pick(page,'opposition',12).click();await nav(page,'Close turnover');expect(await state(page)).toEqual(before);
+ await page.clock.fastForward(1000);await clickCapture(page, '[data-event="turnover-won"]');await pick(page,'our',10).click();await pick(page,'our',8).click();await pick(page,'opposition',12).click();await nav(page,'Clear opposition player');
  await expect(pick(page,'our',8)).toHaveAttribute('aria-pressed','true');await expect(pick(page,'our',10)).toHaveAttribute('aria-pressed','false');
  await page.locator('[data-turnover-record]').evaluate(n=>{n.click();n.click();});const m=await state(page);expect(m.events).toHaveLength(1);expect(m.events[0].turnoverLoserNumber).toBe('');
 });
 test('both independent Active XV grids reflect substitutions/re-entry; current team never changes',async({page})=>{
  await seed(page);
  for(const [team,on,off] of [['our',18,10],['opposition',16,12]]){
-  await page.locator(`[data-team="${team}"]`).click();await page.locator('[data-event="substitution"]').click();await page.locator(`[data-sub-on="${on}"]`).click();await page.locator(`[data-sub-off="${off}"]`).click();await nav(page,'Record substitution');
+  await page.locator(`[data-team="${team}"]`).click();await clickCapture(page, '[data-event="substitution"]');await page.locator(`[data-sub-on="${on}"]`).click();await page.locator(`[data-sub-off="${off}"]`).click();await nav(page,'Record substitution');
  }
- await page.locator('[data-event="turnover-won"]').click();await panel(page,'turnover-won');
+ await clickCapture(page, '[data-event="turnover-won"]');await panel(page,'turnover-won');
  await expect(pick(page,'our',18)).toBeVisible();await expect(pick(page,'our',10)).toHaveCount(0);await expect(pick(page,'opposition',16)).toBeVisible();await expect(pick(page,'opposition',12)).toHaveCount(0);
  await page.screenshot({path:`${root}/03-turnover-after-independent-substitutions.png`});await pick(page,'our',18).click();await pick(page,'opposition',16).click();await nav(page,'Record turnover');
  expect((await state(page)).events).toHaveLength(3);expect((await state(page)).recordingTeam).toBe('opposition');
  for(const [team,on,off] of [['our',10,18],['opposition',12,16]]){
-  await page.locator(`[data-team="${team}"]`).click();await page.clock.fastForward(1000);await page.locator('[data-event="substitution"]').click();await page.locator(`[data-sub-on="${on}"]`).click();await page.locator(`[data-sub-off="${off}"]`).click();await nav(page,'Record substitution');
+  await page.locator(`[data-team="${team}"]`).click();await page.clock.fastForward(1000);await clickCapture(page, '[data-event="substitution"]');await page.locator(`[data-sub-on="${on}"]`).click();await page.locator(`[data-sub-off="${off}"]`).click();await nav(page,'Record substitution');
  }
- await page.locator('[data-event="turnover-lost"]').click();await panel(page,'turnover-lost');await expect(pick(page,'our',10)).toBeVisible();await expect(pick(page,'our',18)).toHaveCount(0);await expect(pick(page,'opposition',12)).toBeVisible();await expect(pick(page,'opposition',16)).toHaveCount(0);
+ await clickCapture(page, '[data-event="turnover-lost"]');await panel(page,'turnover-lost');await expect(pick(page,'our',10)).toBeVisible();await expect(pick(page,'our',18)).toHaveCount(0);await expect(pick(page,'opposition',12)).toBeVisible();await expect(pick(page,'opposition',16)).toHaveCount(0);
 });
 test('edit counterpart/primary and clear optional credit recalculates analysis without changing active team',async({page})=>{
  await seed(page);await page.locator('[data-team="opposition"]').click();await capture(page,'turnover-won',8,12);await nav(page,'Edit last event');
@@ -80,8 +82,8 @@ test('edit counterpart/primary and clear optional credit recalculates analysis w
 });
 test('HT/Full Analysis, Full Match Report, Player Review and native History render paired attribution without a second event',async({page})=>{
  const original=await seed(page);await capture(page,'turnover-won',8,12);await capture(page,'turnover-lost',10,8);await page.clock.fastForward(4000);
- const m=await state(page);expect(m.events).toHaveLength(2);const before=JSON.stringify(m);
- await nav(page,'HALF-TIME ANALYSIS');await expect(page.locator('[data-ht-kpi="turnovers"]')).toContainText('Won 1');await expect(page.locator('[data-ht-kpi="turnovers"]')).toContainText('Lost 1');await expect(page.locator('.ht-contributors')).toContainText('1 turnovers lost');
+ const m=await state(page);expect(m.events).toHaveLength(2);const before=JSON.stringify({...m,clock:{...completePeriod(m.clock),phase:"INTERVAL"}});
+ await nav(page,'END FIRST HALF');await expect(page.locator('[data-ht-kpi="turnovers"]')).toContainText('Won 1');await expect(page.locator('[data-ht-kpi="turnovers"]')).toContainText('Lost 1');await expect(page.locator('.ht-contributors')).toContainText('1 turnovers lost');
  await nav(page,'Return to Live Match');await nav(page,'Match analysis');await nav(page,'Full Match Report');
  for(const label of ['Turnovers won','Turnovers lost']){const row=page.locator('.report-view tr').filter({has:page.getByRole('rowheader',{name:label,exact:true})}).first();await expect(row.locator('td')).toHaveText(['1','1']);}
  const model=fullMatchReportModel(m);expect(model.stats.our.turnoversWon).toBe(model.stats.opposition.turnoversLost);
@@ -92,14 +94,14 @@ test('HT/Full Analysis, Full Match Report, Player Review and native History rend
  expect((await state(page)).events).toHaveLength(0);
 });
 test('no squad numbers plus Other number are optional away and required home without artificial squad records',async({page})=>{
- await seed(page,{width:1024,height:768},true);await page.locator('[data-event="turnover-lost"]').click();await expect(pick(page,'our',1)).toBeVisible();await expect(pick(page,'opposition',15)).toBeVisible();
+ await seed(page,{width:1024,height:768},true);await clickCapture(page, '[data-event="turnover-lost"]');await expect(pick(page,'our',1)).toBeVisible();await expect(pick(page,'opposition',15)).toBeVisible();
  await page.locator('[data-credit-other="data-turnover-our"]').fill('23');await nav(page,'Record turnover');const m=await state(page);expect(m.players).toEqual([]);expect(m.oppositionPlayers).toEqual([]);expect(m.events).toHaveLength(1);expect(m.events[0].turnoverLoserNumber).toBe('23');expect(m.events[0].turnoverWinnerNumber).toBe('');
 });
 for(const [name,size] of [['phone',{width:390,height:844}],['portrait',{width:768,height:1024}],['desktop',{width:1440,height:900}]])test(`${name}: both selectors reachable without horizontal clipping`,async({page})=>{
- await seed(page,size);await page.locator('[data-event="turnover-lost"]').click();const d=page.getByRole('dialog');expect(await d.evaluate(n=>n.scrollWidth<=n.clientWidth)).toBe(true);await pick(page,'our',10).click();await pick(page,'opposition',8).click();await nav(page,'Record turnover');expect((await state(page)).events).toHaveLength(1);
+ await seed(page,size);await clickCapture(page, '[data-event="turnover-lost"]');const d=page.getByRole('dialog');expect(await d.evaluate(n=>n.scrollWidth<=n.clientWidth)).toBe(true);await pick(page,'our',10).click();await pick(page,'opposition',8).click();await nav(page,'Record turnover');expect((await state(page)).events).toHaveLength(1);
 });
 test('timestamp is captured on opening; closing is harmless and running clock continues normally',async({page})=>{
- await seed(page);await nav(page,'Start clock');await page.clock.fastForward(2000);await page.locator('[data-event="turnover-won"]').click();
+ await seed(page);await nav(page,'Start clock');await page.clock.fastForward(2000);await clickCapture(page, '[data-event="turnover-won"]');
  await page.clock.fastForward(5000);expect((await state(page)).events).toHaveLength(0);await pick(page,'our',8).click();await nav(page,'Record turnover');
  const m=await state(page);expect(m.events).toHaveLength(1);expect(m.events[0].timeMs).toBe(2000);expect(m.clock.startedAt).not.toBeNull();await expect(page.locator('.clock-digits')).toHaveText('00:07');
 });

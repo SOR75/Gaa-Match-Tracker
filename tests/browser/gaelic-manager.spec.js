@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -48,7 +49,7 @@ test("original Gaelic Manager screenshot imports all 27 numbered names offline, 
     .getByRole("button", { name: "Continue to squad", exact: true })
     .click();
   await page.getByRole("button", { name: "Live match", exact: true }).click();
-  await page.locator("[data-event=goal]").click();
+  await clickCapture(page, "[data-event=goal]");
   await page.keyboard.press("Escape");
   const events = await page.evaluate(
     () => JSON.parse(localStorage.getItem("sideline.match.v1")).events,

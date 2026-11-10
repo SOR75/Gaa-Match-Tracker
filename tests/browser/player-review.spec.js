@@ -1,8 +1,13 @@
+import {clickCapture,startCaptureFixture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { blankMatch, createEvent, saveEvent } from "../../src/domain.js";
 import { snapshotSquad, loadSquadPlayers } from "../../src/squads.js";
 import { completeMatch } from "../../src/history.js";
-const nav = (p, n) => p.getByRole("button", { name: n, exact: true }).click();
+const nav = async (p, n) => {
+ const button=p.getByRole("button",{name:n,exact:true});
+ if(await button.getAttribute("data-event"))await startCaptureFixture(p);
+ await button.click();
+};
 const state = (p) =>
   p.evaluate(() => JSON.parse(localStorage.getItem("sideline.match.v1")));
 function fixture() {
@@ -135,7 +140,7 @@ test("active XV: off player disappears from shot, Mark, block and turnover/inter
   const checkShot = async () => {
     // Respect the existing duplicate-tap guard when repeating a point after undo.
     await page.waitForTimeout(700);
-    await page.locator(".event-controls [data-event=point]").click();
+    await clickCapture(page, ".event-controls [data-event=point]");
     await expect(page.locator('[data-shot-player="8"]')).toHaveCount(0);
     await expect(page.locator('[data-shot-player="22"]')).toBeVisible();
     await nav(page, "Close shot details");
@@ -148,7 +153,7 @@ test("active XV: off player disappears from shot, Mark, block and turnover/inter
   await expect(page.locator('[data-mark-player="22"]')).toBeVisible();
   await nav(page, "Close kickout");
   await nav(page, "Undo last event");
-  await page.locator(".event-controls [data-event=defensive-block]").click();
+  await clickCapture(page, ".event-controls [data-event=defensive-block]");
   await expect(page.locator('button[data-defensive-player="8"]')).toHaveCount(
     0,
   );
@@ -158,7 +163,7 @@ test("active XV: off player disappears from shot, Mark, block and turnover/inter
   await nav(page, "Skip / Close");
   await nav(page, "Undo last event");
   for (const type of ["interception", "turnover-won", "turnover-lost"]) {
-    await page.locator(`.event-controls [data-event="${type}"]`).click();
+    await clickCapture(page, `.event-controls [data-event="${type}"]`);
     const attribute = type.startsWith("turnover-") ? "data-turnover-our" : "data-interception-player";
     await expect(page.locator(`[${attribute}="8"]`)).toHaveCount(0);
     await expect(page.locator(`[${attribute}="22"]`)).toBeVisible();
@@ -174,7 +179,7 @@ test("active XV: off player disappears from shot, Mark, block and turnover/inter
   await page.locator('[data-sub-off="22"]').click();
   await nav(page, "Record substitution");
   await page.waitForTimeout(700);
-  await page.locator(".event-controls [data-event=point]").click();
+  await clickCapture(page, ".event-controls [data-event=point]");
   await expect(page.locator('[data-shot-player="8"]')).toBeVisible();
   await expect(page.locator('[data-shot-player="22"]')).toHaveCount(0);
   await nav(page, "Close shot details");
@@ -185,7 +190,7 @@ test("active XV: off player disappears from shot, Mark, block and turnover/inter
   await page.getByLabel("Player off (substitution)", { exact: true }).fill("3");
   await nav(page, "Save changes");
   await page.waitForTimeout(700);
-  await page.locator(".event-controls [data-event=point]").click();
+  await clickCapture(page, ".event-controls [data-event=point]");
   await expect(page.locator('[data-shot-player="8"]')).toBeVisible();
   await expect(page.locator('[data-shot-player="3"]')).toHaveCount(0);
   await nav(page, "Close shot details");
@@ -201,7 +206,7 @@ test("active XV: off player disappears from shot, Mark, block and turnover/inter
   await expect(page.locator(".recording-team")).toBeVisible();
   await page.reload();
   await page.waitForTimeout(700);
-  await page.locator(".event-controls [data-event=point]").click();
+  await clickCapture(page, ".event-controls [data-event=point]");
   await expect(page.locator('[data-shot-player="8"]')).toBeVisible();
   await expect(page.locator('[data-shot-player="3"]')).toHaveCount(0);
 });

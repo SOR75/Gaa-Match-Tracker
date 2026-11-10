@@ -1,3 +1,5 @@
+import {completePeriod} from '../../src/periods.js';
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { blankMatch, createEvent } from "../../src/domain.js";
 const state = (page) =>
@@ -26,7 +28,7 @@ async function live(page) {
 async function shot(page, type, { inside = true, player = "6" } = {}) {
   // Real match shots are separated in time; preserve the existing duplicate-tap guard.
   await page.waitForTimeout(670);
-  await page.locator(`[data-event="${type}"]`).click();
+  await clickCapture(page, `[data-event="${type}"]`);
   const pitch = page.getByRole("button", {
     name: "Shot location pitch",
     exact: true,
@@ -45,7 +47,9 @@ async function shot(page, type, { inside = true, player = "6" } = {}) {
   await page.getByRole("button", { name: "Done", exact: true }).click();
 }
 async function open(page) {
-  await page
+  const end=page.getByRole("button",{name:"END FIRST HALF",exact:true});
+  if(await end.count()&&await end.isEnabled())await end.click();
+  else await page
     .getByRole("button", { name: "HALF-TIME ANALYSIS", exact: true })
     .click();
   await expect(
@@ -123,7 +127,7 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
   const firstShot = (await state(page)).events[0];
   for (let i = 0; i < 5; i++) {
     await page.waitForTimeout(700);
-    await page.locator('[data-event="our-kickout"]').click();
+    await clickCapture(page, '[data-event="our-kickout"]');
     await page
       .locator(
         `[data-ko-result="${i === 0 ? "mark-won" : i === 4 ? "lost" : "won"}"]`,
@@ -131,20 +135,21 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
       .click();
     if (i === 0) await page.locator('[data-mark-player="4"]').click();
     else await page.keyboard.press("Escape");
-    await page.locator('[data-event="opposition-kickout"]').click();
+    await clickCapture(page, '[data-event="opposition-kickout"]');
     await page
       .locator(`[data-ko-result="${i === 0 ? "won" : "lost"}"]`)
       .click();
     await page.keyboard.press("Escape");
   }
   for (const type of ["turnover-won", "turnover-lost", "turnover-won"]) {
-    await page.locator(`[data-event="${type}"]`).click();
+    await clickCapture(page, `[data-event="${type}"]`);
     await page.locator('[data-turnover-our="4"]').click();
     await page.getByRole("button", { name: "Record turnover", exact: true }).click();
   }
   const before = await state(page);
   await open(page);
-  expect(await state(page)).toEqual(before);
+  if(before.clock.half===1&&before.clock.elapsedMs>0){expect((await state(page)).clock.phase).toBe("INTERVAL");expect((await state(page)).clock.completedHalves[1]).toBe(before.clock.elapsedMs);}
+  expect(await state(page)).toEqual({...before,clock:{...completePeriod(before.clock),phase:"INTERVAL"}});
   await expect(page.locator('[data-ht-score="our"]')).toHaveText("1-05 (8)");
   await expect(page.locator('[data-ht-score="opposition"]')).toHaveText(
     "1-01 (4)",
@@ -269,8 +274,8 @@ test("real Live Match H1 capture → coaching summary → correction → H2 leav
   expect((await state(page)).clock).toMatchObject({
     half: 2,
     elapsedMs: 0,
-    startedAt: null,
-    completedHalves: { 1: 0 },
+    startedAt: expect.any(Number),
+    completedHalves: { 1: before.clock.elapsedMs },
   });
   expect((await state(page)).id).toBe(before.id);
   expect((await state(page)).events).toEqual(h1Events);
@@ -315,6 +320,7 @@ test("small/no-data observations are neutral, compatible saved matches and H1 an
   saved.setup.ourTeam = "Riverside";
   saved.setup.opposition = "Hill United";
   saved.events = [createEvent(saved, "point", "our")];
+  saved.clock.elapsedMs=1000; // Legacy recorded clock evidence, not an event-based start inference.
   await page.goto("/");
   await page.evaluate(
     (m) => localStorage.setItem("sideline.match.v1", JSON.stringify(m)),
@@ -345,7 +351,7 @@ test("small/no-data observations are neutral, compatible saved matches and H1 an
   await page
     .getByRole("button", { name: "START SECOND HALF →", exact: true })
     .click();
-  await page.locator('[data-event="goal"]').click();
+  await clickCapture(page, '[data-event="goal"]');
   await page.keyboard.press("Escape");
   await open(page);
   await expect(page.locator('[data-ht-score="our"]')).toHaveText("0-01 (1)");

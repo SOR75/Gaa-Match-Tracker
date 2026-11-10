@@ -1,3 +1,4 @@
+import {clickCapture,startCaptureFixture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { blankMatch, createEvent } from "../../src/domain.js";
 // Independent acceptance specification: never generate expected menus from the UI helper.
@@ -26,8 +27,11 @@ async function markCell(row) {
     .allTextContents();
   return row.getByRole("cell").nth(headers.indexOf("Kickout Marks") - 1);
 }
-const nav = (page, name) =>
-  page.getByRole("button", { name, exact: true }).click();
+const nav = async (page, name) => {
+  const button=page.getByRole("button", {name,exact:true});
+  if(await button.getAttribute("data-event"))await startCaptureFixture(page);
+  await button.click();
+};
 async function setup(page) {
   // Exercise the preserved pre-V0.3.10 empty-roster/partial-roster contract.
   await page.addInitScript(m => { if (!localStorage.getItem("sideline.match.v1")) localStorage.setItem("sideline.match.v1", JSON.stringify(m)); }, blankMatch());
@@ -49,7 +53,7 @@ for (const type of ["our-kickout", "opposition-kickout"])
       await setup(page);
       await nav(page, "Live match");
       // Click the real Live Match event control, then inspect its actual dialog.
-      await page.locator(`.event-controls [data-event="${type}"]`).click();
+      await clickCapture(page, `.event-controls [data-event="${type}"]`);
       const modal = page.getByRole("dialog");
       await expect(modal).toBeVisible();
       await expect(
@@ -246,7 +250,7 @@ test("shot source excludes Mark in quick capture and editor while keeping Open P
 }) => {
   await setup(page);
   await nav(page, "Live match");
-  await page.locator("[data-event=point]").click();
+  await clickCapture(page, "[data-event=point]");
   await expect(page.getByLabel("Shot source", { exact: true })).toHaveValue(
     "open-play",
   );
@@ -273,7 +277,7 @@ test("Our Kickout Mark visibly offers our populated squad and credits one event;
   await page.locator('#player-form [name="role"]').selectOption("starter");
   await add(page,10,"Our Ten");
   await nav(page, "Live match");
-  await page.locator('.event-controls [data-event="our-kickout"]').click();
+  await clickCapture(page, '.event-controls [data-event="our-kickout"]');
   await nav(page, "Mark won by us");
   const modal = page.getByRole("dialog");
   const picker = modal.getByRole("group", { name: "Our Mark winner" });

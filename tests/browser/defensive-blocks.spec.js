@@ -1,9 +1,12 @@
+import {clickCapture,startCaptureFixture} from '../helpers/live-capture.js';
 import { blankMatch } from "../../src/domain.js";
 import { test, expect } from "@playwright/test";
 const state = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem("sideline.match.v1")));
-const nav = (page, name) =>
-  page.getByRole("button", { name, exact: true }).click();
+const nav = async (page, name) => {
+  await page.getByRole("button", { name, exact: true }).click();
+  if(name==="Live match")await startCaptureFixture(page);
+};
 async function setup(page) {
   // Existing saved empty-roster matches must retain the original fallback behaviour.
   await page.addInitScript(m => { if (!localStorage.getItem("sideline.match.v1")) localStorage.setItem("sideline.match.v1", JSON.stringify(m)); }, blankMatch());
@@ -41,7 +44,7 @@ test("attacking Blocked remains one shot, not Wide; map and timeline distinguish
   await setup(page);
   await add(page, 10, "Attacker");
   await nav(page, "Live match");
-  await page.locator(".event-controls [data-event=miss]").click();
+  await clickCapture(page, ".event-controls [data-event=miss]");
   expect((await state(page)).events).toHaveLength(1);
   await expect(page.getByLabel("Shot source", { exact: true })).toHaveValue(
     "open-play",

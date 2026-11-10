@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -31,7 +32,7 @@ test("real Sheet 3 photo → assisted fifteen-position review → roster selecti
     .getByRole("button", { name: "Continue to squad", exact: true })
     .click();
   await page.getByRole("button", { name: "Live match", exact: true }).click();
-  await page.locator('[data-event="point"]').click();
+  await clickCapture(page, '[data-event="point"]');
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Squad", exact: true }).click();
   const before = await state(page);

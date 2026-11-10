@@ -1,3 +1,4 @@
+import {startCaptureFixture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 
 async function setupMatch(page) {
@@ -10,6 +11,7 @@ async function live(page) {
   await page.getByRole("button", { name: "Live match", exact: true }).click();
 }
 async function recordScore(page, label, player = "") {
+  await startCaptureFixture(page);
   await page.getByRole("button", { name: new RegExp(`^${label} \\+`) }).click();
   if (player) await page.getByLabel("Other player number").fill(player);
   await page.getByRole("button", { name: "Done", exact: true }).click();

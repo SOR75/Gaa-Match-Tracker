@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { blankMatch, createEvent, saveEvent } from "../../src/domain.js";
 import { createMatchPlayer, createSquadPlayer } from "../../src/identity.js";
@@ -36,7 +37,7 @@ test("real live kickout out of play persists, edits and undo, no unknown choice"
   page,
 }) => {
   await seed(page);
-  await page.locator('[data-event="our-kickout"]').click();
+  await clickCapture(page, '[data-event="our-kickout"]');
   const d = page.getByRole("dialog");
   await expect(
     d.getByRole("button", { name: "Unknown", exact: true }),
@@ -60,7 +61,7 @@ for (const team of ["our", "opposition"])
   }) => {
     await seed(page);
     await page.locator(`[data-team="${team}"]`).click();
-    await page.locator('[data-event="pass"]').click();
+    await clickCapture(page, '[data-event="pass"]');
     expect((await state(page)).events).toHaveLength(0);
     await page.locator('[data-pass-from="1"]').click();
     await page.locator('[data-pass-to="8"]').click();
@@ -81,11 +82,11 @@ test("one simple optional Pass after a shot has no build-up decisions and preser
   page,
 }) => {
   await seed(page);
-  await page.locator('[data-event="point"]').click();
+  await clickCapture(page, '[data-event="point"]');
   await page.keyboard.press("Escape");
   const shot = (await state(page)).events[0];
   await expect(page.locator("[data-add-build-up]")).toHaveCount(0);
-  await page.locator('[data-event="pass"]').click();
+  await clickCapture(page, '[data-event="pass"]');
   await expect(
     page.getByLabel("Build-up to shot", { exact: true }),
   ).toHaveCount(0);
@@ -105,7 +106,7 @@ test("one turnover stores winner and loser from opposite squads", async ({
   page,
 }) => {
   await seed(page);
-  await page.locator('[data-event="turnover-won"]').click();
+  await clickCapture(page, '[data-event="turnover-won"]');
   await page.locator('[data-turnover-our="8"]').click();
   await page.locator('[data-turnover-opposition="8"]').click();
   await nav(page, "Record turnover");
@@ -131,20 +132,20 @@ test("automatic goalkeeper and actual substitution drive kickouts, saves and con
 }) => {
   await seed(page);
   await keeper(page);
-  await page.locator('[data-event="our-kickout"]').click();
+  await clickCapture(page, '[data-event="our-kickout"]');
   await nav(page, "Won by us");
   await page.locator('[data-ko-player="8"]').click();
   await page.locator('[data-team="opposition"]').click();
-  await page.locator('[data-event="miss"]').click();
+  await clickCapture(page, '[data-event="miss"]');
   await page.getByLabel("Miss reason", { exact: true }).selectOption("short");
   await page.keyboard.press("Escape");
   await page.locator('[data-team="our"]').click();
-  await page.locator('[data-event="substitution"]').click();
+  await clickCapture(page, '[data-event="substitution"]');
   await page.getByLabel("Player on", { exact: true }).fill("16");
   await page.getByLabel("Player off", { exact: true }).fill("1");
   await nav(page, "Record substitution");
   await page.locator('[data-team="opposition"]').click();
-  await page.locator('[data-event="goal"]').click();
+  await clickCapture(page, '[data-event="goal"]');
   await page.keyboard.press("Escape");
   await nav(page, "Match analysis");
   const first = page.locator(
@@ -166,9 +167,9 @@ test("new participant metadata and GK analysis survive native History and offlin
 }) => {
   await seed(page);
   await keeper(page);
-  await page.locator('[data-event="our-kickout"]').click();
+  await clickCapture(page, '[data-event="our-kickout"]');
   await nav(page, "Out of Play / Sideline");
-  await page.locator('[data-event="pass"]').click();
+  await clickCapture(page, '[data-event="pass"]');
   await page.locator('[data-pass-from="8"]').click();
   await page.locator('[data-pass-to="1"]').click();
   await page.locator('[data-pass-type="kick"]').click();
@@ -221,7 +222,7 @@ test("Player Review exposes linked goalkeeper career and safe season grouping", 
 }) => {
   const m = await seed(page);
   await keeper(page);
-  await page.locator('[data-event="our-kickout"]').click();
+  await clickCapture(page, '[data-event="our-kickout"]');
   await nav(page, "Won by us");
   await page.locator('[data-ko-player="8"]').click();
   await nav(page, "Player Review");

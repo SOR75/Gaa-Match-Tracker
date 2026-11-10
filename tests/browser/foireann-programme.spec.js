@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -19,7 +20,7 @@ test("exact Foireann photograph imports English detail names with isolated colum
     .getByRole("button", { name: "Continue to squad", exact: true })
     .click();
   await page.getByRole("button", { name: "Live match", exact: true }).click();
-  await page.locator("[data-event=point]").click();
+  await clickCapture(page, "[data-event=point]");
   await page.keyboard.press("Escape");
   const events = await page.evaluate(
     () => JSON.parse(localStorage.getItem("sideline.match.v1")).events,

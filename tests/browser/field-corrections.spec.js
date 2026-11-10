@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import {test,expect} from '@playwright/test';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
@@ -13,7 +14,7 @@ async function seed(page){
  m.players=roster();m.oppositionPlayers=roster();
  await page.goto('/');await page.evaluate(m=>localStorage.setItem('sideline.match.v1',JSON.stringify(m)),m);await page.reload();await nav(page,'Live match');return m;
 }
-async function sub(page,on,off){await page.clock.fastForward(1000);await page.locator('[data-event="substitution"]').click();await page.locator(`[data-sub-on="${on}"]`).click();await page.locator(`[data-sub-off="${off}"]`).click();await nav(page,'Record substitution');}
+async function sub(page,on,off){await page.clock.fastForward(1000);await clickCapture(page, '[data-event="substitution"]');await page.locator(`[data-sub-on="${on}"]`).click();await page.locator(`[data-sub-off="${off}"]`).click();await nav(page,'Record substitution');}
 async function picks(page,attribute,on=18,off=6){
  await expect(page.locator(`[${attribute}="${on}"]`)).toBeVisible();await expect(page.locator(`[${attribute}="${off}"]`)).toHaveCount(0);await expect(page.locator(`button[${attribute}]`)).toHaveCount(15);
 }
@@ -21,15 +22,15 @@ for(const team of ['our','opposition'])test(`${team}: kickout/Mark, shots, actio
  await mkdir(root,{recursive:true});await seed(page);await page.locator(`[data-team="${team}"]`).click();await sub(page,18,6);
  // Winner roster follows the credited team, regardless of which team kicked.
  for(const type of ['our-kickout','opposition-kickout'])for(const mark of [false,true]){
-  await page.clock.fastForward(1000);const before=(await state(page)).events.length;await page.locator(`[data-event="${type}"]`).click();
+  await page.clock.fastForward(1000);const before=(await state(page)).events.length;await clickCapture(page, `[data-event="${type}"]`);
   const label=mark?(team==='our'?'Mark won by us':'Mark won by opposition'):(team==='our'?'Won by us':type==='our-kickout'?'Won by opposition':'Retained by opposition');
   await nav(page,label);await picks(page,'data-ko-player');
   if(team==='opposition'&&type==='opposition-kickout'&&!mark)await page.screenshot({path:`${root}/01-opposition-active-xv.png`});
   await page.locator('[data-ko-player="18"]').click();const saved=await state(page);expect(saved.events).toHaveLength(before+1);expect(saved.events.at(-1).kickoutWinnerNumber).toBe('18');expect(saved.events.at(-1).participants.kickoutWinner.team).toBe(team);
  }
- await page.locator('[data-event="point"]').click();await picks(page,'data-shot-player');await page.keyboard.press('Escape');
+ await clickCapture(page, '[data-event="point"]');await picks(page,'data-shot-player');await page.keyboard.press('Escape');
  for(const type of ['turnover-won','turnover-lost','interception']){
-  await page.locator(`[data-event="${type}"]`).click();
+  await clickCapture(page, `[data-event="${type}"]`);
   if(type.startsWith('turnover-')){
    await picks(page,`data-turnover-${team}`);await picks(page,`data-turnover-${team==='our'?'opposition':'our'}`,6,18);
    await page.locator(`[data-turnover-${team}="18"]`).click();
@@ -41,14 +42,14 @@ for(const team of ['our','opposition'])test(`${team}: kickout/Mark, shots, actio
    await picks(page,'data-interception-player');await page.locator('[data-interception-player="18"]').click();expect((await state(page)).events.at(-1).playerNumber).toBe('18');
   }
  }
- await page.locator('[data-event="defensive-block"]').click();await picks(page,'data-defensive-player',team==='our'?18:6,team==='our'?6:18);await page.keyboard.press('Escape');
- await page.locator('[data-event="pass"]').click();await picks(page,'data-pass-from');await picks(page,'data-pass-to');await page.locator('[data-pass-from="18"]').click();await page.locator('[data-pass-to="11"]').click();await nav(page,'Hand Pass');const passEvent=(await state(page)).events.at(-1);
- const other=team==='our'?'opposition':'our';await page.locator(`[data-team="${other}"]`).click();await page.locator('[data-event="point"]').click();await picks(page,'data-shot-player',6,18);await page.keyboard.press('Escape');
+ await clickCapture(page, '[data-event="defensive-block"]');await picks(page,'data-defensive-player',team==='our'?18:6,team==='our'?6:18);await page.keyboard.press('Escape');
+ await clickCapture(page, '[data-event="pass"]');await picks(page,'data-pass-from');await picks(page,'data-pass-to');await page.locator('[data-pass-from="18"]').click();await page.locator('[data-pass-to="11"]').click();await nav(page,'Hand Pass');const passEvent=(await state(page)).events.at(-1);
+ const other=team==='our'?'opposition':'our';await page.locator(`[data-team="${other}"]`).click();await clickCapture(page, '[data-event="point"]');await picks(page,'data-shot-player',6,18);await page.keyboard.press('Escape');
  // A blocked opposition attempt credits OUR defender from OUR independent XV.
- await page.locator('[data-team="opposition"]').click();await page.locator('[data-event="miss"]').click();await page.getByLabel('Miss reason',{exact:true}).selectOption('blocked');await picks(page,'data-block-player',team==='our'?18:6,team==='our'?6:18);await page.keyboard.press('Escape');
- await page.locator(`[data-team="${team}"]`).click();await sub(page,6,18);await page.locator('[data-event="point"]').click();await picks(page,'data-shot-player',6,18);await page.keyboard.press('Escape');
+ await page.locator('[data-team="opposition"]').click();await clickCapture(page, '[data-event="miss"]');await page.getByLabel('Miss reason',{exact:true}).selectOption('blocked');await picks(page,'data-block-player',team==='our'?18:6,team==='our'?6:18);await page.keyboard.press('Escape');
+ await page.locator(`[data-team="${team}"]`).click();await sub(page,6,18);await clickCapture(page, '[data-event="point"]');await picks(page,'data-shot-player',6,18);await page.keyboard.press('Escape');
  await nav(page,'Timeline');await page.locator(`[data-edit-event="${passEvent.id}"]`).click();await expect(page.getByLabel('Passer',{exact:true}).locator('option[value="18"]')).toHaveCount(1);await expect(page.getByLabel('Passer',{exact:true}).locator('option[value="6"]')).toHaveCount(0);await nav(page,'Cancel');
- await page.reload();await nav(page,'Live match');await page.locator('[data-event="point"]').click();await picks(page,'data-shot-player',6,18);
+ await page.reload();await nav(page,'Live match');await clickCapture(page, '[data-event="point"]');await picks(page,'data-shot-player',6,18);
 });
 const readRows=p=>p.locator('[data-review-row]').evaluateAll(rows=>rows.map(row=>({...Object.fromEntries([...row.querySelectorAll('input,select')].map(n=>[n.name,n.value])),confidence:row.querySelector('.uncertain').textContent})));
 for(const name of ['st-manchans','st-manchans-camera','naomh-ciaran','shamrocks'])test(`actual ${name} photograph: formation/Subs integrity and honest uncertain-field review`,async({page},info)=>{

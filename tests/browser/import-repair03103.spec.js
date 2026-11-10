@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import {test,expect} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 import {retiredAssetsServer} from '../helpers/retired-assets-server.js';
@@ -14,7 +15,7 @@ test.describe('immutable asset retirement',()=>{
   test.setTimeout(120000);const server=await retiredAssetsServer();
   try{
    await page.addInitScript(()=>{window.ocrWorkerStarts=[];const Original=window.Worker;window.Worker=class extends Original{constructor(url,options){super(url,options);window.ocrWorkerStarts.push(String(url));}};});
-   await setup(page,server.url);await nav(page,'Live match');await page.locator('[data-event=point]').click();await nav(page,'Close shot details');await nav(page,'Squad');
+   await setup(page,server.url);await nav(page,'Live match');await clickCapture(page, '[data-event=point]');await nav(page,'Close shot details');await nav(page,'Squad');
    expect(await page.evaluate(()=>window.ocrWorkerStarts)).toEqual([]);
    const squad=snapshotSquad('Retained Saved Squad',[{number:8,name:'Saved Player',role:'starter'}]);
    await page.evaluate(async squad=>{
@@ -36,7 +37,7 @@ test('real OCR of controlled ordered-list raster imports all 29 with XV/sub role
  await page.locator('#team-sheet-photo').setInputFiles({name:'controlled-ordered-list.png',mimeType:'image/png',buffer:Buffer.from(bytes,'base64')});await expect(page.getByRole('heading',{name:'Review & confirm',exact:true})).toBeVisible({timeout:95000});const rows=await readRows(page);expect(rows.map(({number,name,role})=>({number,name,role}))).toEqual(fixture.expected);await info.attach('controlled-raster.png',{body:Buffer.from(bytes,'base64'),contentType:'image/png'});
 });
 test('ordered 29-player text/table import enriches the real current match and preserves events/substitutions while new high jerseys stay bench',async({page})=>{
- await setup(page);await nav(page,'Live match');await page.locator('[data-event=point]').click();await page.locator('[data-shot-player="2"]').click();await nav(page,'Close shot details');await page.locator('[data-event=substitution]').click();await page.locator('[data-sub-on="18"]').click();await page.locator('[data-sub-off="2"]').click();await nav(page,'Record substitution');const before=await state(page),active=onFieldPlayers(before,'our').map(p=>p.id);
+ await setup(page);await nav(page,'Live match');await clickCapture(page, '[data-event=point]');await page.locator('[data-shot-player="2"]').click();await nav(page,'Close shot details');await clickCapture(page, '[data-event=substitution]');await page.locator('[data-sub-on="18"]').click();await page.locator('[data-sub-off="2"]').click();await nav(page,'Record substitution');const before=await state(page),active=onFieldPlayers(before,'our').map(p=>p.id);
  await nav(page,'Squad');await page.locator('#team-sheet-file').setInputFiles({name:'ordered-team.csv',mimeType:'text/csv',buffer:Buffer.from('Jersey,Player Name\n'+fixture.expected.map(p=>`${p.number},${p.name}`).join('\n'))});await expect(page.getByRole('heading',{name:'Review & confirm',exact:true})).toBeVisible();const rows=await readRows(page);expect(rows.map(({number,name,role})=>({number,name,role}))).toEqual(fixture.expected);await expect(page.locator('[data-import-starters]')).toBeHidden();await nav(page,'Confirm & add to squad');const after=await state(page);expect(after.events).toEqual(before.events);expect(onFieldPlayers(after,'our').map(p=>p.id)).toEqual(active);expect(after.players.find(p=>p.number===2).id).toBe(before.players.find(p=>p.number===2).id);expect(after.players.filter(p=>p.name)).toHaveLength(29);for(const n of [24,25,26,27,28,29])expect(after.players.find(p=>p.number===n).role).toBe('substitute');await nav(page,'Timeline');await expect(page.locator('.event-row').filter({hasText:'Point'})).toContainText('Nora Quinn');
 });
 test.describe('original programme on scalar OCR core',()=>{

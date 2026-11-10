@@ -17,9 +17,18 @@ export function syncPeriod(clock) {
 export function pausePeriod(clock,now=Date.now()) {
  return syncPeriod({...clock,elapsedMs:runningElapsed(clock,now),startedAt:null});
 }
+export function periodHasStarted(clock) {
+ const started=clock.periods?.[periodId(clock)]?.hasStarted;
+ return typeof started==='boolean'?started:clock.startedAt!==null||clock.elapsedMs>0;
+}
+export function startPeriod(clock,now=Date.now()) {
+ if(clock.startedAt!==null||['SHOOTOUT','INTERVAL','REVIEW'].includes(clock.phase)||completedDuration(clock,clock.half)!==null)return clock;
+ const id=periodId(clock);
+ return syncPeriod({...clock,startedAt:now,periods:{...clock.periods,[id]:{...clock.periods?.[id],hasStarted:true}}});
+}
 export function togglePeriod(clock,now=Date.now()) {
  if(['SHOOTOUT','INTERVAL','REVIEW'].includes(clock.phase)||completedDuration(clock,clock.half)!==null)return clock;
- return syncPeriod(clock.startedAt===null?{...clock,startedAt:now}:pausePeriod(clock,now));
+ return clock.startedAt===null?startPeriod(clock,now):pausePeriod(clock,now);
 }
 export function completePeriod(clock,now=Date.now()) {
  const paused=pausePeriod(clock,now),duration=completedDuration(clock,clock.half)??paused.elapsedMs,id=periodId(clock);
@@ -59,5 +68,5 @@ export function durationBetween(match,from,to) {
 }
 export function validPeriodClock(clock) {
  if(clock.periodVersion===undefined)return [1,2].includes(clock.half);
- return clock.periodVersion===1&&[1,2,3,4].includes(clock.half)&&periodId(clock)===clock.period&&['PLAY','REVIEW','INTERVAL','SHOOTOUT'].includes(clock.phase)&&(clock.activeHalf===undefined||([1,2,3,4].includes(clock.activeHalf)&&clock.activeHalf>=clock.half))&&clock.periods?.[clock.period]&&Object.entries(clock.periods).every(([id,r])=>PERIODS.includes(id)&&r.id===id&&Number.isFinite(r.elapsedMs)&&r.elapsedMs>=0&&(r.startedAt===null||Number.isFinite(r.startedAt))&&(r.completedDurationMs===null||(Number.isFinite(r.completedDurationMs)&&r.completedDurationMs>=0)));
+ return clock.periodVersion===1&&[1,2,3,4].includes(clock.half)&&periodId(clock)===clock.period&&['PLAY','REVIEW','INTERVAL','SHOOTOUT'].includes(clock.phase)&&(clock.activeHalf===undefined||([1,2,3,4].includes(clock.activeHalf)&&clock.activeHalf>=clock.half))&&clock.periods?.[clock.period]&&Object.entries(clock.periods).every(([id,r])=>PERIODS.includes(id)&&r.id===id&&Number.isFinite(r.elapsedMs)&&r.elapsedMs>=0&&(r.startedAt===null||Number.isFinite(r.startedAt))&&(r.hasStarted===undefined||typeof r.hasStarted==='boolean')&&(r.completedDurationMs===null||(Number.isFinite(r.completedDurationMs)&&r.completedDurationMs>=0)));
 }

@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { blankMatch, createEvent, saveEvent } from "../../src/domain.js";
 import { createMatchPlayer, createSquadPlayer } from "../../src/identity.js";
@@ -30,7 +31,7 @@ async function seed(page) {
   return m;
 }
 async function sub(page, on, off) {
-  await page.locator('[data-event="substitution"]').click();
+  await clickCapture(page, '[data-event="substitution"]');
   await page.locator(`[data-sub-on="${on}"]`).click();
   await page.locator(`[data-sub-off="${off}"]`).click();
   await nav(page, "Record substitution");
@@ -40,12 +41,12 @@ test("one optional Pass: no event on opening/cancel, Active XV, one Record, unch
 }) => {
   await seed(page);
   await sub(page, 18, 10);
-  await page.locator('[data-event="point"]').click();
+  await clickCapture(page, '[data-event="point"]');
   await page.keyboard.press("Escape");
   const before = await state(page);
   await expect(page.locator('[data-event="pass"]')).toHaveCount(1);
   await expect(page.locator("[data-add-build-up]")).toHaveCount(0);
-  await page.locator('[data-event="pass"]').click();
+  await clickCapture(page, '[data-event="pass"]');
   expect((await state(page)).events).toEqual(before.events);
   await expect(
     page.getByLabel("Build-up to shot", { exact: true }),
@@ -61,7 +62,7 @@ test("one optional Pass: no event on opening/cancel, Active XV, one Record, unch
   await nav(page, "Close Pass");
   expect((await state(page)).events).toEqual(before.events);
   await page.waitForTimeout(700);
-  await page.locator('[data-event="pass"]').click();
+  await clickCapture(page, '[data-event="pass"]');
   await page.locator('[data-pass-from="18"]').click();
   await page.locator('[data-pass-to="15"]').click();
   await page.locator('[data-pass-type="hand"]').click();
@@ -154,11 +155,11 @@ test("real clock H1→H2, #16 replacement: 32/28 minutes, 5/4 kickouts, 1/2 goal
   await nav(page, "Start clock");
   await page.clock.fastForward(5 * 60000);
   await page.locator('[data-team="opposition"]').click();
-  await page.locator('[data-event="goal"]').click();
+  await clickCapture(page, '[data-event="goal"]');
   await page.keyboard.press("Escape");
   for (let i = 0; i < 5; i++) {
     await page.clock.fastForward(60000);
-    await page.locator('[data-event="our-kickout"]').click();
+    await clickCapture(page, '[data-event="our-kickout"]');
     await nav(page, i < 2 ? "SHORT" : "LONG");
     await nav(
       page,
@@ -173,27 +174,27 @@ test("real clock H1→H2, #16 replacement: 32/28 minutes, 5/4 kickouts, 1/2 goal
     if (i !== 4) await page.locator('[data-ko-player="8"]').click();
   }
   await page.clock.fastForward(60000);
-  await page.locator('[data-event="opposition-kickout"]').click();
+  await clickCapture(page, '[data-event="opposition-kickout"]');
   await nav(page, "LONG");
   await nav(page, "Retained by opposition");
   await page.locator('[data-ko-player="8"]').click();
   await page.clock.fastForward(19 * 60000);
-  await nav(page, "HALF-TIME ANALYSIS");
+  await nav(page, "END FIRST HALF");
   await nav(page, "START SECOND HALF →");
   expect((await state(page)).clock.completedHalves["1"]).toBe(30 * 60000);
-  await nav(page, "Start clock");
+  expect((await state(page)).clock.startedAt).not.toBeNull();
   await page.clock.fastForward(2 * 60000);
   await page.locator('[data-team="our"]').click();
   await sub(page, 16, 1);
   for (let i = 0; i < 2; i++) {
     await page.clock.fastForward(60000);
     await page.locator('[data-team="opposition"]').click();
-    await page.locator('[data-event="goal"]').click();
+    await clickCapture(page, '[data-event="goal"]');
     await page.keyboard.press("Escape");
   }
   for (let i = 0; i < 4; i++) {
     await page.clock.fastForward(60000);
-    await page.locator('[data-event="our-kickout"]').click();
+    await clickCapture(page, '[data-event="our-kickout"]');
     await nav(page, "LONG");
     await nav(page, i < 3 ? "Won by us" : "Out of Play / Sideline");
     if (i < 3) await page.locator('[data-ko-player="8"]').click();

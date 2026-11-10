@@ -1,3 +1,4 @@
+import {clickCapture,startCaptureFixture} from '../helpers/live-capture.js';
 import {readFileSync} from 'node:fs';
 const RELEASE_VERSION=JSON.parse(readFileSync('public/build-info.json','utf8')).version;
 import {test,expect} from '@playwright/test';
@@ -30,12 +31,12 @@ test('legacy cache-first bootstrap upgrades without clearing stores, forcing a l
  test.setTimeout(60000);const server=await updateServer();
  try{
   await page.goto(server.url);await controlled(page,server.url);await seed(page);await expect(page).toHaveTitle('Legacy cached shell');
-  await nav(page,'Start clock');await page.locator('[data-event="point"]').click();await nav(page,'Close shot details');const before=await storage(page);let navigations=0;page.on('framenavigated',frame=>{if(frame===page.mainFrame())navigations++;});
+  await nav(page,'Start clock');await clickCapture(page, '[data-event="point"]');await nav(page,'Close shot details');const before=await storage(page);let navigations=0;page.on('framenavigated',frame=>{if(frame===page.mainFrame())navigations++;});
   server.setPhase('new');const fresh=await context.newPage();
   // A unique same-origin query bypasses the legacy worker's exact cached '/' key.
   await fresh.goto(server.url+'/?sideline-update=0393');await expect(fresh).toHaveTitle(`Sideline V${RELEASE_VERSION}`);await waiting(fresh);
   expect(navigations).toBe(0);await expect(page).toHaveTitle('Legacy cached shell');expect(await storage(page)).toEqual(before);expect((await state(page)).clock.startedAt).not.toBeNull();
-  await page.waitForTimeout(800);await page.locator('[data-event="point"]').click();await nav(page,'Close shot details');expect((await state(page)).events).toHaveLength(2);
+  await page.waitForTimeout(800);await clickCapture(page, '[data-event="point"]');await nav(page,'Close shot details');expect((await state(page)).events).toHaveLength(2);
   const saved=await storage(page);await fresh.close();await page.close();await context.setOffline(true);
   const reopened=await context.newPage();await reopened.goto(server.url);await expect(reopened).toHaveTitle(`Sideline V${RELEASE_VERSION}`);await expect(reopened.locator('.topbar .build-tag')).toHaveText(`V${RELEASE_VERSION}`);expect(await storage(reopened)).toEqual(saved);
   await nav(reopened,'Live match');await reopened.getByRole('button',{name:'Turnover Won',exact:true}).click();expect((await state(reopened)).events).toHaveLength(2);await expect(reopened.locator('[data-turnover-form]')).toBeVisible();await reopened.locator('[data-turnover-our="8"]').click();await nav(reopened,'Record turnover');expect((await state(reopened)).events).toHaveLength(3);
@@ -59,7 +60,7 @@ test('failed candidate precache/server failure keep the previous app offline and
   server.setPhase('B');server.setBroken(true);await page.evaluate(async()=>{try{await(await navigator.serviceWorker.getRegistration()).update();}catch{}});
   await expect.poll(()=>page.evaluate(async()=>(await caches.keys()).includes('sideline-test-B'))).toBe(true);
   server.setUnavailable(true);await page.reload();await expect(page).toHaveTitle('Cached shell A');expect(await storage(page)).toEqual(before);
-  await context.setOffline(true);await page.reload();await expect(page).toHaveTitle('Cached shell A');expect(await storage(page)).toEqual(before);await nav(page,'Live match');await page.locator('[data-event="point"]').click();await nav(page,'Close shot details');expect((await state(page)).events).toHaveLength(1);
+  await context.setOffline(true);await page.reload();await expect(page).toHaveTitle('Cached shell A');expect(await storage(page)).toEqual(before);await nav(page,'Live match');await clickCapture(page, '[data-event="point"]');await nav(page,'Close shot details');expect((await state(page)).events).toHaveLength(1);
  }finally{await server.close();}
 });
 test('V0.3.9.3 visible production identity and both real Live Match buttons preserve paired capture unchanged',async({page,request})=>{
@@ -69,7 +70,7 @@ test('V0.3.9.3 visible production identity and both real Live Match buttons pres
   await page.locator(`[data-squad-team="${team}"]`).click();
   for(const n of [8,10,12]){await page.getByLabel('Jersey number',{exact:true}).fill(String(n));await page.getByLabel('Player name',{exact:true}).fill(`${team} Candidate ${n}`);await nav(page,'Add player');}
  }
- await nav(page,'Live match');await expect(page.locator('.matchday-toolbar .build-tag')).toHaveText(`V${RELEASE_VERSION}`);await page.screenshot({path:`${root}/0393-visible-version.png`});
+ await nav(page,'Live match');await startCaptureFixture(page);await expect(page.locator('.matchday-toolbar .build-tag')).toHaveText(`V${RELEASE_VERSION}`);await page.screenshot({path:`${root}/0393-visible-version.png`});
  const info=await(await request.get('/build-info.json')).json();expect((await page.evaluate(()=>window.__SIDELINE_BUILD__)).sourceCommit).toBe(info.sourceCommit);
  for(const [label,ours,theirs,count] of [['Won',8,12,0],['Lost',10,8,1]]){
   await page.getByRole('button',{name:`Turnover ${label}`,exact:true}).click();expect((await state(page)).events).toHaveLength(count);await expect(page.locator('[data-turnover-form]')).toBeVisible();await expect(page.getByRole('button',{name:'Record turnover',exact:true})).toBeDisabled();

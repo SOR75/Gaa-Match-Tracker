@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 test("iPad roadmap button has zero voice/microphone execution and preserves paused/running clocks and tap capture", async ({
@@ -87,7 +88,7 @@ test("iPad roadmap button has zero voice/microphone execution and preserves paus
   await expect(
     page.locator("#voice-match-panel,[data-vm-listen],[data-vm-confirm]"),
   ).toHaveCount(0);
-  await page.locator('[data-event="point"]').click();
+  await clickCapture(page, '[data-event="point"]');
   const match = JSON.parse(await state());
   expect(match.events).toHaveLength(1);
   expect(match.events[0].event).toBe("point");

@@ -1,3 +1,4 @@
+import {captureContext,captureReason,assertNewCapture,matchFinished} from './capture-policy.js';
 import { eventDeletion, editRosterOptions } from './event-corrections.js';
 import {normalTimePending} from './normal-time.js';
 import {downloadTimelineCSV} from './analysis-stream.js';
@@ -10,14 +11,13 @@ import {initialShootout,penaltyResult,resetShootoutResult,shootoutStatus} from "
 import {createShootoutUI,shootoutTimeline} from "./shootout-ui.js";
 import {activeGoalkeepers} from "./goalkeepers.js";
 import "./shootout.css";
-import {periodId, PERIODS, completedDuration, completePeriod, advancePeriod, pausePeriod, shootoutClock, periodReferenceMs, continuousPlayingMs} from "./periods.js";
+import {periodId, PERIODS, periodHasStarted, startPeriod, completedDuration, completePeriod, advancePeriod, pausePeriod, shootoutClock, periodReferenceMs, continuousPlayingMs} from "./periods.js";
 import { openBookedCapture } from "./booked-capture.js";
 import { acceptedEnrichment, enrichmentOptions, withNumberedEventPlayers, retainLiveRoster } from "./match-squad-enrichment.js";
 import { APP_VERSION, BUILD_INFO } from "./build-info.js";
 import { registerOfflineApp } from "./pwa-updates.js";
 import { openTurnoverCapture } from "./turnover-capture.js";
 import { openPassCapture } from "./pass-capture.js";
-import { advanceHalfClock } from "./goalkeepers.js";
 import "./goalkeeper.css";
 import { linkedEventFields } from "./event-links.js";
 import { startingGoalkeepers } from "./goalkeepers.js";
@@ -123,7 +123,7 @@ let view = normalTimePending(match)?"normaltime":
   match &&
   (match.events.length ||
     match.clock.startedAt !== null ||
-    match.clock.elapsedMs > 0)
+    periodHasStarted(match.clock))
     ? "live"
     : "setup";
 let selectedTeam = match?.recordingTeam === "opposition" ? "opposition" : "our";
@@ -190,7 +190,9 @@ let offlineStatus = import.meta.env.PROD
   ? "Offline cache not yet verified"
   : "Development mode — use production build for offline";
 const acceptTap = createTapGuard();
-const saveMatchEvent = (event) => {
+const saveMatchEvent = (event, context = null) => {
+  if(context)assertNewCapture(match,event,context);
+  else if(!match.events.some(row=>row.id===event.id))throw new Error('This event no longer exists. It cannot be recreated by an editor.');
   if(match.clock.phase==="SHOOTOUT")throw new Error("Football events are frozen during the shootout.");
   if (match.goalkeeperTrackingVersion === 1 && !match.goalkeepers)
     match.goalkeepers = startingGoalkeepers(match);
@@ -203,8 +205,10 @@ const saveMatchEvent = (event) => {
   return saved;
 };
 let lastDisciplineSave=-Infinity;
-function recordEvent(event) {
-  if(!captureAttempt(document.querySelector("#event-dialog"),()=>{match.events=saveMatchEvent(event);}))return false;
+function recordEvent(event, context) {
+  const dialog=document.querySelector("#event-dialog");
+  if(!match||!dialog)return false;
+  if(!captureAttempt(dialog,()=>{match.events=saveMatchEvent(event,context);}))return false;
   if(event.disciplineVersion===1)lastDisciplineSave=performance.now();
   persist();
   render();
@@ -262,6 +266,13 @@ function saveEventNote(event) {
     dictatedNote: event.dictatedNote,
   });
   persist();
+}
+function beginPeriod(half) {
+ if(matchFinished(match)){toast('The match is completed.');return;}
+ if(half>match.clock.half&&!periodHasStarted(match.clock)&&completedDuration(match.clock,match.clock.half)===null){toast('Start the current period before advancing.');return;}
+ match.clock=advancePeriod(match.clock,half);
+ if(!pendingETChoices(match).length)match.clock=startPeriod(match.clock);
+ persist();
 }
 const ready = () => match.setup.ourTeam.trim() && match.setup.opposition.trim();
 const teamName = (team, source = match) =>
@@ -374,7 +385,7 @@ function scoreboard() {
     const tally = totals(match.events, team);
     return `<div class="score-team ${team}"><span class="score-team-label">${team === "our" ? "OUR TEAM" : "OPPOSITION"}</span><h2>${esc(teamName(team))}</h2><div class="score-total">${gaelicScore(tally)}</div><div class="score-calculated" aria-label="Calculated total points">(${tally.total})</div><div class="score-breakdown"><span><b>${tally.goals}</b> goals</span><span><b>${tally.points}</b> points</span><span><b>${tally.twoPointers}</b> 2-pointers</span></div></div>`;
   };
-  return `<section class="scoreboard" aria-label="Live scoreboard">${score("our")}<div class="score-clock"><span class="half-label">${match.clock.phase==="SHOOTOUT"?"SHOOTOUT":match.clock.half<=2 ? (match.clock.half===1?"FIRST HALF":"SECOND HALF") : periodId(match.clock)}</span><div class="clock-digits" data-clock>${formatTime(elapsedMs(match.clock))}</div><span class="clock-status" data-clock-status></span><button class="clock-button" ${pendingETChoices(match).length||completedDuration(match.clock,match.clock.half)!==null||["INTERVAL","SHOOTOUT","REVIEW"].includes(match.clock.phase)?"disabled":""} data-action="clock" aria-label="${match.clock.startedAt === null ? "Start clock" : "Pause clock"}">${match.clock.startedAt === null ? `${icon("live")} Start clock` : '<span class="pause-icon">Ⅱ</span> Pause clock'}</button>${match.clock.half<=2?`<button class="half-button" data-action="half">${match.clock.phase==="REVIEW"?"Return to current period":match.clock.half === 1 ? "Start second half" : "Return to first half"}</button>`:""}</div>${score("opposition")}<span class="score-save-status" data-save-status></span></section>`;
+  return `<section class="scoreboard" aria-label="Live scoreboard">${score("our")}<div class="score-clock"><span class="half-label">${match.clock.phase==="SHOOTOUT"?"SHOOTOUT":match.clock.half<=2 ? (match.clock.half===1?"FIRST HALF":"SECOND HALF") : periodId(match.clock)}</span><div class="clock-digits" data-clock>${formatTime(elapsedMs(match.clock))}</div><span class="clock-status" data-clock-status></span><button class="clock-button" ${matchFinished(match)||pendingETChoices(match).length||completedDuration(match.clock,match.clock.half)!==null||["INTERVAL","SHOOTOUT","REVIEW"].includes(match.clock.phase)?"disabled":""} data-action="clock" aria-label="${match.clock.startedAt === null ? "Start clock" : "Pause clock"}">${match.clock.startedAt === null ? `${icon("live")} ${periodHasStarted(match.clock)?"Start clock":match.clock.half===1?"Start first half":`Start ${periodId(match.clock)}`}` : '<span class="pause-icon">Ⅱ</span> Pause clock'}</button>${match.clock.half<=2?`<button class="half-button" data-action="half">${match.clock.phase==="REVIEW"?"Return to current period":match.clock.half === 1 ? "Start second half" : "Return to first half"}</button>`:""}</div>${score("opposition")}<span class="score-save-status" data-save-status></span></section>`;
 }
 function periodIntervalMarkup() {
  const clock=match.clock;
@@ -398,13 +409,13 @@ function liveScreen() {
   if(match.clock.phase==="SHOOTOUT")return shootoutUI.screen();
   return `${heading("FROM THE SIDELINE", "Every moment counts.", "Tap an event. Keep your eyes on the game.", `<span class="match-status"><span class="local-dot"></span>${match.clock.startedAt === null ? "MATCH WORKSPACE" : "LIVE TRACKING"}</span>`)}
     ${!ready() ? `<div class="inline-notice">Add both team names in Match setup before recording events. <button data-view="setup">Go to setup ${icon("arrow")}</button></div>` : ""}
-    ${periodIntervalMarkup()}<div class="matchday-toolbar"><span class="build-tag">V${APP_VERSION}</span>${match.clock.half===3&&match.clock.phase==="PLAY"?'<button class="button primary" data-action="et-interval">END ET1</button>':''}${match.clock.half<=2?'<button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>':''}${[2,4].includes(match.clock.half)&&match.clock.phase!=="SHOOTOUT" ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone voice-roadmap-button" data-action="voice-mode" aria-label="Voice Match Mode — Coming soon">${icon("mic")}<span>Voice Match Mode<small class="voice-roadmap-label">COMING SOON</small></span></button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
+    ${periodIntervalMarkup()}<div class="matchday-toolbar"><span class="build-tag">V${APP_VERSION}</span>${match.clock.half===3&&match.clock.phase==="PLAY"?`<button class="button primary" data-action="et-interval" ${captureReason(match)?'disabled':''}>END ET1</button>`:''}${match.clock.half===1&&completedDuration(match.clock,1)===null?`<button class="button primary" data-action="half-time" ${captureReason(match)?'disabled':''}>END FIRST HALF</button>`:''}${match.clock.half<=2?'<button class="button primary" data-view="halftime">HALF-TIME ANALYSIS</button>':''}${[2,4].includes(match.clock.half)&&match.clock.phase!=="SHOOTOUT" ? '<button class="button subtle" data-action="end-match">END MATCH / FULL TIME</button>' : ""}<button class="button microphone voice-roadmap-button" data-action="voice-mode" aria-label="Voice Match Mode — Coming soon">${icon("mic")}<span>Voice Match Mode<small class="voice-roadmap-label">COMING SOON</small></span></button><span class="small-note" data-offline-status>${esc(offlineStatus)}</span></div>
     ${starterWarningMarkup(match)}${scoreboard()}<div data-discipline-live>${disciplineIndicators(match)}</div>
-    <section class="event-controls recording-${selectedTeam}">${liveTeamControls()}<div class="controls-heading booked-controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div><button class="button subtle" data-event="booked" ${ready() ? "" : "disabled"}>Booked</button></div>
+    <section class="event-controls recording-${selectedTeam}">${liveTeamControls()}<div class="controls-heading booked-controls-heading"><div><h2>Record an event</h2><p>Shots save on one tap. Optional pitch/details open after saving.<br>${esc(teamName(selectedTeam))} attacks the ${attackingDirection(match, selectedTeam, match.clock.half).toUpperCase()} goal this half.</p></div><button class="button subtle" data-event="booked" ${ready() && !captureReason(match) ? "" : "disabled"}>Booked</button></div><p class="small-note" data-capture-status role="status" ${captureReason(match)?"":"hidden"}>${esc(captureReason(match))}</p>
     <div class="scoring-grid">${EVENT_TYPES.slice(0, 4)
       .map(
         (type, index) =>
-          `<button class="event-button score-event ${index === 0 ? "goal-event" : ""} ${index === 3 ? "miss-event" : ""}" data-event="${type.id}" ${ready() ? "" : "disabled"}><span class="event-glyph">${index === 3 ? icon("miss") : icon("ball")}</span><strong>${type.label}</strong><span class="event-value">${type.value ? `+${type.value} ${type.value === 1 ? "point" : "points"}` : "No score"}</span></button>`,
+          `<button class="event-button score-event ${index === 0 ? "goal-event" : ""} ${index === 3 ? "miss-event" : ""}" data-event="${type.id}" ${ready() && !captureReason(match) ? "" : "disabled"}><span class="event-glyph">${index === 3 ? icon("miss") : icon("ball")}</span><strong>${type.label}</strong><span class="event-value">${type.value ? `+${type.value} ${type.value === 1 ? "point" : "points"}` : "No score"}</span></button>`,
       )
       .join("")}</div>
     <div class="form-section-label event-section-label">BUILD-UP & POSSESSION <span>Tap to log · edit details afterwards</span></div><div class="other-events">${EVENT_TYPES.slice(
@@ -414,7 +425,7 @@ function liveScreen() {
       .map((type) => (type.id === "possession" ? eventType("pass") : type))
       .map(
         (type) =>
-          `<button class="event-button compact-event" data-event="${type.id}" ${ready() ? "" : "disabled"}>${icon(type.id === "defensive-block" ? "block" : type.id.includes("kickout") ? "arrow" : type.id === "pass" ? "ball" : "pitch")}<strong>${type.quickLabel || type.label}</strong></button>`,
+          `<button class="event-button compact-event" data-event="${type.id}" ${ready() && !captureReason(match) ? "" : "disabled"}>${icon(type.id === "defensive-block" ? "block" : type.id.includes("kickout") ? "arrow" : type.id === "pass" ? "ball" : "pitch")}<strong>${type.quickLabel || type.label}</strong></button>`,
       )
       .join("")}</div></section>
     ${match.events.length && isShot(match.events.at(-1)) ? '<button class="button subtle shot-enrich" data-action="enrich-shot">Add player / location to last shot (optional)</button>' : ""}
@@ -776,7 +787,7 @@ document.addEventListener("click", async (event) => {
   }
 
   if (button.dataset.view) {
-    if(button.dataset.view==="halftime"&&match.clock.half===1&&match.clock.startedAt!==null){match.clock=pausePeriod(match.clock);persist();}
+
     view = button.dataset.view==="live"&&normalTimePending(match)?"normaltime":button.dataset.view;
     if (view === "analysis") {
       analysisHalf = null;
@@ -827,9 +838,9 @@ document.addEventListener("click", async (event) => {
         toast("Squad loaded as a separate match copy.");
       },
     );
-  if(button.dataset.disciplineReturn){openDisciplineReturn(document.querySelector('#event-dialog'),match,button.dataset.disciplineReturn,recordEvent);return;}
-  if(button.dataset.disciplineContinue){const choice=pendingETChoices(match).find(p=>p.card.id===button.dataset.disciplineContinue);if(!choice)return;const ref=disciplineRef(match,choice.ref.team,choice.ref.matchPlayerId)||choice.ref;const e=createEvent(match,'discipline-et-choice',ref.team);recordEvent({...e,disciplineVersion:1,cardId:choice.card.id,etDecision:'continue',playerNumber:String(ref.jerseyNumber),participants:{...e.participants,player:ref}});return;}
-  if(button.dataset.disciplineReplace){openETReplacement(document.querySelector('#event-dialog'),match,button.dataset.disciplineReplace,(ref,choice)=>{const off=disciplineRef(match,choice.ref.team,choice.ref.matchPlayerId)||choice.ref;const e=createEvent(match,'discipline-replacement',ref.team);return recordEvent({...e,disciplineVersion:1,cardId:choice.card.id,countsAsSubstitution:true,substitutionReason:'lgfa-et-replacement',playerNumber:String(ref.jerseyNumber),playerOn:String(ref.jerseyNumber),playerOff:String(off.jerseyNumber),participants:{...e.participants,player:ref,playerOn:ref,playerOff:off}});});return;}
+  if(button.dataset.disciplineReturn){const reason=captureReason(match);if(reason){toast(reason);return;}const context=captureContext(match);openDisciplineReturn(document.querySelector('#event-dialog'),match,button.dataset.disciplineReturn,e=>recordEvent(e,context));return;}
+  if(button.dataset.disciplineContinue){const context=captureContext(match);const choice=pendingETChoices(match).find(p=>p.card.id===button.dataset.disciplineContinue);if(!choice)return;const ref=disciplineRef(match,choice.ref.team,choice.ref.matchPlayerId)||choice.ref;const e=createEvent(match,'discipline-et-choice',ref.team);recordEvent({...e,disciplineVersion:1,cardId:choice.card.id,etDecision:'continue',playerNumber:String(ref.jerseyNumber),participants:{...e.participants,player:ref}},context);return;}
+  if(button.dataset.disciplineReplace){const context=captureContext(match);openETReplacement(document.querySelector('#event-dialog'),match,button.dataset.disciplineReplace,(ref,choice)=>{try{const off=disciplineRef(match,choice.ref.team,choice.ref.matchPlayerId)||choice.ref;const e=createEvent(match,'discipline-replacement',ref.team);return recordEvent({...e,disciplineVersion:1,cardId:choice.card.id,countsAsSubstitution:true,substitutionReason:'lgfa-et-replacement',playerNumber:String(ref.jerseyNumber),playerOn:String(ref.jerseyNumber),playerOff:String(off.jerseyNumber),participants:{...e.participants,player:ref,playerOn:ref,playerOff:off}},context);}catch(error){toast(error.message);return false;}});return;}
   if (button.dataset.team) {
     selectedTeam = button.dataset.team;
     match.recordingTeam = selectedTeam;
@@ -837,8 +848,9 @@ document.addEventListener("click", async (event) => {
     render();
   }
   if (button.dataset.event) {
-    if(pendingETChoices(match).length){toast("Complete Extra Time player choices before recording play.");return;}
-    if(["INTERVAL","SHOOTOUT","REVIEW"].includes(match.clock.phase)||completedDuration(match.clock,match.clock.half)!==null){toast("This period is completed. Start the next period or edit an existing event.");return;}
+    const reason=captureReason(match);if(reason){toast(reason);return;}
+    const context=captureContext(match);
+    const saveCapture=updated=>recordEvent(updated,context);
     if (!ready()) {
       view = "setup";
       render();
@@ -854,34 +866,37 @@ document.addEventListener("click", async (event) => {
         document.querySelector("#event-dialog"),
         record,
         match,
-        recordEvent,
+        saveCapture,
       );
     else if (["turnover-won", "turnover-lost"].includes(record.event))
       openTurnoverCapture(
-        document.querySelector("#event-dialog"), record, match, recordEvent,
+        document.querySelector("#event-dialog"), record, match, saveCapture,
       );
     else if (record.event === "booked")
-      openBookedCapture(document.querySelector("#event-dialog"), record, match, recordEvent);
+      openBookedCapture(document.querySelector("#event-dialog"), record, match, saveCapture);
     else if (record.event === "pass")
       openPassCapture(
         document.querySelector("#event-dialog"),
         record,
         match,
-        recordEvent,
+        saveCapture,
       );
-    else if (isKickout(record))
+    else if (isKickout(record)) {
+      let recorded=false;
       openKickoutCapture(
         document.querySelector("#event-dialog"),
         record,
         match,
         (updated) => {
-          match.events = saveMatchEvent(updated);
+          match.events = saveMatchEvent(updated,recorded?null:context);
+          recorded=true;
           persist();
         },
         () => render(),
       );
+    }
     else if (record.event === "interception") {
-      if (!recordEvent(record)) return;
+      if (!saveCapture(record)) return;
       openInterceptionCredit(document.querySelector("#event-dialog"), record, match, (id, playerNumber) => {
         const current = match.events.find(event => event.id === id);
         if (!current) throw new Error("This interception no longer exists.");
@@ -890,7 +905,7 @@ document.addEventListener("click", async (event) => {
       }, () => render());
     }
     else {
-      recordEvent(record);
+      if(!saveCapture(record))return;
       if (isShot(record))
         enrichShot(match.events.find((e) => e.id === record.id));
       else if (isDefensiveBlockEvent(record))
@@ -1003,11 +1018,15 @@ document.addEventListener("click", async (event) => {
           saveEventNote,
         );
       break;
+    case "half-time":
+      if(match.clock.half===1&&periodHasStarted(match.clock)&&!matchFinished(match)&&completedDuration(match.clock,1)===null){match.clock={...completePeriod(match.clock),phase:'INTERVAL'};persist();}
+      view='halftime';render();window.scrollTo(0,0);break;
     case "et-interval":
+      if(captureReason(match)){toast(captureReason(match));break;}
       match.clock={...completePeriod(match.clock),phase:"INTERVAL"};persist();render();break;
     case "start-et":
     case "start-et2":
-      match.clock=advancePeriod(match.clock,button.dataset.action==="start-et"?3:4);view="live";persist();render();break;
+      beginPeriod(button.dataset.action==="start-et"?3:4);view="live";render();break;
     case "start-shootout":
       match.clock=shootoutClock(match.clock);
       if(!match.shootout)match.shootout=initialShootout({our:totals(match.events,"our"),opposition:totals(match.events,"opposition")},activeGoalkeepers(match));
@@ -1042,10 +1061,9 @@ document.addEventListener("click", async (event) => {
       window.scrollTo(0, 0);
       break;
     case "ht-second-half":
-      // Same existing half-transition contract: reset/pause, keep match/events.
+      // Explicit next-period start: select H2 and start its clock in one action.
       if (match.clock.half === 1) {
-        match.clock = advanceHalfClock(match.clock, 2);
-        persist();
+        beginPeriod(2);
       }
       view = "live";
       render();
@@ -1079,24 +1097,16 @@ document.addEventListener("click", async (event) => {
       document.querySelector("#event-dialog").close();
       break;
     case "clock":
+      if(matchFinished(match)){toast("The match is completed.");break;}
       if(pendingETChoices(match).length){toast("Complete Extra Time player choices before starting the clock.");break;}
       match.clock = toggleClock(match.clock);
-      if (
-        match.clock.startedAt !== null &&
-        match.lifecycle?.status === "completed"
-      )
-        match.lifecycle = {
-          ...match.lifecycle,
-          status: "live",
-          completedAt: undefined,
-        };
       persist();
       render();
       break;
     case "half": {
       const next=match.clock.phase==='REVIEW'?(match.clock.activeHalf||2):match.clock.half===1?2:1;
       if(next>match.clock.half || confirm('View the completed first half? Its recorded duration is preserved.')) {
-        match.clock=advancePeriod(match.clock,next);persist();render();
+        if(next>match.clock.half&&match.clock.phase!=='REVIEW')beginPeriod(next);else {match.clock=advancePeriod(match.clock,next);persist();}render();
       }
       break;
     }

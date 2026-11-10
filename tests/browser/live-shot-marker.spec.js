@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { writeFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 const state = (page) =>
@@ -13,7 +14,7 @@ async function begin(page) {
   await page.getByLabel("Player name", { exact: true }).fill("Isabel");
   await nav(page, "Add player");
   await nav(page, "Live match");
-  await page.locator(".event-controls [data-event=miss]").click();
+  await clickCapture(page, ".event-controls [data-event=miss]");
   const events = (await state(page)).events;
   expect(events).toHaveLength(1);
   return events[0].id;

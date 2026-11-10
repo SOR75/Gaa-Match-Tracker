@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 const names = { our: "Harbour Athletic", opposition: "Mountain Rovers" };
 const state = (page) =>
@@ -64,7 +65,7 @@ for (const [device, viewport] of [
       .getByRole("button", { name: names.our, exact: true })
       .click();
     await active(page, "our");
-    await page.locator("[data-event=point]").click();
+    await clickCapture(page, "[data-event=point]");
     let m = await state(page);
     expect(m.events).toHaveLength(1);
     expect(m.events[0]).toMatchObject({
@@ -87,7 +88,7 @@ for (const [device, viewport] of [
       .getByRole("button", { name: names.opposition, exact: true })
       .click();
     await active(page, "opposition");
-    await page.locator("[data-event=goal]").click();
+    await clickCapture(page, "[data-event=goal]");
     m = await state(page);
     expect(m.events).toHaveLength(2);
     expect(m.events[1]).toMatchObject({
@@ -211,7 +212,7 @@ test("every existing fast event preserves selected team, including fixed-team ki
     ["interception", "opposition"],
     ["pass", "opposition"],
   ].entries()) {
-    await page.locator(`[data-event="${type}"]`).click();
+    await clickCapture(page, `[data-event="${type}"]`);
     if (type.includes("kickout"))
       await page
         .getByRole("dialog")

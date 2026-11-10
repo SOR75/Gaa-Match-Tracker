@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { coachingMatch } from "../helpers/coaching-match.js";
 import { blankMatch, createEvent } from "../../src/domain.js";
@@ -43,7 +44,7 @@ test("H2 live capture → Full-Time dashboard/comparison → detailed report →
   );
 
   await page.getByRole("button", { name: "Start clock", exact: true }).click();
-  await page.locator('[data-event="two-point"]').click();
+  await clickCapture(page, '[data-event="two-point"]');
   await expect(page.getByLabel("Shot source", { exact: true })).toHaveValue(
     "open-play",
   );

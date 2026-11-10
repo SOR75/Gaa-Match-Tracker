@@ -3,7 +3,7 @@ import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {validMatch} from '../../src/domain.js';
 import {paginationCases0314} from '../helpers/report-pagination0314.js';
-const root='/workspace/sideline-0315-refinement-review';
+const root='/workspace/sideline-0315-workflow-review';
 const phase=process.env.REVIEW_PHASE||'After';
 const norm=s=>s.replace(/\s+/g,' ').trim();
 async function load(page,m){
@@ -13,7 +13,7 @@ async function load(page,m){
 async function evidence(page,name){
  const screen=await page.locator('.report-view').innerHTML(),store=await page.evaluate(()=>localStorage.getItem('sideline.match.v1'));
  await page.screenshot({path:`${root}/${phase}-${name}-screen.png`,fullPage:true});
- const blocks=await page.locator('.report-view > .analysis-section, .report-view > p[data-report-substitutions]').evaluateAll(nodes=>nodes.map(node=>({
+ const blocks=await page.locator('.report-view > .analysis-section:not([data-report-minutes]), .report-view > p[data-report-substitutions]').evaluateAll(nodes=>nodes.map(node=>({
   heading:(node.querySelector(':scope > h2')||node.querySelector('b')).textContent.trim(),
   details:[...node.querySelectorAll('.report-details > div')].map(row=>[...row.children].map(c=>c.textContent.trim()).join(' ')),
   rows:[...node.querySelectorAll('tbody tr')].map(row=>[...row.children].map(c=>c.textContent.trim()).join(' ')),
@@ -23,7 +23,7 @@ async function evidence(page,name){
  })));
  await page.evaluate(()=>window.addEventListener('beforeprint',()=>{
   window.__overviewFits=document.querySelector('[data-print-overview]').classList.contains('report-print-fit');
-  window.__paginationAudit=[...document.querySelectorAll('.report-view > .analysis-section, .report-view > [data-print-overview] > .analysis-section, .report-view > p[data-report-substitutions]')].map(n=>({heading:(n.querySelector(':scope > h2')||n.querySelector('b')).textContent.trim(),fit:n.classList.contains('report-print-fit'),long:n.classList.contains('report-print-continuation')}));
+  window.__paginationAudit=[...document.querySelectorAll('.report-view > .analysis-section:not([data-report-minutes]), .report-view > [data-print-overview] > .analysis-section, .report-view > p[data-report-substitutions]')].map(n=>({heading:(n.querySelector(':scope > h2')||n.querySelector('b')).textContent.trim(),fit:n.classList.contains('report-print-fit'),long:n.classList.contains('report-print-continuation')}));
  },{once:true}));
 
  const buffer=await page.pdf({format:'A4',landscape:false,scale:1,preferCSSPageSize:true,printBackground:true});await writeFile(`${root}/${phase}-${name}.pdf`,buffer);
@@ -106,4 +106,11 @@ test('portrait refinements retain map evidence, separate scorecard text and remo
  await page.emulateMedia({media:null});
  const {pages}=await evidence(page,'refinement-geometry');
  expect(pages[0].text).toContain('(18) 2 goals · 8 points · 2 2-pointers');expect(pages[0].text).not.toContain('(18)2 goals');
+});
+test('print omits individual playing-time tables and notes while screen, substitutions and saved data are retained',async({page})=>{
+ await mkdir(root,{recursive:true});await load(page,paginationCases0314().normal);
+ const participation=page.locator('[data-report-minutes]');await expect(participation).toBeVisible();const rows=await participation.locator('tbody tr').count();expect(rows).toBeGreaterThan(0);
+ const {pages}=await evidence(page,'without-playing-times');const text=pages.map(p=>p.text).join(' ');
+ expect(text).not.toContain('Recorded participation & playing time');expect(text).not.toContain('Times use recorded clock and field changes');expect(text).toContain('Substitutions · No substitutions recorded.');
+ await expect(participation).toBeVisible();await expect(participation.locator('tbody tr')).toHaveCount(rows);
 });

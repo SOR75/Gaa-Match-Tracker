@@ -65,9 +65,9 @@ export function openSubstitution(dialog, draft, match, onSaved) {
         "Choose an inactive player ON and an on-field player OFF.";
       return;
     }
+    if(onSaved({ ...draft, ...data })===false)return;
     saved = true;
     dialog.close();
-    onSaved({ ...draft, ...data });
   };
   dialog.showModal();
   dialog.querySelector("[data-sub-cancel]").focus();

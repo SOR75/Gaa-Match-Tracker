@@ -1,10 +1,14 @@
+import {clickCapture,startCaptureFixture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 const state = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem("sideline.match.v1")));
 const library = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem("sideline.squads.v2")));
-const nav = (page, name) =>
-  page.getByRole("button", { name, exact: true }).click();
+const nav = async (page, name) => {
+  const button=page.getByRole("button", {name,exact:true});
+  if(await button.getAttribute("data-event"))await startCaptureFixture(page);
+  await button.click();
+};
 async function setup(page) {
   await page.goto("/");
   await page.getByLabel("Our team", { exact: true }).fill("Home");
@@ -47,7 +51,7 @@ async function load(page) {
 }
 async function shot(page) {
   await nav(page, "Live match");
-  await page.locator(".event-controls [data-event=point]").click();
+  await clickCapture(page, ".event-controls [data-event=point]");
   await page.locator('[data-shot-player="6"]').click();
   await page
     .getByRole("button", { name: "Shot location pitch", exact: true })
@@ -137,14 +141,8 @@ test("linked Saved Squad → shot → End Match → native IndexedDB → read-on
     playerId: players[0].playerId,
     jerseyNumber: 6,
   });
-  // Arrange only clock phase, then exercise actual completion/archive/history UI.
-  await page.evaluate(() => {
-    const m = JSON.parse(localStorage.getItem("sideline.match.v1"));
-    m.clock.half = 2;
-    localStorage.setItem("sideline.match.v1", JSON.stringify(m));
-  });
-  await page.reload();
-  await nav(page, "Live match");
+  // Enter H2 through its real atomic Start action before completing/archive testing.
+  await nav(page, "Start second half");
   await nav(page, "END MATCH / FULL TIME");
   await nav(page, "Return to Match");
   m = await state(page);
@@ -211,7 +209,7 @@ test("actual Mark, defensive block and substitution capture store the same share
   await nav(page, "Opposition Kickout");
   await nav(page, "Mark won by us");
   await page.locator('[data-mark-player="6"]').click();
-  await page.locator(".event-controls [data-event=defensive-block]").click();
+  await clickCapture(page, ".event-controls [data-event=defensive-block]");
   await page.locator('button[data-defensive-player="6"]').click();
   await nav(page, "Substitution");
   await page.locator('[data-sub-on="22"]').click();

@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { blankMatch, createEvent, saveEvent } from "../../src/domain.js";
 import { snapshotSquad, loadSquadPlayers } from "../../src/squads.js";
@@ -160,7 +161,7 @@ for (const count of [11, 15, 16])
     await expect(
       page.getByRole("button", { name: "Pause clock", exact: true }),
     ).toBeVisible();
-    await page.locator(".event-controls [data-event=point]").click();
+    await clickCapture(page, ".event-controls [data-event=point]");
     await nav(page, "Close shot details");
     expect((await state(page)).events).toHaveLength(1);
   });

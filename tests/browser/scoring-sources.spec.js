@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import {test,expect} from '@playwright/test';
 import {mkdir} from 'node:fs/promises';
 import {scoringSourceExample,sourceSquad,sourceMatch,sourceEvent} from '../helpers/scoring-source-match.js';
@@ -52,6 +53,6 @@ test('phone/landscape source reporting stays within scrollable tables and leaves
  for(const size of [{width:390,height:844},{width:1024,height:768}]){
   await page.setViewportSize(size);const box=await page.locator('.report-view').boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(size.width+1);await expect(contribution(page,'Mixed Source Player')).toContainText('5 Play, 2 Frees');
  }
- await nav(page,'Live match');await page.locator('[data-event="point"]').click();await expect(page.getByLabel('Shot source',{exact:true})).toHaveValue('open-play');
+ await nav(page,'Live match');await clickCapture(page, '[data-event="point"]');await expect(page.getByLabel('Shot source',{exact:true})).toHaveValue('open-play');
  await expect(page.getByLabel('Shot source',{exact:true}).locator('option')).toHaveText(['Not recorded','Open Play','Free','Penalty','45']);
 });

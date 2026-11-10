@@ -4231,3 +4231,8 @@ dialog::backdrop {
   .report-view .shot-legend i { font-size: 18px; width: 18px; }
   .report-view .analysis-scores small { display: block; }
 }
+
+@media print {
+  /* Individual participation remains available on screen and in stored data. */
+  .report-view [data-report-minutes] { display: none !important; }
+}

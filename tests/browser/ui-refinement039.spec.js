@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import { uiMatch } from "../fixtures/ui-match.js";
@@ -79,7 +80,7 @@ test("populated landscape: core buttons clear footer, strong active team, touch 
     "(28)",
   );
   await page.screenshot({ path: `${root}/01-ipad-live.png` });
-  await page.locator('[data-event="point"]').click();
+  await clickCapture(page, '[data-event="point"]');
   const d = page.getByRole("dialog");
   await expect(d.locator('[data-shot-player="18"]')).toHaveCount(1);
   await expect(d.locator('[data-shot-player="10"]')).toHaveCount(0);
@@ -91,7 +92,7 @@ test("populated landscape: core buttons clear footer, strong active team, touch 
   expect(pitch.height).toBeLessThan(400);
   await page.screenshot({ path: `${root}/02-ipad-shot-player.png` });
   await seed(page);
-  await page.locator('[data-event="our-kickout"]').click();
+  await clickCapture(page, '[data-event="our-kickout"]');
   await nav(page, "LONG");
   await page.screenshot({ path: `${root}/03a-ipad-kickout-outcomes.png` });
   await nav(page, "Mark won by us");
@@ -110,7 +111,7 @@ test("populated landscape: core buttons clear footer, strong active team, touch 
   }
   await page.screenshot({ path: `${root}/03-ipad-kickout-player.png` });
   await seed(page);
-  await page.locator('[data-event="pass"]').click();
+  await clickCapture(page, '[data-event="pass"]');
   await page.locator('[data-pass-from="8"]').click();
   await page.locator('[data-pass-to="11"]').click();
   await expect(
@@ -118,7 +119,7 @@ test("populated landscape: core buttons clear footer, strong active team, touch 
   ).toBeVisible();
   await page.screenshot({ path: `${root}/04-ipad-pass.png` });
   await seed(page);
-  await page.locator('[data-event="substitution"]').click();
+  await clickCapture(page, '[data-event="substitution"]');
   await page.locator('[data-sub-on="19"]').click();
   await page.locator('[data-sub-off="11"]').click();
   await page.screenshot({ path: `${root}/05-ipad-substitution.png` });

@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { blankMatch } from "../../src/domain.js";
 import { test, expect } from "@playwright/test";
 const state = (page) =>
@@ -40,7 +41,7 @@ async function oppositionBlock(page) {
   await add(page, 4, "Maeve", "starter");
   await nav(page, "Live match");
   await nav(page, "Away");
-  await page.locator(".event-controls [data-event=miss]").click();
+  await clickCapture(page, ".event-controls [data-event=miss]");
   await page.getByLabel("Other player number", { exact: false }).fill("15");
   await page.getByLabel("Miss reason", { exact: true }).selectOption("blocked");
 }
@@ -52,7 +53,7 @@ test("A: our blocked shot saves once, keeps shooter attribution and invents no o
   await add(page, 15, "Shooter");
   await add(page, 3, "Sarah");
   await nav(page, "Live match");
-  await page.locator(".event-controls [data-event=miss]").click();
+  await clickCapture(page, ".event-controls [data-event=miss]");
   let match = await state(page);
   expect(match.events).toHaveLength(1);
   const id = match.events[0].id;
@@ -253,7 +254,7 @@ test("D: empty OUR squad shows No players loaded, does not offer opponents, and 
   await add(page, 3, "Opponent Three");
   await nav(page, "Live match");
   await nav(page, "Away");
-  await page.locator(".event-controls [data-event=miss]").click();
+  await clickCapture(page, ".event-controls [data-event=miss]");
   await page.getByLabel("Miss reason", { exact: true }).selectOption("blocked");
   const panel = page.locator("[data-block-credit]");
   await expect(

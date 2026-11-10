@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import {test,expect} from '@playwright/test';
 import {mkdir} from 'node:fs/promises';
 import {blankMatch} from '../../src/domain.js';
@@ -10,7 +11,7 @@ async function load(page,first='top'){
  await page.goto('/');await page.evaluate(m=>localStorage.setItem('sideline.match.v1',JSON.stringify(m)),m);await page.reload();await nav(page,'Live match');
 }
 async function shot(page,team,half,type,first,canonicalY){
- await page.clock.fastForward(1000);await page.locator(`[data-team="${team}"]`).click();await page.locator(`[data-event="${type}"]`).click();
+ await page.clock.fastForward(1000);await page.locator(`[data-team="${team}"]`).click();await clickCapture(page, `[data-event="${type}"]`);
  const bottom=(first==='bottom')!==((team==='opposition')!==(half===2));
  const pitch=page.getByRole('button',{name:'Shot location pitch',exact:true});await expect(page.locator('dialog')).toContainText(`attacks the ${bottom?'BOTTOM':'TOP'} goal`);
  const box=await pitch.boundingBox();await pitch.click({position:{x:box.width*.5,y:box.height*(bottom?1-canonicalY:canonicalY)}});await nav(page,'Done');

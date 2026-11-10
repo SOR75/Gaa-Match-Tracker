@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 import { blankMatch, createEvent } from "../../src/domain.js";
 const state = (page) =>
@@ -26,7 +27,7 @@ test("each first tap saves and recalculates before optional UI; close and Escape
     ["miss", "Miss", 6, "1-3"],
   ];
   for (const [i, [event, label, total, gaelic]] of actions.entries()) {
-    await page.locator(`[data-event="${event}"]`).click();
+    await clickCapture(page, `[data-event="${event}"]`);
     await expect(page.locator("dialog")).toBeVisible();
     const match = await state(page);
     expect(match.events).toHaveLength(i + 1);
@@ -67,11 +68,11 @@ test("free and penalty enrich the existing shot, persist immediately, and appear
   page,
 }) => {
   await setup(page);
-  await page.locator("[data-event=point]").click();
+  await clickCapture(page, "[data-event=point]");
   await page.getByLabel("Shot source", { exact: true }).selectOption("free");
   expect((await state(page)).events[0].shotSource).toBe("free");
   await close(page);
-  await page.locator("[data-event=goal]").click();
+  await clickCapture(page, "[data-event=goal]");
   await page.getByLabel("Shot source", { exact: true }).selectOption("penalty");
   await page.reload();
   expect((await state(page)).events).toHaveLength(2);
@@ -89,7 +90,7 @@ test("free and penalty enrich the existing shot, persist immediately, and appear
   await page.getByLabel("Shot source", { exact: true }).selectOption("45");
   await nav(page, "Save changes");
   expect((await state(page)).events[1].shotSource).toBe("45");
-  await page.locator("[data-event=two-point]").click();
+  await clickCapture(page, "[data-event=two-point]");
   await close(page);
   await nav(page, "Match analysis");
   for (const label of [
@@ -122,7 +123,7 @@ test("blocked opposition shot offers our shared roster; own blocked shot needs n
   }
   await nav(page, "Live match");
   await nav(page, "Away");
-  await page.locator("[data-event=miss]").click();
+  await clickCapture(page, "[data-event=miss]");
   await page.getByLabel("Miss reason", { exact: true }).selectOption("blocked");
   const blockers = page.getByRole("group", { name: "Our blocker" });
   await expect(blockers.getByRole("button")).toHaveCount(15);
@@ -154,7 +155,7 @@ test("blocked opposition shot offers our shared roster; own blocked shot needs n
   await expect(row.getByRole("cell").nth(13)).toHaveText("1");
   await nav(page, "Live match");
   await nav(page, "Home");
-  await page.locator("[data-event=miss]").click();
+  await clickCapture(page, "[data-event=miss]");
   await page.getByLabel("Miss reason", { exact: true }).selectOption("blocked");
   await expect(page.getByLabel("Block by", { exact: true })).toBeHidden();
   await close(page);
@@ -180,7 +181,7 @@ test("recording team persists deliberately; editing scored team recalculates wit
     "aria-pressed",
     "true",
   );
-  await page.locator("[data-event=goal]").click();
+  await clickCapture(page, "[data-event=goal]");
   await close(page);
   await nav(page, "Edit last event");
   await page.getByLabel("Team", { exact: true }).selectOption("our");
@@ -246,7 +247,7 @@ test("V0.3.4 saved shot reads legacy source/reason and survives offline editing 
     shotSource: "",
     shotOutcome: "miss",
   });
-  await page.locator("[data-event=two-point]").click();
+  await clickCapture(page, "[data-event=two-point]");
   await close(page);
   await page.reload();
   expect((await state(page)).events).toHaveLength(2);

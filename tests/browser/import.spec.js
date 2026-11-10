@@ -1,10 +1,14 @@
+import {startCaptureFixture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 async function start(page) {
   await page.goto("/");
   await page.getByRole("button", { name: "Squad", exact: true }).click();
 }
-const nav = (page, name) =>
-  page.getByRole("button", { name, exact: true }).click();
+const nav = async (page, name) => {
+  const button=page.getByRole("button", {name,exact:true});
+  if(await button.getAttribute("data-event"))await startCaptureFixture(page);
+  await button.click();
+};
 const state = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem("sideline.match.v1")));
 

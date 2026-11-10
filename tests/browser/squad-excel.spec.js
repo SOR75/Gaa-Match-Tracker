@@ -1,3 +1,4 @@
+import {clickCapture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
 const fixture = (name) => `tests/fixtures/squad-template/${name}.xlsx`;
 const nav = (page, name) =>
@@ -79,7 +80,7 @@ test("offline official County workbook → review → create → reload → Load
   expect(m.squadId).toBe(saved.id);
   expect(m.players.map((p) => p.playerId)).toEqual(ids);
   await nav(page, "Live match");
-  await page.locator(".event-controls [data-event=point]").click();
+  await clickCapture(page, ".event-controls [data-event=point]");
   await page.locator('[data-shot-player="6"]').click();
   await nav(page, "Close shot details");
   m = await state(page);
@@ -126,7 +127,7 @@ test("offline official County workbook → review → create → reload → Load
   await page.getByLabel("Jersey number", { exact: true }).fill("38");
   await nav(page, "Save player");
   await nav(page, "Live match");
-  await page.locator(".event-controls [data-event=point]").click();
+  await clickCapture(page, ".event-controls [data-event=point]");
   await page.locator('[data-shot-player="38"]').click();
   await nav(page, "Close shot details");
   const next = await state(page);
@@ -220,7 +221,7 @@ for (const name of ["Missing-Players", "Wrong-columns", "Malformed"])
     expect(await state(page)).toEqual(before);
     await nav(page, "Close Squad Import");
     await nav(page, "Live match");
-    await page.locator(".event-controls [data-event=point]").click();
+    await clickCapture(page, ".event-controls [data-event=point]");
     await nav(page, "Close shot details");
     expect((await state(page)).events).toHaveLength(1);
   });
@@ -234,7 +235,7 @@ test("cancel review creates no squad or IDs and subsequent touch capture stays u
   await nav(page, "Cancel import");
   expect(await library(page)).toEqual(before);
   await nav(page, "Live match");
-  await page.locator(".event-controls [data-event=point]").click();
+  await clickCapture(page, ".event-controls [data-event=point]");
   await nav(page, "Close shot details");
   expect((await state(page)).events).toHaveLength(1);
 });

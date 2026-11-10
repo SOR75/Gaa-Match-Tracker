@@ -137,7 +137,7 @@ export function fieldState(match,{now=Date.now(),beforeEvent=null}={}){
  for(const team of ['our','opposition'])if(occupied(team).length>allowance(team)||occupied(team).length>15)throw new Error('Invalid reconstructed field count.');
  return {people,players,slots,bins,changes,fieldChanges,history,substitutions,etDecisions,validEventIds,invalidEvents,ambiguousTeams,activeKeys,allowance,attributionError,etEligible};
 }
-export function etTransitionOpen(match){return match.setup.matchCode==='LGFA'&&match.clock.half===3&&match.clock.phase==='PLAY'&&match.clock.elapsedMs===0&&match.clock.startedAt===null&&!match.events.some(e=>e.half>=3&&!['discipline-et-choice','discipline-replacement'].includes(e.event));}
+export function etTransitionOpen(match){return match.setup.matchCode==='LGFA'&&!match.clock.periods?.ET1?.hasStarted&&match.clock.half===3&&match.clock.phase==='PLAY'&&match.clock.elapsedMs===0&&match.clock.startedAt===null&&!match.events.some(e=>e.half>=3&&!['discipline-et-choice','discipline-replacement'].includes(e.event));}
 export function pendingETChoices(match){if(!etTransitionOpen(match))return[];const f=fieldState(match);return [...f.people.values()].filter(p=>f.etEligible(p)&&!f.etDecisions.has(p.bin?.card.id||p.dismissal?.event.id)).map(p=>({ref:p.ref,card:p.bin?.card||p.dismissal.event,reason:p.bin?'sin-bin':'two-yellows'}));}
 export function assertEventEligibility(match,event){
  const prior=fieldState(match,{beforeEvent:event});
