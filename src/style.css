@@ -3501,6 +3501,8 @@ dialog::backdrop {
   white-space: nowrap;
   margin-right: 12px;
 }
+.topbar > button.build-tag { border: 0; background: none; padding: 8px 0; cursor: pointer; }
+.build-information code { display: block; overflow-wrap: anywhere; user-select: text; }
 @media (max-width: 500px) {
   .topbar > .breadcrumb {
     display: none;

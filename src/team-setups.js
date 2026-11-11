@@ -23,6 +23,12 @@ function validSetup(s) {
       .size === s.players.filter((p) => p.number !== null).length
   );
 }
+// Shares the existing setup rules without reading or writing browser storage.
+export function validateSavedTeamSetupLibrary(data) {
+  if (data?.version !== 1 || !Array.isArray(data.setups) || !data.setups.every(validSetup) || new Set(data.setups.map(s => s.id)).size !== data.setups.length)
+    throw Error('Unsupported or invalid Saved Team Setup library.');
+  return data;
+}
 export function loadTeamSetups() {
   try {
     const raw = localStorage.getItem(KEY);

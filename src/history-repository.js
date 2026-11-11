@@ -1,6 +1,8 @@
 import { withBlankMatchPlayers } from "./match-squad-enrichment.js";
 import { blankMatch, migrateMatch } from "./domain.js";
 import { persistMatch } from "./storage.js";
+import {makeBackup, validateBackup, restorePlan} from './match-backup.js';
+import {readBackupLibraries, libraryRestorePlan, writeLibraryAdditions} from './library-backup.js';
 import {
   ARCHIVE_PREFIX,
   ACTIVE_KEY,
@@ -276,5 +278,79 @@ export function createHistoryRepository({
     return selected;
   }
   const remove = (id, current) => removeMany([id], current);
-  return { list, startNew, resume, remove, removeMany };
+  // Backup reads original records directly: no discovery migration or clock edits.
+  const storedRecords = () => transaction('readonly', (s, done) => {
+    const r = s.getAll(); r.onsuccess = () => done(r.result);
+  });
+  function localArchiveKeys() {
+    const keys = [];
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i); if (key?.startsWith(ARCHIVE_PREFIX)) keys.push(key);
+    }
+    return keys;
+  }
+  function backupState(stored, current) {
+    const active = storage.getItem(ACTIVE_KEY);
+    return {
+      activeId: active ? JSON.parse(active).id : current.id,
+      existingIds: new Set([...stored.map(r => r.id), ...localArchiveKeys().map(k => k.slice(ARCHIVE_PREFIX.length))]),
+      deletedIds: new Set(stored.filter(r => r.deleted).map(r => r.id)),
+    };
+  }
+  async function exportBackup(current) {
+    const date = new Date(now()).toISOString(), active = structuredClone(current);
+    const stored = await storedRecords(), records = new Map();
+    const deleted = new Set(stored.filter(r => r.deleted).map(r => r.id));
+    for (const record of stored) {
+      if (record.deleted) continue;
+      if (record.repositoryVersion !== 1 || record.id !== record.match?.id)
+        throw Error('An unsupported History record prevents a complete backup. Original records are unchanged.');
+      records.set(record.id, structuredClone(record));
+    }
+    for (const key of localArchiveKeys()) {
+      const id = key.slice(ARCHIVE_PREFIX.length);
+      if (deleted.has(id)) continue;
+      const match = JSON.parse(storage.getItem(key));
+      if (id !== match?.id) throw Error('An archive has an invalid match ID. Original records are unchanged.');
+      const existing = records.get(id);
+      if (!existing || existing.origin === 'legacy') records.set(id, {id, match});
+    }
+    records.set(active.id, {id: active.id, match: active, archivedAt: date});
+    return makeBackup([...records.values()].map(r => ({id: r.id, match: r.match, ...(r.archivedAt ? {archivedAt: r.archivedAt} : {})})), date, readBackupLibraries(storage).libraries);
+  }
+  async function previewRestore(value, current) {
+    const backup = validateBackup(value);
+    return {
+      matches: restorePlan(backup, backupState(await storedRecords(), current)),
+      libraries: backup.libraries ? libraryRestorePlan(backup.libraries, readBackupLibraries(storage)) : null,
+    };
+  }
+  async function restoreBackup(value, current) {
+    const backup = validateBackup(value), date = new Date(now()).toISOString();
+    // IDB keeps the match batch atomic and serializes restore operations. Library
+    // additions use separate localStorage keys, with guarded rollback on abort.
+    // Existing library entries are retained verbatim; no active match is written.
+    let rollback = () => '';
+    try { return await transaction('readwrite', (store, done, fail) => {
+      const request = store.getAll();
+      request.onsuccess = () => {
+        try {
+          const plan = restorePlan(backup, backupState(request.result, current));
+          const libraries = backup.libraries ? libraryRestorePlan(backup.libraries, readBackupLibraries(storage)) : null;
+          for (const {record, reason} of plan) if (!reason) store.add({
+            repositoryVersion: 1, id: record.id, match: record.match, origin: 'restored',
+            ...(record.archivedAt ? {archivedAt: record.archivedAt} : {}), restoredAt: date,
+          });
+          rollback = writeLibraryAdditions(libraries, storage);
+          done({restored: plan.filter(p => !p.reason).length, skipped: plan.filter(p => p.reason).length,
+            squadsRestored: libraries?.squads.filter(p => !p.reason).length || 0,
+            squadsSkipped: libraries?.squads.filter(p => p.reason).length || 0,
+            setupsRestored: libraries?.setups.filter(p => !p.reason).length || 0,
+            setupsSkipped: libraries?.setups.filter(p => p.reason).length || 0,
+          });
+        } catch (error) { fail(error); }
+      };
+    }); } catch (e) { throw Error(`${message(e)} No matches were restored.${rollback()}`); }
+  }
+  return { list, startNew, resume, remove, removeMany, exportBackup, previewRestore, restoreBackup };
 }

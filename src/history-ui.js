@@ -9,6 +9,7 @@ import { fullTimeScreen, normalTimeScreen } from "./full-time-ui.js";
 import { halfTimeScreen } from "./half-time-ui.js";
 import { analysisScreen } from "./analysis-ui.js";
 import "./history.css";
+import {createMatchBackupUI} from './match-backup-ui.js';
 const teams = (m) =>
   `${m.setup.ourTeam || "Our team"} vs ${m.setup.opposition || "Opposition"}`;
 export function createHistoryUI({
@@ -18,6 +19,7 @@ export function createHistoryUI({
   onChange,
   renderTimeline,
   onDeleted = () => {},
+  onRestored = () => {},
 }) {
   let records = [],
     warnings = [],
@@ -33,6 +35,10 @@ export function createHistoryUI({
     pendingDeletion = null;
   let filters = { team: "all", half: "all", player: "all", result: "all" },
     report = false;
+  const backupUI = createMatchBackupUI({repository, getActive, onChange,
+    canAct: () => !busy && !pendingDeletion,
+    onRestored: async () => { await refresh(); await onRestored(); },
+  });
   async function refresh() {
     loading = true;
     error = "";
@@ -102,10 +108,11 @@ export function createHistoryUI({
       teams(r.match).toLowerCase().includes(search.toLowerCase()),
     );
     const selection = selecting ? `<section class="card history-selection" aria-label="Select archived matches"><strong role="status" data-history-selection-count>${chosen.size} ${chosen.size === 1 ? "match" : "matches"} selected</strong><div class="history-management">${[["select-all","Select All"],["deselect-all","Deselect All"],["delete-selected","Delete Selected"],["cancel-selection","Cancel Selection"]].map(([action,label])=>`<button class="button ${action === "delete-selected" ? "primary" : "subtle"}" data-history-action="${action}" ${busy || pendingDeletion || action === "delete-selected" && !chosen.size ? "disabled" : ""}>${label}</button>`).join("")}</div><p class="small-note">Select All selects the archived matches shown by your search. The current match is never selected.</p></section>` : "";
-    return `${top}${confirmation()}${selection}${loading ? '<p role="status">Loading saved matches…</p>' : ""}${warnings.length ? `<aside class="warning" role="status"><strong>Some history needs attention</strong><ul>${warnings.map((w) => `<li>${esc(w.key)}: ${esc(w.error)}. Original records are preserved.</li>`).join("")}</ul></aside>` : ""}<label class="field history-search"><span>Search teams / opposition</span><input id="history-search" value="${esc(search)}" type="search" autocomplete="off"></label><div class="history-grid">${hasCurrent && teams(active).toLowerCase().includes(search.toLowerCase()) ? card(currentRecord(), true) : ""}${visible.map((r) => card(r)).join("")}</div>${!loading && !archiveRows.length && !completed(active) ? `<section class="card history-empty"><h2>${writable ? "No matches in History yet" : "History could not fully load"}</h2><p>${writable ? "Completed and previous matches will appear here." : "History storage is unavailable. No saved matches have been deleted. Try refreshing history when storage is available."}</p><button class="button subtle" data-history-action="setup">Back to Match Setup</button></section>` : ""}${search && !visible.length ? '<p role="status">No archived matches match these teams.</p>' : ""}</section>`;
+    return `${top}${backupUI.screen()}${confirmation()}${selection}${loading ? '<p role="status">Loading saved matches…</p>' : ""}${warnings.length ? `<aside class="warning" role="status"><strong>Some history needs attention</strong><ul>${warnings.map((w) => `<li>${esc(w.key)}: ${esc(w.error)}. Original records are preserved.</li>`).join("")}</ul></aside>` : ""}<label class="field history-search"><span>Search teams / opposition</span><input id="history-search" value="${esc(search)}" type="search" autocomplete="off"></label><div class="history-grid">${hasCurrent && teams(active).toLowerCase().includes(search.toLowerCase()) ? card(currentRecord(), true) : ""}${visible.map((r) => card(r)).join("")}</div>${!loading && !archiveRows.length && !completed(active) ? `<section class="card history-empty"><h2>${writable ? "No matches in History yet" : "History could not fully load"}</h2><p>${writable ? "Completed and previous matches will appear here." : "History storage is unavailable. No saved matches have been deleted. Try refreshing history when storage is available."}</p><button class="button subtle" data-history-action="setup">Back to Match Setup</button></section>` : ""}${search && !visible.length ? '<p role="status">No archived matches match these teams.</p>' : ""}</section>`;
   }
   async function click(button) {
-    if (busy) return;
+    if (busy || backupUI.isBusy()) return;
+    if (button.dataset.backupAction) return backupUI.click(button);
     if(button.hasAttribute?.("data-timeline-csv") && selected){downloadTimelineCSV(historySnapshot(selected));return;}
     const action = button.dataset.historyAction || button.dataset.action;
     if (pendingDeletion && !["confirm-delete", "cancel-delete"].includes(action)) return;
@@ -217,6 +224,7 @@ export function createHistoryUI({
     onChange();
   }
   function change(target) {
+    if (target.hasAttribute('data-match-backup-file')) { void backupUI.change(target); return; }
     if (target.dataset.historySelect) {
       if (busy || pendingDeletion || !selecting) return;
       const id = target.dataset.historySelect;

@@ -32,6 +32,12 @@ function validateLibrary(squads) {
     }
   }
 }
+// Read-only validation for portable backups; never invokes legacy migration.
+export function validateSavedSquadLibrary(data) {
+  if (data?.version !== 2 || !baseValid(data)) throw Error('Unsupported or invalid Saved Squad library.');
+  validateLibrary(data.squads);
+  return data;
+}
 export function loadSquads() {
   try {
     const raw = localStorage.getItem(KEY);
