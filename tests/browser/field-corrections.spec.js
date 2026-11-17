@@ -1,10 +1,9 @@
 import {clickCapture} from '../helpers/live-capture.js';
 import {test,expect} from '@playwright/test';
-import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import {readFile,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {blankMatch} from '../../src/domain.js';
 import {createMatchPlayer,createSquadPlayer} from '../../src/identity.js';
-const root='/workspace/sideline-v039-field-review';
 const nav=(p,name)=>p.getByRole('button',{name,exact:true}).click();
 const state=p=>p.evaluate(()=>JSON.parse(localStorage.getItem('sideline.match.v1')));
 async function seed(page){
@@ -19,13 +18,13 @@ async function picks(page,attribute,on=18,off=6){
  await expect(page.locator(`[${attribute}="${on}"]`)).toBeVisible();await expect(page.locator(`[${attribute}="${off}"]`)).toHaveCount(0);await expect(page.locator(`button[${attribute}]`)).toHaveCount(15);
 }
 for(const team of ['our','opposition'])test(`${team}: kickout/Mark, shots, actions, blocks and Pass use independent live XV; re-entry restores choices; historical edit uses the recorded Active XV`,async({page})=>{
- await mkdir(root,{recursive:true});await seed(page);await page.locator(`[data-team="${team}"]`).click();await sub(page,18,6);
+ await seed(page);await page.locator(`[data-team="${team}"]`).click();await sub(page,18,6);
  // Winner roster follows the credited team, regardless of which team kicked.
  for(const type of ['our-kickout','opposition-kickout'])for(const mark of [false,true]){
   await page.clock.fastForward(1000);const before=(await state(page)).events.length;await clickCapture(page, `[data-event="${type}"]`);
   const label=mark?(team==='our'?'Mark won by us':'Mark won by opposition'):(team==='our'?'Won by us':type==='our-kickout'?'Won by opposition':'Retained by opposition');
   await nav(page,label);await picks(page,'data-ko-player');
-  if(team==='opposition'&&type==='opposition-kickout'&&!mark)await page.screenshot({path:`${root}/01-opposition-active-xv.png`});
+  if(team==='opposition'&&type==='opposition-kickout'&&!mark)await page.screenshot({path:test.info().outputPath(`01-opposition-active-xv.png`)});
   await page.locator('[data-ko-player="18"]').click();const saved=await state(page);expect(saved.events).toHaveLength(before+1);expect(saved.events.at(-1).kickoutWinnerNumber).toBe('18');expect(saved.events.at(-1).participants.kickoutWinner.team).toBe(team);
  }
  await clickCapture(page, '[data-event="point"]');await picks(page,'data-shot-player');await page.keyboard.press('Escape');
@@ -53,7 +52,7 @@ for(const team of ['our','opposition'])test(`${team}: kickout/Mark, shots, actio
 });
 const readRows=p=>p.locator('[data-review-row]').evaluateAll(rows=>rows.map(row=>({...Object.fromEntries([...row.querySelectorAll('input,select')].map(n=>[n.name,n.value])),confidence:row.querySelector('.uncertain').textContent})));
 for(const name of ['st-manchans','st-manchans-camera','naomh-ciaran','shamrocks'])test(`actual ${name} photograph: formation/Subs integrity and honest uncertain-field review`,async({page},info)=>{
- test.setTimeout(120000);await mkdir(root,{recursive:true});await page.setViewportSize({width:1024,height:768});
+ test.setTimeout(120000);await page.setViewportSize({width:1024,height:768});
  const file=`tests/fixtures/field-programmes/${name}.png`,manifest=JSON.parse(await readFile('tests/fixtures/field-programmes/provenance.json','utf8'));expect(createHash('sha256').update(await readFile(file)).digest('hex')).toBe(manifest.find(x=>x.file===name+'.png').sha256);
  await page.goto('/');await nav(page,'Squad');await page.locator('#team-sheet-photo').setInputFiles(file);await expect(page.getByRole('heading',{name:'Review & confirm',exact:true})).toBeVisible({timeout:95000});
  const rows=await readRows(page);const starters=rows.filter(p=>p.role==='starter'),subs=rows.filter(p=>p.role==='substitute');expect(starters).toHaveLength(15);expect(starters.map(p=>p.number)).toEqual(Array.from({length:15},(_,i)=>String(i+1)));expect(rows.some(p=>/\b(?:Subs|Management|FLO|sponsor|^pat$)\b/i.test(p.name))).toBe(false);
@@ -72,23 +71,23 @@ for(const name of ['st-manchans','st-manchans-camera','naomh-ciaran','shamrocks'
     expect(rows).toHaveLength(26);expect(rows.some(p=>p.number==='20'||p.number==='25')).toBe(false); // Those digits are absent in the supplied original, not filled from the expected sequence.
   }
   await page.locator('[data-review-row]').last().scrollIntoViewIfNeeded();
-  await page.screenshot({path:`${root}/${name==='st-manchans-camera'?'04-full-st-manchans-review':'05-cropped-st-manchans-review'}.png`});
+  await page.screenshot({path:test.info().outputPath(`${name==='st-manchans-camera'?'04-full-st-manchans-review':'05-cropped-st-manchans-review'}.png`)});
  }else if(name==='naomh-ciaran'){
   expect(subs).toHaveLength(15);expect(subs.map(p=>p.number)).toEqual(Array.from({length:15},(_,i)=>String(i+16)));expect(starters[12].name).toBe('Aimee Fitzgerald');expect(rows.find(p=>p.number==='30').name).toBe('Freya Flynn');
-  await expect(page.locator('[data-import-checks]')).toBeHidden();await page.locator('.review-table').scrollIntoViewIfNeeded();await page.screenshot({path:`${root}/02-clean-programme-review.png`});
+  await expect(page.locator('[data-import-checks]')).toBeHidden();await page.locator('.review-table').scrollIntoViewIfNeeded();await page.screenshot({path:test.info().outputPath(`02-clean-programme-review.png`)});
  }else{
   expect(subs).toHaveLength(11);expect(subs.map(p=>p.number)).toEqual(Array.from({length:11},(_,i)=>String(i+16)));expect(starters[14].name).toBe('Sarah Minnock');expect(rows.filter(p=>p.name==='Sarah Smith')).toHaveLength(1);expect(rows.find(p=>p.name==='Sarah Smith').number).toBe('23');expect(rows.find(p=>p.number==='25').name).toBe('Emily Kavanagh');
 
  }
- await writeFile(`${root}/${name}-rows.json`,JSON.stringify(rows,null,2));await info.attach('real-photo-rows.json',{body:JSON.stringify(rows,null,2),contentType:'application/json'});
+ await writeFile(test.info().outputPath(`${name}-rows.json`),JSON.stringify(rows,null,2));await info.attach('real-photo-rows.json',{body:JSON.stringify(rows,null,2),contentType:'application/json'});
 });
 test('suspicious import is visibly flagged before confirmation; rows stay editable and duplicate names are not silently merged',async({page})=>{
- await mkdir(root,{recursive:true});await page.setViewportSize({width:1024,height:768});await page.goto('/');await nav(page,'Squad');await page.locator('#import-layout').selectOption('programme');await nav(page,'Paste team-sheet text');
+ await page.setViewportSize({width:1024,height:768});await page.goto('/');await nav(page,'Squad');await page.locator('#import-layout').selectOption('programme');await nav(page,'Paste team-sheet text');
  const names=['Ava Quinn','Beth Quinn','Subs Aimee Aoife Fitzgerald','Dara Quinn','Ella Quinn','Fia Quinn','Grace Quinn','Hana Quinn','Isla Quinn','Jane Quinn','Kate Quinn','Lara Quinn','Maya Quinn','Nora Quinn','Sarah h'];
  const rows=names.map((s,i)=>`${i===1?1:i+1},${s},starter`);rows.push(',Sarah Smith,starter','23,Sarah Smith,substitute');
  await page.getByLabel('Team-sheet text',{exact:true}).fill('Jersey,Name,Role\n'+rows.join('\n'));await nav(page,'Extract & review text');
  const checks=page.locator('[data-import-checks]');await expect(checks).toBeVisible();for(const word of ['Duplicate jersey','duplicate name','section text','starter jersey missing','truncated'])await expect(checks).toContainText(word);
- await page.screenshot({path:`${root}/03-suspicious-programme-review.png`});expect(await page.locator('[data-review-row]').count()).toBe(17);expect((await state(page))?.players || []).toHaveLength(0);
+ await page.screenshot({path:test.info().outputPath(`03-suspicious-programme-review.png`)});expect(await page.locator('[data-review-row]').count()).toBe(17);expect((await state(page))?.players || []).toHaveLength(0);
  await page.getByLabel('Jersey number row 2',{exact:true}).fill('2');await expect(checks).not.toContainText('Duplicate jersey');await page.getByLabel('Player name row 3',{exact:true}).fill('Cara Quinn');await expect(checks).not.toContainText('section text');
  const blank=page.getByLabel('Jersey number row 16',{exact:true});await blank.fill('16');await page.getByLabel('Role row 16',{exact:true}).selectOption('substitute');await expect(checks).not.toContainText('starter jersey missing');
  await page.locator('[data-review-row]').nth(15).getByRole('button',{name:'Remove row 16',exact:true}).click();await expect(checks).not.toContainText('duplicate name');await page.getByLabel('Player name row 15',{exact:true}).fill('Orla Quinn');await expect(checks).toBeHidden();

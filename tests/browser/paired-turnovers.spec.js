@@ -1,16 +1,14 @@
 import {completePeriod} from '../../src/periods.js';
 import {clickCapture,startCaptureFixture} from '../helpers/live-capture.js';
 import {test,expect} from '@playwright/test';
-import {mkdir} from 'node:fs/promises';
 import {blankMatch,createEvent,saveEvent} from '../../src/domain.js';
 import {createMatchPlayer,createSquadPlayer} from '../../src/identity.js';
 import {summarize,playerStatistics} from '../../src/analysis.js';
 import {fullMatchReportModel} from '../../src/full-match-report-data.js';
-const root='/workspace/sideline-v039-turnover-review';
 const nav=(p,n)=>p.getByRole('button',{name:n,exact:true}).click();
 const state=p=>p.evaluate(()=>JSON.parse(localStorage.getItem('sideline.match.v1')));
 async function seed(page,viewport={width:1024,height:768},fallback=false){
- await mkdir(root,{recursive:true});await page.setViewportSize(viewport);await page.clock.install({time:new Date('2026-10-31T12:00:00Z')});
+ await page.setViewportSize(viewport);await page.clock.install({time:new Date('2026-10-31T12:00:00Z')});
  const m=blankMatch();m.setup.ourTeam='Home Club';m.setup.opposition='Visitors';
  const roster=team=>Array.from({length:18},(_,i)=>createMatchPlayer({...createSquadPlayer({number:i+1,name:`${team} Player ${i+1}`,role:i<15?'starter':'substitute'}),id:undefined}));
  m.players=fallback?[]:roster('Home');m.oppositionPlayers=fallback?[]:roster('Away');
@@ -40,7 +38,7 @@ for(const type of ['turnover-won','turnover-lost'])for(const opponent of [true,f
  if(opponent)await pick(page,'opposition',theirs).click();
  await expect(page.getByRole('button',{name:'Record turnover',exact:true})).toBeDisabled();
  await pick(page,'our',ours).click();
- if(opponent)await page.screenshot({path:`${root}/${type==='turnover-won'?'01-to-won':'02-to-lost'}-both-grids.png`});
+ if(opponent)await page.screenshot({path:test.info().outputPath(`${type==='turnover-won'?'01-to-won':'02-to-lost'}-both-grids.png`)});
  await nav(page,'Record turnover');await expect(page.getByRole('dialog')).not.toBeVisible();
  const m=await state(page),e=m.events[0],win=type==='turnover-won';expect(m.events).toHaveLength(1);expect(m.recordingTeam).toBe('opposition');
  expect(e).toMatchObject({event:type,pairedTurnoverVersion:1,team:'our',playerNumber:String(ours),winningTeam:win?'our':'opposition',losingTeam:win?'opposition':'our'});
@@ -66,7 +64,7 @@ test('both independent Active XV grids reflect substitutions/re-entry; current t
  }
  await clickCapture(page, '[data-event="turnover-won"]');await panel(page,'turnover-won');
  await expect(pick(page,'our',18)).toBeVisible();await expect(pick(page,'our',10)).toHaveCount(0);await expect(pick(page,'opposition',16)).toBeVisible();await expect(pick(page,'opposition',12)).toHaveCount(0);
- await page.screenshot({path:`${root}/03-turnover-after-independent-substitutions.png`});await pick(page,'our',18).click();await pick(page,'opposition',16).click();await nav(page,'Record turnover');
+ await page.screenshot({path:test.info().outputPath(`03-turnover-after-independent-substitutions.png`)});await pick(page,'our',18).click();await pick(page,'opposition',16).click();await nav(page,'Record turnover');
  expect((await state(page)).events).toHaveLength(3);expect((await state(page)).recordingTeam).toBe('opposition');
  for(const [team,on,off] of [['our',10,18],['opposition',12,16]]){
   await page.locator(`[data-team="${team}"]`).click();await page.clock.fastForward(1000);await clickCapture(page, '[data-event="substitution"]');await page.locator(`[data-sub-on="${on}"]`).click();await page.locator(`[data-sub-off="${off}"]`).click();await nav(page,'Record substitution');

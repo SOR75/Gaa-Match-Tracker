@@ -1,9 +1,8 @@
 import {test,expect} from '@playwright/test';
 import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
-import {mkdir,writeFile} from 'node:fs/promises';
+import {writeFile} from 'node:fs/promises';
 import {validMatch} from '../../src/domain.js';
 import {paginationCases0314} from '../helpers/report-pagination0314.js';
-const root='/workspace/sideline-0315-workflow-review';
 const phase=process.env.REVIEW_PHASE||'After';
 const norm=s=>s.replace(/\s+/g,' ').trim();
 async function load(page,m){
@@ -12,7 +11,7 @@ async function load(page,m){
 }
 async function evidence(page,name){
  const screen=await page.locator('.report-view').innerHTML(),store=await page.evaluate(()=>localStorage.getItem('sideline.match.v1'));
- await page.screenshot({path:`${root}/${phase}-${name}-screen.png`,fullPage:true});
+ await page.screenshot({path:test.info().outputPath(`${phase}-${name}-screen.png`),fullPage:true});
  const blocks=await page.locator('.report-view > .analysis-section:not([data-report-minutes]), .report-view > p[data-report-substitutions]').evaluateAll(nodes=>nodes.map(node=>({
   heading:(node.querySelector(':scope > h2')||node.querySelector('b')).textContent.trim(),
   details:[...node.querySelectorAll('.report-details > div')].map(row=>[...row.children].map(c=>c.textContent.trim()).join(' ')),
@@ -26,17 +25,17 @@ async function evidence(page,name){
   window.__paginationAudit=[...document.querySelectorAll('.report-view > .analysis-section:not([data-report-minutes]), .report-view > [data-print-overview] > .analysis-section, .report-view > p[data-report-substitutions]')].map(n=>({heading:(n.querySelector(':scope > h2')||n.querySelector('b')).textContent.trim(),fit:n.classList.contains('report-print-fit'),long:n.classList.contains('report-print-continuation')}));
  },{once:true}));
 
- const buffer=await page.pdf({format:'A4',landscape:false,scale:1,preferCSSPageSize:true,printBackground:true});await writeFile(`${root}/${phase}-${name}.pdf`,buffer);
+ const buffer=await page.pdf({format:'A4',landscape:false,scale:1,preferCSSPageSize:true,printBackground:true});await writeFile(test.info().outputPath(`${phase}-${name}.pdf`),buffer);
  const task=getDocument({data:new Uint8Array(buffer),useSystemFonts:true}),doc=await task.promise,pages=[];
  for(let i=1;i<=doc.numPages;i++){const p=await doc.getPage(i),c=await p.getTextContent();pages.push({text:norm(c.items.map(x=>x.str).join(' ')),width:p.view[2],height:p.view[3],items:c.items.filter(x=>x.str.trim()).map(x=>({text:x.str,x:x.transform[4],y:x.transform[5],width:x.width}))});}
  const overviewFits=await page.evaluate(()=>window.__overviewFits);
- const audit=await page.evaluate(()=>window.__paginationAudit);await task.destroy();await writeFile(`${root}/${phase}-${name}.json`,JSON.stringify({pages,blocks,audit,overviewFits},null,2));
+ const audit=await page.evaluate(()=>window.__paginationAudit);await task.destroy();await writeFile(test.info().outputPath(`${phase}-${name}.json`),JSON.stringify({pages,blocks,audit,overviewFits},null,2));
  expect(await page.locator('.report-view').innerHTML()).toBe(screen);expect(await page.evaluate(()=>localStorage.getItem('sideline.match.v1'))).toBe(store);
  console.log(`${phase} ${name}: ${pages.length} A4 portrait pages`);
  return {pages,blocks,audit,overviewFits};
 }
 for(const name of Object.keys(paginationCases0314()))test(`section-aware 100% A4 portrait: ${name}`,async({page})=>{
- test.setTimeout(120000);await mkdir(root,{recursive:true});await load(page,paginationCases0314()[name]);const {pages,blocks,audit,overviewFits}=await evidence(page,name);
+ test.setTimeout(120000);await load(page,paginationCases0314()[name]);const {pages,blocks,audit,overviewFits}=await evidence(page,name);
  expect(pages.every(p=>p.width<p.height&&p.text.length>0)).toBe(true);
  expect(audit?.length).toBe(blocks.length);expect(audit.every(b=>b.fit||b.long)).toBe(true);
  expect(overviewFits).toBe(name!=='overviewOverflow');
@@ -74,21 +73,21 @@ for(const name of Object.keys(paginationCases0314()))test(`section-aware 100% A4
  }
 });
 test('print preparation is repeatable and restores the on-screen goalkeeper grid and report exactly',async({page})=>{
- await mkdir(root,{recursive:true});await load(page,paginationCases0314().keepers);const html=await page.locator('.report-view').innerHTML();await evidence(page,'repeat-first');await evidence(page,'repeat-second');expect(await page.locator('.report-view').innerHTML()).toBe(html);await expect(page.locator('[data-print-keeper-pair], [data-report-print-probe]')).toHaveCount(0);
+ await load(page,paginationCases0314().keepers);const html=await page.locator('.report-view').innerHTML();await evidence(page,'repeat-first');await evidence(page,'repeat-second');expect(await page.locator('.report-view').innerHTML()).toBe(html);await expect(page.locator('[data-print-keeper-pair], [data-report-print-probe]')).toHaveCount(0);
  await page.emulateMedia({media:'print'});await expect(page.locator('.report-view .report-print-fit').first()).toHaveCount(1);
  const pairs=await page.locator('[data-print-keeper-pair]').evaluateAll(ns=>ns.map(n=>[...n.children].map(c=>{const r=c.getBoundingClientRect();return {width:r.width,top:r.top};})));expect(pairs).toHaveLength(4);
  for(const [a,b]of pairs){expect(Math.abs(a.width-b.width)).toBeLessThan(1);expect(Math.abs(a.top-b.top)).toBeLessThan(1);}
  await page.emulateMedia({media:'screen'});await expect.poll(()=>page.locator('.report-view').innerHTML()).toBe(html);
 });
 for(const viewport of [{width:1366,height:1024},{width:1920,height:1080}])test(`portrait printing restores the exact iPad/TV screen at ${viewport.width}x${viewport.height}`,async({page})=>{
- await mkdir(root,{recursive:true});await load(page,paginationCases0314().normal);await page.setViewportSize(viewport);await page.evaluate(()=>document.fonts.ready);
+ await load(page,paginationCases0314().normal);await page.setViewportSize(viewport);await page.evaluate(()=>document.fonts.ready);
  const report=page.locator('.report-view'),before=await report.screenshot({animations:'disabled'});
- await writeFile(`${root}/Screen-${viewport.width}-before.png`,before);
+ await writeFile(test.info().outputPath(`Screen-${viewport.width}-before.png`),before);
  await page.pdf({format:'A4',scale:1,preferCSSPageSize:true});
- const after=await report.screenshot({animations:'disabled'});await writeFile(`${root}/Screen-${viewport.width}-after.png`,after);expect(after.equals(before)).toBe(true);
+ const after=await report.screenshot({animations:'disabled'});await writeFile(test.info().outputPath(`Screen-${viewport.width}-after.png`),after);expect(after.equals(before)).toBe(true);
 });
 test('portrait refinements retain map evidence, separate scorecard text and remove the empty shaded canvas',async({page})=>{
- await mkdir(root,{recursive:true});await load(page,paginationCases0314().normal);
+ await load(page,paginationCases0314().normal);
  const original=await page.locator('.report-view').innerHTML();
  const pitch=page.locator('.report-shot-map svg'),geometry=await pitch.getAttribute('viewBox'),markers=await pitch.innerHTML();
  await page.setViewportSize({width:688,height:1017});await page.emulateMedia({media:'print'});
@@ -108,7 +107,7 @@ test('portrait refinements retain map evidence, separate scorecard text and remo
  expect(pages[0].text).toContain('(18) 2 goals · 8 points · 2 2-pointers');expect(pages[0].text).not.toContain('(18)2 goals');
 });
 test('print omits individual playing-time tables and notes while screen, substitutions and saved data are retained',async({page})=>{
- await mkdir(root,{recursive:true});await load(page,paginationCases0314().normal);
+ await load(page,paginationCases0314().normal);
  const participation=page.locator('[data-report-minutes]');await expect(participation).toBeVisible();const rows=await participation.locator('tbody tr').count();expect(rows).toBeGreaterThan(0);
  const {pages}=await evidence(page,'without-playing-times');const text=pages.map(p=>p.text).join(' ');
  expect(text).not.toContain('Recorded participation & playing time');expect(text).not.toContain('Times use recorded clock and field changes');expect(text).toContain('Substitutions · No substitutions recorded.');

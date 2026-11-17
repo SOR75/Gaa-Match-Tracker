@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {orderedRowAnchors,completeAnchoredNames} from '../src/ordered-list-recovery.js';
+import {orderedRowAnchors,completeAnchoredNames,rereadOrderedJerseys} from '../src/ordered-list-recovery.js';
 import {readNumberedList} from '../src/list-programme.js';
 const scans=['original','normalized','block'].map(n=>({words:JSON.parse(readFileSync(new URL(`./fixtures/st-manchans-ordered/${n}-words.json`,import.meta.url),'utf8'))}));
 const word=(text,x,y,confidence=96)=>({text,x,y,w:text.length*12,h:40,confidence});
@@ -42,4 +42,99 @@ test('low-confidence regional first word does not trigger name completion',()=>{
 });
 test('source completion preserves multi-word surnames instead of truncating them',()=>{
  const source={words:[word('organ',100,300),word('Grogan',180,295),word('Doyle',280,292)]};assert.equal(completeAnchoredNames(anchor,geometry,[source],[regional])[0].name,'Morgan Grogan Doyle');
+});
+
+const jerseyWord = {text:'1', x:43, y:721, w:19, h:19};
+const jerseyPlayer = {number:'1', name:'Example Player', role:'substitute', position:'', confidence:'Review required'};
+const twoGlyphs = [[43,721,7,19], [55,721,7,19]];
+const clearReread = {text:'11\n', words:[{text:'11', x:18, w:57, confidence:95}]};
+
+function jerseyHarness(ink, result = clearReread) {
+  const calls = [];
+  const crop = {getContext: () => ({
+    fillRect() {},
+    drawImage(_source, ...bounds) { calls.push(['crop', bounds]); },
+  })};
+  const source = {
+    width:1180, height:1400,
+    ownerDocument:{createElement: () => crop},
+    getContext: () => ({
+      getImageData(x, y, width, height) {
+        const data = new Uint8ClampedArray(width * height * 4).fill(255);
+        for (let row = 0; row < height; row++) {
+          for (let col = 0; col < width; col++) {
+            if (!ink.some(([left, top, w, h]) => x+col>=left && x+col<left+w && y+row>=top && y+row<top+h)) continue;
+            const offset = (row * width + col) * 4;
+            data.fill(0, offset, offset + 3);
+          }
+        }
+        return {data};
+      },
+    }),
+  };
+  const worker = {async setParameters(params) { calls.push(['parameters', params]); }};
+  const read = async (_canvas, mode) => {
+    calls.push(['read', mode]);
+    if (result instanceof Error) throw result;
+    return result;
+  };
+  return {calls, source, worker, read};
+}
+
+test('a complete numbered list retains the source jersey token for its own candidate', () => {
+  const fixture = JSON.parse(readFileSync(new URL('./fixtures/programme-structure/vincents-style-ordered.json', import.meta.url)));
+  const collapsed = fixture.words.find(w => w.text === '11');
+  const words = fixture.words.map(w => w === collapsed ? {...w, text:'1'} : w);
+  const jerseyWords = [];
+  const players = readNumberedList(words, jerseyWords);
+  assert.equal(players.length, 29);
+  assert.equal(jerseyWords.length, players.length);
+  assert.equal(players[17].number, '1');
+  assert.equal(jerseyWords[17], words[fixture.words.indexOf(collapsed)]);
+});
+
+test('rereads both glyphs of a collapsed 11 in one bounded crop and restores OCR settings', async () => {
+  const harness = jerseyHarness(twoGlyphs);
+  const players = [jerseyPlayer];
+  assert.deepEqual(await rereadOrderedJerseys({players, jerseyWords:[jerseyWord], ...harness}), [
+    {...jerseyPlayer, number:'11'},
+  ]);
+  assert.equal(players[0].number, '1');
+  assert.deepEqual(harness.calls, [
+    ['parameters', {tessedit_char_whitelist:'0123456789'}],
+    ['crop', [43,721,19,19,18,15,57,57]],
+    ['read', '7'],
+    ['parameters', {tessedit_char_whitelist:'', tessedit_pageseg_mode:'11'}],
+  ]);
+});
+
+test('a genuine 1 and a correct two-digit jersey need no reread, even with ink next to their boxes', async () => {
+  const harness = jerseyHarness([[43,721,7,19], [55,742,7,19], [55,702,7,19]]);
+  const players = [jerseyPlayer, {...jerseyPlayer, number:'21'}];
+  const jerseyWords = [jerseyWord, {...jerseyWord, text:'21'}];
+  assert.equal(await rereadOrderedJerseys({players, jerseyWords, ...harness}), players);
+  assert.deepEqual(harness.calls, []);
+});
+
+test('ambiguous, conflicting, or spatially incomplete rereads keep the original jersey for review', async () => {
+  const results = [
+    {text:'1', words:[{text:'1', x:18, w:57, confidence:95}]},
+    {text:'11', words:[{...clearReread.words[0], confidence:89}]},
+    {text:'23', words:[{text:'23', x:18, w:57, confidence:97}]},
+    {text:'11', words:[{...clearReread.words[0], w:19}]},
+    {text:'11', words:[{...clearReread.words[0], text:'12'}]},
+  ];
+  for (const result of results) {
+    const harness = jerseyHarness(twoGlyphs, result);
+    assert.deepEqual(await rereadOrderedJerseys({players:[jerseyPlayer], jerseyWords:[jerseyWord], ...harness}), [
+      {...jerseyPlayer, confidence:'Review required · Review jersey'},
+    ]);
+  }
+});
+
+test('the digits-only OCR setting is cleared when the reread fails', async () => {
+  const error = Error('OCR read failed');
+  const harness = jerseyHarness(twoGlyphs, error);
+  await assert.rejects(rereadOrderedJerseys({players:[jerseyPlayer], jerseyWords:[jerseyWord], ...harness}), error);
+  assert.deepEqual(harness.calls.at(-1), ['parameters', {tessedit_char_whitelist:'', tessedit_pageseg_mode:'11'}]);
 });

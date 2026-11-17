@@ -1,10 +1,9 @@
 import {test, expect} from '@playwright/test';
-import {mkdir} from 'node:fs/promises';
 import {blankMatch, createEvent} from '../../src/domain.js';
 import {makeBackup} from '../../src/match-backup.js';
 import {startPeriod} from '../../src/periods.js';
 import {history0313} from '../helpers/history0313.js';
-const root = '/workspace/sideline-0316-review', date = '2026-11-11T12:00:00.000Z';
+const date = '2026-11-11T12:00:00.000Z';
 const nav = (p,n) => p.getByRole('button',{name:n,exact:true}).click();
 const storage = p => p.evaluate(() => Object.fromEntries(Object.entries(localStorage)));
 const card = (p,id) => p.locator(`[data-history-id="${id}"]`);
@@ -61,7 +60,7 @@ test('restore preview and Cancel write nothing; confirmation adds exactly one im
   await seed(page);const before=await storage(page),originals=await rows(page),m=incoming();await upload(page,backup([m]));
   await expect(page.locator('[data-backup-review]')).toContainText('1 new matches to restore');expect(await rows(page)).toEqual(originals);
   await nav(page,'Cancel restore');expect(await rows(page)).toEqual(originals);expect(await storage(page)).toEqual(before);
-  await upload(page,backup([m]));await mkdir(root,{recursive:true});await page.screenshot({path:root+'/Restore-review-iPad.png',fullPage:true});
+  await upload(page,backup([m]));await page.screenshot({path:test.info().outputPath('Restore-review-iPad.png'),fullPage:true});
   await nav(page,'Confirm restore');await expect(page.locator('[data-backup-notice]')).toContainText('1 match restored');
   const after=await rows(page);expect(after.find(r=>r.id===m.id).match).toEqual(m);
   for(const r of originals)expect(after.find(n=>n.id===r.id)).toEqual(r);expect(await storage(page)).toEqual(before);await expect(card(page,m.id)).toBeVisible();
@@ -120,8 +119,17 @@ test('unavailable IndexedDB reports incomplete backup and restore failure instea
 for(const viewport of [{width:1024,height:768},{width:390,height:844}])test(`build details identify the actual running bundle without changing match data at ${viewport.width}`,async({page,request})=>{
   await seed(page);await page.setViewportSize(viewport);await nav(page,'Live match');const before=await storage(page),info=await (await request.get('/build-info.json')).json();
   await page.getByRole('button',{name:'Build information',exact:true}).click();await expect(page.locator('[data-build-commit]')).toHaveText(info.sourceCommit);
-  await expect(page.getByRole('dialog')).toContainText('V0.3.16-dev');await expect(page.locator('[data-build-dirty]')).toContainText(info.sourceDirty?'Local changes included':'sourceDirty=false');expect(await storage(page)).toEqual(before);
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);await mkdir(root,{recursive:true});await page.screenshot({path:`${root}/Build-information-${viewport.width}.png`});await nav(page,'Close build information');expect(await storage(page)).toEqual(before);
+  await expect(page.getByRole('dialog')).toContainText('V0.3.16-dev');
+  expect([true, false, null]).toContain(info.sourceDirty);
+  expect(await page.evaluate(() => window.__SIDELINE_BUILD__.sourceDirty)).toBe(info.sourceDirty);
+  const sourceStatus = new Map([
+    [true, 'Local changes included — this is not a clean commit build.'],
+    [false, 'Clean source build (sourceDirty=false)'],
+    [null, 'Source working-tree status unavailable.'],
+  ]);
+  await expect(page.locator('[data-build-dirty]')).toHaveText(sourceStatus.get(info.sourceDirty));
+  expect(await storage(page)).toEqual(before);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);await page.screenshot({path:test.info().outputPath(`Build-information-${viewport.width}.png`)});await nav(page,'Close build information');expect(await storage(page)).toEqual(before);
 });
 test('a downloaded backup restores on an isolated device context with exact snapshots and no active-match replacement',async({page,browser})=>{
   const d=await seed(page),{value}=await download(page),other=await browser.newContext();
@@ -161,7 +169,7 @@ test('full restore preview counts matches/squads/setups and Cancel leaves every 
   await seed(page);const before=await storage(page),originals=await rows(page),{value}=fullFixture();await upload(page,value);
   await expect(page.locator('[data-backup-library-counts]')).toHaveText('Saved Squads: 1 new, 0 skipped. Saved Team Setups: 1 new, 0 skipped.');
   await expect(page.locator('[data-backup-review]')).toContainText('Restored permanent squad');await expect(page.locator('[data-backup-review]')).toContainText('Restored match-day setup');
-  await mkdir(root,{recursive:true});await page.screenshot({path:root+'/Combined-restore-review-iPad.png',fullPage:true});await nav(page,'Cancel restore');expect(await storage(page)).toEqual(before);expect(await rows(page)).toEqual(originals);
+  await page.screenshot({path:test.info().outputPath('Combined-restore-review-iPad.png'),fullPage:true});await nav(page,'Cancel restore');expect(await storage(page)).toEqual(before);expect(await rows(page)).toEqual(originals);
 });
 test('full restore appends libraries with exact IDs/metadata and existing squads, setups, matches and active snapshot preserved',async({page})=>{
   const original=await seed(page),before=await storage(page),{d,value}=fullFixture();await upload(page,value);await nav(page,'Confirm restore');await expect(page.locator('[data-backup-notice]')).toContainText('Saved Squads: 1 restored, 0 skipped. Saved Team Setups: 1 restored, 0 skipped.');

@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 const legacyMessage = "Photo OCR is not available " + "in this build";
 test("V0.3.16-dev identity and JPEG/PNG runtime path are in this exact package", async ({
   page,
@@ -10,6 +11,10 @@ test("V0.3.16-dev identity and JPEG/PNG runtime path are in this exact package",
   expect(metadata.buildId).toBe("0.3.16-dev");
   expect(metadata.version).toBe("0.3.16-dev");
   expect(metadata.sourceCommit).toMatch(/^[a-f0-9]{40}$/);
+  const expectedCommit = /^[a-f0-9]{40}$/i.test(process.env.COMMIT_REF || "")
+    ? process.env.COMMIT_REF
+    : execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+  expect(metadata.sourceCommit).toBe(expectedCommit);
   expect(metadata.assetRevision).toMatch(/^[a-f0-9]{12}$/);
   const source = readFileSync("src/imports.js", "utf8");
   expect(source).not.toContain(legacyMessage);

@@ -1,9 +1,7 @@
 import {clickCapture,startCaptureFixture} from '../helpers/live-capture.js';
 import { test, expect } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
 import { blankMatch } from "../../src/domain.js";
 import { snapshotSquad, loadSquadPlayers } from "../../src/squads.js";
-const root = "/workspace/sideline-v039-pass-one-screen-review";
 const state = p => p.evaluate(() => JSON.parse(localStorage.getItem("sideline.match.v1")));
 const nav = (p, name) => p.getByRole("button", { name, exact: true }).click();
 const from = (p,n) => p.locator(`[data-pass-from="${n}"]`);
@@ -43,13 +41,13 @@ async function pass(page,a,b,type="Kick Pass"){
  await clickCapture(page, '[data-event="pass"]');await from(page,a).click();await to(page,b).click();await nav(page,type);
 }
 test("one-screen landscape: both complete grids/type visible; selections change in place; type completes one event",async({page})=>{
- await mkdir(root,{recursive:true});await seed(page);
+ await seed(page);
  const before=await state(page);
  await clickCapture(page, '[data-event="pass"]');await grids(page);
  const d=page.getByRole("dialog");
  await expect(d.getByRole("button",{name:"Kick Pass",exact:true})).toBeDisabled();
  await expect(d.getByRole("button",{name:"Hand Pass",exact:true})).toBeDisabled();
- await page.screenshot({path:`${root}/01-complete-pass-panel.png`});
+ await page.screenshot({path:test.info().outputPath(`01-complete-pass-panel.png`)});
  await from(page,8).click();
  await expect(d.getByRole("button",{name:"Kick Pass",exact:true})).toBeDisabled();
  await from(page,4).click();await to(page,15).click();await to(page,11).click();
@@ -58,7 +56,7 @@ test("one-screen landscape: both complete grids/type visible; selections change 
  await expect(from(page,4)).toHaveClass(/chosen/);await expect(to(page,11)).toHaveClass(/chosen/);
  await expect(d.getByRole("button",{name:"Kick Pass",exact:true})).toBeEnabled();
  await grids(page);expect(await state(page)).toEqual(before);
- await page.screenshot({path:`${root}/02-from4-to11-selected.png`});
+ await page.screenshot({path:test.info().outputPath(`02-from4-to11-selected.png`)});
  await nav(page,"Kick Pass");await expect(d).not.toBeVisible();
  const m=await state(page);expect(m.events).toHaveLength(1);
  expect(m.events[0]).toMatchObject({event:"pass",playerNumber:"4",receiverNumber:"11",passType:"kick"});
@@ -71,10 +69,10 @@ test("one-screen landscape: both complete grids/type visible; selections change 
  await expect(d.getByRole("button",{name:"Hand Pass",exact:true})).toBeDisabled();
 });
 for(const team of ["our","opposition"])test(`${team} substitution updates FROM and TO while preserving one-screen capture`,async({page})=>{
- await mkdir(root,{recursive:true});await seed(page);await page.locator(`[data-team="${team}"]`).click();
+ await seed(page);await page.locator(`[data-team="${team}"]`).click();
  await clickCapture(page, '[data-event="substitution"]');await page.locator('[data-sub-on="18"]').click();await page.locator('[data-sub-off="10"]').click();await nav(page,"Record substitution");
  await clickCapture(page, '[data-event="pass"]');await grids(page,"18","10");
- if(team==="our")await page.screenshot({path:`${root}/03-pass-after-substitution.png`});
+ if(team==="our")await page.screenshot({path:test.info().outputPath(`03-pass-after-substitution.png`)});
  await from(page,18).click();await to(page,11).click();await nav(page,"Hand Pass");
  const m=await state(page);expect(m.events).toHaveLength(2);expect(m.events[1]).toMatchObject({event:"pass",team,playerNumber:"18",receiverNumber:"11",passType:"hand"});
 });

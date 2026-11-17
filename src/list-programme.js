@@ -4,7 +4,7 @@ import { beforeProgrammeSection } from './programme-integrity.js';
 
 // A substantial column establishes an ordered list; it is not a filter that
 // discards credible entries at another indentation or on the Subs heading line.
-export function readNumberedList(words) {
+export function readNumberedList(words, jerseyWords) {
   const lines = [];
   for (const word of [...words].sort((a,b)=>a.y+a.h/2-b.y-b.h/2)) {
     let line=lines.find(l=>Math.abs(l.cy-word.y-word.h/2)<Math.min(l.h,word.h)*0.45);
@@ -44,13 +44,17 @@ export function readNumberedList(words) {
       sub=true;
       text=text.replace(/^(?:subs(?:titutes)?|replacements?|fir\s+ionaid)\b\s*[:.\-]?\s*/i,'');
       const pairs=numberedEntries(text);
-      for(const p of pairs)players.push(candidate(p.number,p.name,'substitute','',`Review required · Number/name pair on Subs line`));
+      for(const p of pairs){
+        players.push(candidate(p.number,p.name,'substitute','',`Review required · Number/name pair on Subs line`));
+        jerseyWords?.push(null);
+      }
       continue;
     }
     const e=entries.find(e=>e.line===line);if(!e)continue;
     for(const pair of e.pairs){
       const number=String(+pair.number),role=sub||players.length>=15?'substitute':'starter';
       players.push(candidate(number,pair.name,role,role==='starter'?POSITIONS[+number-1]||'':'',`Review required · OCR word score ${Math.round(e.score)}/100${e.score<90?' · uncertain transcription: verify':''}${/^0/.test(e.n.text)?' · leading jersey zero normalized':''}`));
+      jerseyWords?.push(e.pairs.length===1 && String(+e.n.text.replace(/[.)]/g,''))===number ? e.n : null);
     }
     if(beforeProgrammeSection(text)!==text)break;
   }

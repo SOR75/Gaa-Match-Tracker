@@ -2,14 +2,12 @@ import {clickCapture,startCaptureFixture} from '../helpers/live-capture.js';
 import {readFileSync} from 'node:fs';
 const RELEASE_VERSION=JSON.parse(readFileSync('public/build-info.json','utf8')).version;
 import {test,expect} from '@playwright/test';
-import {mkdir} from 'node:fs/promises';
 import {updateServer} from '../helpers/pwa-server.js';
 import {blankMatch,createEvent,saveEvent} from '../../src/domain.js';
 import {snapshotSquad,loadSquadPlayers} from '../../src/squads.js';
 import {HISTORY_DB,HISTORY_STORE} from '../../src/history.js';
 const nav=(page,name)=>page.getByRole('button',{name,exact:true}).click();
 const state=page=>page.evaluate(()=>JSON.parse(localStorage.getItem('sideline.match.v1')));
-const root='/workspace/sideline-v0393-review';
 async function installed(page){await page.evaluate(()=>navigator.serviceWorker.ready);}
 async function controlled(page,url){await installed(page);await page.goto(url);await page.waitForFunction(()=>Boolean(navigator.serviceWorker.controller));}
 async function waiting(page){await expect.poll(()=>page.evaluate(async()=>Boolean((await navigator.serviceWorker.getRegistration())?.waiting)),{timeout:20000}).toBe(true);}
@@ -64,17 +62,17 @@ test('failed candidate precache/server failure keep the previous app offline and
  }finally{await server.close();}
 });
 test('V0.3.9.3 visible production identity and both real Live Match buttons preserve paired capture unchanged',async({page,request})=>{
- await mkdir(root,{recursive:true});await page.setViewportSize({width:1024,height:768});await page.goto('/');
+ await page.setViewportSize({width:1024,height:768});await page.goto('/');
  await page.getByLabel('Our team',{exact:true}).fill('Candidate Home');await page.getByLabel('Opposition',{exact:true}).fill('Candidate Away');await nav(page,'Continue to squad');
  for(const team of ['our','opposition']){
   await page.locator(`[data-squad-team="${team}"]`).click();
   for(const n of [8,10,12]){await page.getByLabel('Jersey number',{exact:true}).fill(String(n));await page.getByLabel('Player name',{exact:true}).fill(`${team} Candidate ${n}`);await nav(page,'Add player');}
  }
- await nav(page,'Live match');await startCaptureFixture(page);await expect(page.locator('.matchday-toolbar .build-tag')).toHaveText(`V${RELEASE_VERSION}`);await page.screenshot({path:`${root}/0393-visible-version.png`});
+ await nav(page,'Live match');await startCaptureFixture(page);await expect(page.locator('.matchday-toolbar .build-tag')).toHaveText(`V${RELEASE_VERSION}`);await page.screenshot({path:test.info().outputPath(`0393-visible-version.png`)});
  const info=await(await request.get('/build-info.json')).json();expect((await page.evaluate(()=>window.__SIDELINE_BUILD__)).sourceCommit).toBe(info.sourceCommit);
  for(const [label,ours,theirs,count] of [['Won',8,12,0],['Lost',10,8,1]]){
   await page.getByRole('button',{name:`Turnover ${label}`,exact:true}).click();expect((await state(page)).events).toHaveLength(count);await expect(page.locator('[data-turnover-form]')).toBeVisible();await expect(page.getByRole('button',{name:'Record turnover',exact:true})).toBeDisabled();
-  await page.locator(`[data-turnover-our="${ours}"]`).click();await page.locator(`[data-turnover-opposition="${theirs}"]`).click();await page.screenshot({path:`${root}/0393-turnover-${label.toLowerCase()}.png`});await nav(page,'Record turnover');const m=await state(page);expect(m.events).toHaveLength(count+1);expect(m.events.at(-1).pairedTurnoverVersion).toBe(1);
+  await page.locator(`[data-turnover-our="${ours}"]`).click();await page.locator(`[data-turnover-opposition="${theirs}"]`).click();await page.screenshot({path:test.info().outputPath(`0393-turnover-${label.toLowerCase()}.png`)});await nav(page,'Record turnover');const m=await state(page);expect(m.events).toHaveLength(count+1);expect(m.events.at(-1).pairedTurnoverVersion).toBe(1);
  }
  await nav(page,'Match analysis');await nav(page,'Full Match Report');for(const label of ['Turnovers won','Turnovers lost'])await expect(page.locator('.report-view tr').filter({has:page.getByRole('rowheader',{name:label,exact:true})}).first().locator('td')).toHaveText(['1','1']);
 });

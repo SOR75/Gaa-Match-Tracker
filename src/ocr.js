@@ -9,7 +9,7 @@ import {
   detectFoireannRows,
   readFoireannProgramme,
 } from "./foireann-programme.js";
-import { recoverOrderedList } from "./ordered-list-recovery.js";
+import { recoverOrderedList, rereadOrderedJerseys } from "./ordered-list-recovery.js";
 import { readNumberedList } from "./list-programme.js";
 import {
   lightCardRects,
@@ -170,10 +170,18 @@ async function recognizeProgrammeImage(
         listScan = blockScan; listPlayers = blockPlayers;
       }
       const recovered = await recoverOrderedList({ scans: [originalScan, scan, blockScan], source, normalized, read, onProgress });
+      const jerseyWords = [];
+      const players = recovered ? recovered.players : readNumberedList(listScan.words, jerseyWords);
       return {
         ...listScan,
         ...(recovered || {}),
-        players: recovered?.players || listPlayers,
+        players: await rereadOrderedJerseys({
+          players,
+          jerseyWords: recovered ? recovered.diagnostics.regions.map(region => region.anchor) : jerseyWords,
+          source,
+          read,
+          worker,
+        }),
         diagnostics: recovered?.diagnostics || { layout: "numbered-list" },
       };
     }

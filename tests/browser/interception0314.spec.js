@@ -1,6 +1,5 @@
 import {clickCapture} from '../helpers/live-capture.js';
 import {test,expect} from '@playwright/test';
-import {mkdir} from 'node:fs/promises';
 import {flowMatch,addFlow} from '../helpers/match-flow-match.js';
 import {syncPeriod} from '../../src/periods.js';
 import {blankMatch} from '../../src/domain.js';
@@ -13,7 +12,7 @@ for(const team of ['our','opposition'])test(`actual ${team} Interception opens e
  await seed(page,fixture(team));const before=await state(page);await clickCapture(page, '[data-event="interception"]');const d=page.getByRole('dialog');await expect(d.getByRole('group',{name:'On-field interception player'})).toBeVisible();const captured=(await state(page)).events.at(-1);expect(captured).toMatchObject({event:'interception',team,playerNumber:''});expect((await state(page)).events).toHaveLength(before.events.length+1);
  await expect(d.locator('[data-interception-player="18"]')).toBeVisible();await expect(d.locator('[data-interception-player="10"]')).toHaveCount(0);await expect(d.locator('[data-interception-player="16"]')).toHaveCount(0);
  const bounds=await d.locator('[data-interception-player="18"]').boundingBox();expect(bounds.height).toBeGreaterThanOrEqual(44);expect(bounds.y+bounds.height).toBeLessThanOrEqual(768);
- if(team==='our'){await mkdir('/workspace/sideline-0314-review',{recursive:true});await page.screenshot({path:'/workspace/sideline-0314-review/Interception-ipad.png'});}
+ if(team==='our'){await page.screenshot({path:test.info().outputPath('Interception-ipad.png')});}
  await d.locator('[data-interception-player="18"]').click();await expect(d).not.toBeVisible();const after=await state(page);expect(after.events).toHaveLength(before.events.length+1);expect(after.events.at(-1)).toMatchObject({id:captured.id,team,timeMs:captured.timeMs,event:'interception',playerNumber:'18'});expect(after.events.slice(0,-1)).toEqual(before.events);
  expect(summarize(after.events,team).interceptions).toBe(1);expect(summarize(after.events,team).turnoversWon).toBe(0);expect(playerStatistics(after,team).find(p=>String(p.number)==='18').interceptions).toBe(1);await page.reload();expect((await state(page)).events).toEqual(after.events);
 });

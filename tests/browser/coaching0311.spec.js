@@ -1,4 +1,3 @@
-import {mkdir} from 'node:fs/promises';
 import {test,expect} from '@playwright/test';
 import {attacking0311,kickout0311,defence0311} from '../helpers/coaching0311.js';
 import {addFlow} from '../helpers/match-flow-match.js';
@@ -31,5 +30,5 @@ test('shared coaching findings remain usable offline after shell installation an
  const m=attacking0311();await open(page,m);await page.evaluate(()=>navigator.serviceWorker.ready);await page.reload();await page.waitForFunction(()=>!!navigator.serviceWorker.controller);const before=await state(page);await context.setOffline(true);await page.reload();await page.getByRole('button',{name:'Match History',exact:true}).click();await page.locator('[data-history-action="view"]').first().click();await expect(page.locator('.ht-observations')).toContainText('12 in H1 to 7 in H2');expect(await state(page)).toBe(before);await context.setOffline(false);
 });
 for(const size of [{width:1024,height:768},{width:1366,height:1024},{width:390,height:844}])test(`combined insights stay within viewport ${size.width}x${size.height}`,async({page})=>{
- await page.setViewportSize(size);await open(page,attacking0311());await page.locator('.ht-observations summary').first().click();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(size.width+1);const control=await page.locator('.ht-observations summary').first().boundingBox();expect(control.width).toBeGreaterThan(120);expect(control.height).toBeGreaterThanOrEqual(44);await mkdir('/workspace/sideline-0311-review',{recursive:true});await page.locator('.full-time-view').screenshot({path:`/workspace/sideline-0311-review/Full-Time-${size.width}x${size.height}.png`});
+ await page.setViewportSize(size);await open(page,attacking0311());await page.locator('.ht-observations summary').first().click();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(size.width+1);const control=await page.locator('.ht-observations summary').first().boundingBox();expect(control.width).toBeGreaterThan(120);expect(control.height).toBeGreaterThanOrEqual(44);await page.locator('.full-time-view').screenshot({path:test.info().outputPath(`Full-Time-${size.width}x${size.height}.png`)});
 });

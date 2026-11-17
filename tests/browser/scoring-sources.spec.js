@@ -1,13 +1,11 @@
 import {clickCapture} from '../helpers/live-capture.js';
 import {test,expect} from '@playwright/test';
-import {mkdir} from 'node:fs/promises';
 import {scoringSourceExample,sourceSquad,sourceMatch,sourceEvent} from '../helpers/scoring-source-match.js';
 import {completeMatch} from '../../src/history.js';
-const root='/workspace/sideline-v039-scoring-sources-review';
 const nav=(p,n)=>p.getByRole('button',{name:n,exact:true}).click();
 const raw=p=>p.evaluate(()=>localStorage.getItem('sideline.match.v1'));
 async function load(page,m,size={width:1024,height:768}){
- await mkdir(root,{recursive:true});await page.setViewportSize(size);await page.goto('/');await page.evaluate(m=>localStorage.setItem('sideline.match.v1',JSON.stringify(m)),m);await page.reload();
+ await page.setViewportSize(size);await page.goto('/');await page.evaluate(m=>localStorage.setItem('sideline.match.v1',JSON.stringify(m)),m);await page.reload();
 }
 const contribution=(page,name)=>page.locator('.player-shooting-section tbody tr').filter({hasText:name});
 test('sole Full Match Report retains Play/Free, goal, penalty and two-pointer source evidence without a Coach export',async({page})=>{
@@ -33,7 +31,7 @@ test('Player Review sources aggregate stable identity across #10/#23 with unknow
  await expect(sources).not.toContainText('Penalties:');await expect(sources).not.toContainText('45s:');
  await expect(page.locator('[data-review-match]')).toHaveCount(2);await expect(page.locator('[data-review-metric="attempts"]')).toHaveText('14');
  await expect(page.locator('[data-review-metric="conversion"]')).toHaveText('71.4%');
- await sources.screenshot({path:`${root}/04-player-review-scoring-composition.png`});
+ await sources.screenshot({path:test.info().outputPath(`04-player-review-scoring-composition.png`)});
  expect(await raw(page)).toBe(before);expect(await page.evaluate(k=>localStorage.getItem(k),key)).toBe(archive);
 });
 test('offline archived report uses recorded sources without resuming or changing active/history events',async({page,context})=>{

@@ -6,6 +6,80 @@ import {programmeBounds} from './programme-integrity.js';
 const median=values=>{const s=values.slice().sort((a,b)=>a-b);return s[Math.floor(s.length/2)];};
 const digitPrefix=w=>/^\d{1,2}(?:[.)]|$)/.test(w.text);
 
+// A collapsed OCR token can still enclose both printed glyphs. Require two
+// substantial, vertically overlapping ink bands inside that token's own box.
+function jerseyInkBands(source, {x, y, w, h}) {
+  if (w < 4 || h < 5 || x < 0 || y < 0 || x + w > source.width || y + h > source.height) return [];
+  const {data} = source.getContext('2d').getImageData(x, y, w, h);
+  const bands = [];
+  for (let col = 0; col < w; col++) {
+    let count = 0, top = h, bottom = -1;
+    for (let row = 0; row < h; row++) {
+      const offset = (row * w + col) * 4;
+      if (data[offset] + data[offset + 1] + data[offset + 2] >= 384) continue;
+      count++;
+      top = Math.min(top, row);
+      bottom = row;
+    }
+    if (count < Math.max(2, h * 0.16)) continue;
+    const previous = bands.at(-1);
+    if (previous?.right === col) {
+      previous.right = col + 1;
+      previous.top = Math.min(previous.top, top);
+      previous.bottom = Math.max(previous.bottom, bottom);
+    } else {
+      bands.push({left: col, right: col + 1, top, bottom});
+    }
+  }
+  const glyphs = bands.filter(band => band.right - band.left >= 2 && band.bottom - band.top + 1 >= h * 0.6);
+  if (glyphs.length !== 2) return [];
+  const [first, second] = glyphs;
+  const overlap = Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top) + 1;
+  return overlap >= h * 0.55 && second.left - first.right <= h * 0.65 ? glyphs : [];
+}
+
+export async function rereadOrderedJerseys({players, jerseyWords, source, read, worker}) {
+  const pending = [];
+  for (const [index, player] of players.entries()) {
+    const word = jerseyWords[index];
+    if (!word || !/^[1-9]$/.test(player.number) || word.text.replace(/[.)]$/, '') !== player.number) continue;
+    const bands = jerseyInkBands(source, word);
+    if (bands.length) pending.push({index, player, word, bands});
+  }
+  if (!pending.length) return players;
+
+  const revised = players.slice();
+  try {
+    await worker.setParameters({tessedit_char_whitelist: '0123456789'});
+    for (const {index, player, word: {x, y, w, h}, bands} of pending) {
+      const scale = 3, padX = Math.round(h * 0.32), padY = Math.round(h * 0.26);
+      const crop = source.ownerDocument.createElement('canvas');
+      crop.width = (w + padX * 2) * scale;
+      crop.height = (h + padY * 2) * scale;
+      const ctx = crop.getContext('2d');
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, crop.width, crop.height);
+      // Synthetic padding avoids sampling any digits outside this row's token.
+      ctx.drawImage(source, x, y, w, h, padX * scale, padY * scale, w * scale, h * scale);
+      const result = await read(crop, '7');
+      const number = result.text.trim();
+      const [token] = result.words;
+      const reliable = /^[1-9]\d$/.test(number) && number.includes(player.number) &&
+        result.words.length === 1 && token.text === number && token.confidence >= 90 &&
+        bands.every(band => {
+          const center = (padX + (band.left + band.right) / 2) * scale;
+          return token.x <= center && center < token.x + token.w;
+        });
+      revised[index] = reliable
+        ? {...player, number, position: player.role === 'starter' ? POSITIONS[+number - 1] || '' : player.position}
+        : {...player, confidence: player.confidence.includes('Review jersey') ? player.confidence : player.confidence + ' · Review jersey'};
+    }
+  } finally {
+    await worker.setParameters({tessedit_char_whitelist: '', tessedit_pageseg_mode: '11'});
+  }
+  return revised;
+}
+
 // Called only after the ordinary list route is established (never a formation
 // or Foireann classifier). Low-scoring glyphs locate a reread, not a jersey.
 export function orderedRowAnchors(scans) {

@@ -1,12 +1,10 @@
 import {clickCapture} from '../helpers/live-capture.js';
 import {test,expect} from '@playwright/test';
-import {mkdir} from 'node:fs/promises';
 import {blankMatch} from '../../src/domain.js';
-const root='/workspace/sideline-v039-shot-location-review';
 const nav=(p,name)=>p.getByRole('button',{name,exact:true}).click();
 const state=p=>p.evaluate(()=>JSON.parse(localStorage.getItem('sideline.match.v1')));
 async function load(page,first='top'){
- await mkdir(root,{recursive:true});await page.setViewportSize({width:1024,height:768});await page.clock.install({time:new Date('2026-10-31T12:00:00Z')});
+ await page.setViewportSize({width:1024,height:768});await page.clock.install({time:new Date('2026-10-31T12:00:00Z')});
  const m=blankMatch();m.setup.ourTeam='Home';m.setup.opposition='Away';m.setup.ourFirstHalfAttacks=first;
  await page.goto('/');await page.evaluate(m=>localStorage.setItem('sideline.match.v1',JSON.stringify(m)),m);await page.reload();await nav(page,'Live match');
 }
@@ -23,17 +21,17 @@ for(const first of ['top','bottom'])test(`${first} first-half direction: real bo
  for(const team of ['our','opposition']){await shot(page,team,1,'point',first,.18);await shot(page,team,1,'two-point',first,.35);}
  await nav(page,'HALF-TIME ANALYSIS');await topMarkers(page.getByRole('img',{name:'First-half shot map',exact:true}),2);
  await expect(page.locator('[data-ht-zone="inside"]')).toContainText('1 / 1');await expect(page.locator('[data-ht-zone="outside"]')).toContainText('1 / 1');
- if(first==='top')await page.screenshot({path:`${root}/01-h1-map.png`});
+ if(first==='top')await page.screenshot({path:test.info().outputPath(`01-h1-map.png`)});
  await nav(page,'Return to Live Match');page.once('dialog',d=>d.accept());await nav(page,'Start second half');
  let h2Two;for(const team of ['our','opposition']){await shot(page,team,2,'point',first,.18);const e=await shot(page,team,2,'two-point',first,.35);if(team==='our')h2Two=e;}
  const before=await state(page),raw=JSON.stringify(before.events);
  await nav(page,'Match analysis');await page.locator('#shot-team').selectOption('our');await page.locator('#shot-half').selectOption('2');const map=page.getByRole('img',{name:'Shot map',exact:true});await topMarkers(map,2);
- if(first==='top'){await page.locator('.analysis-map-layout').scrollIntoViewIfNeeded();await page.screenshot({path:`${root}/02-h2-map.png`});await map.screenshot({path:`${root}/05-h2-two-pointer.png`});}
+ if(first==='top'){await page.locator('.analysis-map-layout').scrollIntoViewIfNeeded();await page.screenshot({path:test.info().outputPath(`02-h2-map.png`)});await map.screenshot({path:test.info().outputPath(`05-h2-two-pointer.png`)});}
  const two=map.locator(`[data-shot-id="${h2Two.id}"] > circle`).first();expect(+(await two.getAttribute('cy'))).toBeGreaterThan(260);expect(+(await two.getAttribute('cy'))).toBeLessThan(450);
  await page.locator('#shot-team').selectOption('opposition');await topMarkers(page.getByRole('img',{name:'Shot map',exact:true}),2);
  await nav(page,'Live match');await nav(page,'END MATCH / FULL TIME');await expect(page.getByRole('heading',{name:'Normal-Time Analysis',exact:true})).toBeVisible();await nav(page,'Finish as Draw');await topMarkers(page.getByRole('img',{name:'Full-match shot map',exact:true}),4);
  await expect(page.locator('[data-ht-zone="inside"]')).toContainText('2 / 2');await expect(page.locator('[data-ht-zone="outside"]')).toContainText('2 / 2');
- if(first==='top'){await page.screenshot({path:`${root}/03-full-match-overlay.png`});await page.locator('.ht-map').screenshot({path:`${root}/04-inside-outside-40m.png`});}
+ if(first==='top'){await page.screenshot({path:test.info().outputPath(`03-full-match-overlay.png`)});await page.locator('.ht-map').screenshot({path:test.info().outputPath(`04-inside-outside-40m.png`)});}
  expect(JSON.stringify((await state(page)).events)).toBe(raw);
  await page.evaluate(()=>navigator.serviceWorker.ready);await page.reload();await page.waitForFunction(()=>!!navigator.serviceWorker.controller);await context.setOffline(true);
  await nav(page,'Match History');const card=page.locator(`[data-history-id="${before.id}"]`);await expect(card).toBeVisible();await card.getByRole('button',{name:'VIEW MATCH',exact:true}).click();await topMarkers(page.getByRole('img',{name:'Full-match shot map',exact:true}),4);
