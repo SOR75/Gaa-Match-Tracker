@@ -747,3 +747,186 @@ test('Phase 2A.3 stored Irish expiry instants and final security verification', 
     assert.equal(await coach('coach', 'select recording_finished_at is not null from sideline.matches where team_id=$1 and id=$2', [team,match]), true);
   });
 });
+
+test('Phase 2B.1 commercial accounts and administration', async t => {
+  await pool.query(await readFile(new URL('../migrations/005_accounts_and_administration.sql', import.meta.url), 'utf8'));
+  const register = 'select sideline.register_organisation($1,$2,$3,$4,$5,$6,$7,$8,$9)';
+  const form = ['Synthetic county','county','lgfa','Synthetic purchaser',null,'Synthetic administrator',
+    people.third.email.toUpperCase(),null,2];
+  const nominate = 'select sideline.accept_admin_nomination($1)';
+  const provision = 'select sideline.provision_registration($1)';
+  const request = 'select sideline.request_admin_transfer($1,$2)';
+  const transfer = 'select sideline.accept_admin_transfer($1,$2,$3)';
+  const updateContact = 'select sideline.update_organisation_contact($1,$2,$3,$4)';
+  const getContact = user => queryAs(user, 'select email from sideline.organisation_contacts where organisation_id=$1', [org]);
+  const seat = user => queryAs(user, 'select user_id, full_name from sideline.organisation_admins where organisation_id=$1', [org]);
+  const visible = (user, team) => queryAs(user, 'select id from sideline.players where team_id=$1', [team]);
+  let org, registration, team, player;
+
+  await t.test('pending registration separates the purchaser, verified nominee and trusted provisioning', async () => {
+    await denied(coach('unverified', register, form), '42501');
+    await denied(as('anon', null, db => db.query(register, form)), '42501');
+    registration = await coach('outsider', register, form);
+    const details = 'select status,billing_email,nominee_email,requested_teams from sideline.organisation_registrations where id=$1';
+    assert.deepEqual(await queryAs('outsider', details, [registration]), [{
+      status:'pending',billing_email:people.outsider.email,nominee_email:people.third.email,requested_teams:2,
+    }]);
+    const billingOnly = await coach('outsider',
+      'select sideline.register_organisation($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)', [...form,people.coach.email]);
+    assert.equal((await queryAs('outsider', details, [billingOnly]))[0].billing_email, people.coach.email);
+    assert.deepEqual(await queryAs('coach', details, [billingOnly]), []);
+    assert.deepEqual(await queryAs('coach', details, [registration]), []);
+    await denied(service(provision,[registration]), '23514');
+    await denied(coach('outsider',nominate,[registration]), '42501');
+    await coach('third',nominate,[registration]);
+    await denied(coach('third',nominate,[registration]), '42501');
+    await denied(coach('third',provision,[registration]), '42501');
+    await pool.query('update auth.users set email_confirmed_at=null where id=$1',[people.third.id]);
+    await denied(service(provision,[registration]), '23514');
+    await pool.query('update auth.users set email_confirmed_at=now() where id=$1',[people.third.id]);
+    const [one,two] = await Promise.all([service(provision,[registration]),service(provision,[registration])]);
+    assert.equal(one,two);
+    org = one;
+    assert.deepEqual(await seat('third'), [{user_id:people.third.id,full_name:'Synthetic administrator'}]);
+    assert.deepEqual(await seat('outsider'), []);
+    assert.deepEqual(await queryAs('outsider','select id from sideline.organisations where id=$1',[org]), []);
+    assert.deepEqual(await queryAs('third','select * from sideline.subscription_terms where organisation_id=$1',[org]), []);
+    assert.equal((await queryAs('outsider', details, [registration]))[0].status, 'provisioned');
+  });
+
+  await t.test('database requires exactly one administrator and protects contact and licence changes', async () => {
+    await denied(pool.query('insert into sideline.organisation_admins (organisation_id,user_id) values ($1,$2)',[org,people.coach.id]), '23505');
+    await denied(pool.query('delete from sideline.organisation_admins where organisation_id=$1',[org]), '23503');
+    await denied(coach('third',updateContact,[ids.other,'Forged','synthetic@example.invalid',null]), '42501');
+    await coach('third',updateContact,[org,'Synthetic contact','synthetic@example.invalid',null]);
+    assert.deepEqual(await getContact('outsider'), []);
+    assert.deepEqual(await getContact('third'), [{email:'synthetic@example.invalid'}]);
+    team = await coach('third','select sideline.create_team($1,$2)',[org,'Synthetic U16']);
+    await denied(activate('third',team),'23514');
+    await denied(coach('third','select sideline.set_subscription_term($1,$2,2,2)',[org,'2029-07-01']), '42501');
+    await service('select sideline.set_subscription_term($1,$2,1,2)',[org,'2029-07-01']);
+    await activate('third',team);
+    const reserve = await coach('third','select sideline.create_team($1,$2)',[org,'Synthetic Minor']);
+    await denied(activate('third',reserve),'23514','Team allowance exhausted');
+    player = await value(pool,"insert into sideline.players (team_id,display_name) values ($1,'Synthetic athlete') returning id",[team]);
+    assert.deepEqual(await visible('third',team), []);
+    assert.deepEqual(await visible('outsider',team), []);
+  });
+
+  await t.test('self-assignment uses a coach seat and records the membership change exactly once', async () => {
+    const token = await invite('third',team,'third');
+    await denied(accept('outsider',token), '42501');
+    assert.equal(await accept('third',token),team);
+    await denied(accept('third',token), '42501');
+    assert.deepEqual(await visible('third',team), [{id:player}]);
+    const audit = "select actor_id,team_id from sideline.admin_audit where organisation_id=$1 and action='admin_coach_assignment'";
+    assert.deepEqual(await queryAs('third',audit,[org]), [{actor_id:people.third.id,team_id:team}]);
+    assert.deepEqual(await queryAs('outsider',audit,[org]), []);
+    await denied(queryAs('third','delete from sideline.admin_audit where organisation_id=$1',[org]), '42501');
+  });
+
+  await t.test('expiring single-use coach tokens preserve separate multi-organisation memberships', async () => {
+    const expired = await invite('third',team,'coach');
+    assert.equal(await value(pool,
+      "select expires_at - issued_at = interval '14 days' from sideline.coach_invitations where id=$1", [expired]), true);
+    await pool.query("update sideline.coach_invitations set expires_at=clock_timestamp() - interval '1 second' where id=$1",[expired]);
+    await denied(accept('coach',expired), '42501');
+    const token = await invite('third',team,'coach');
+    // Simulate eight elapsed days. Acceptance should still use the stored deadline.
+    await pool.query(`update sideline.coach_invitations set issued_at = issued_at - interval '192 hours',
+      expires_at = expires_at - interval '192 hours' where id=$1`, [token]);
+    const accepts = await Promise.allSettled([accept('coach',token),accept('coach',token)]);
+    assert.equal(accepts.filter(r=>r.status==='fulfilled' && r.value===team).length,1);
+    assert.equal(accepts.find(r=>r.status==='rejected').reason.code,'42501');
+    assert.deepEqual(await visible('coach',team), [{id:player}]);
+    assert.deepEqual(await visible('coach',ids.minor), [{id:ids.minorPlayer}]);
+    assert.deepEqual(await visible('coach',ids.otherA), []);
+    const extra = await invite('third',team,'second');
+    await denied(accept('second',extra),'23514','Coach allowance exhausted');
+    await denied(coach('third','select sideline.revoke_coach($1,$2)',[ids.minor,people.coach.id]), '42501');
+    const stale = await invite('third',team,'coach');
+    await coach('third','select sideline.revoke_coach($1,$2)',[team,people.coach.id]);
+    await denied(accept('coach',stale),'42501');
+    assert.deepEqual(await visible('coach',team), []);
+    assert.deepEqual(await visible('coach',ids.minor), [{id:ids.minorPlayer}]);
+  });
+
+  await t.test('transfer requires a live token and the intended verified account', async () => {
+    await denied(coach('outsider',request,[org,people.outsider.email]), '42501');
+    const earliestExpiry = await value(pool, "select clock_timestamp() + interval '7 days'");
+    const unverified = await coach('third',request,[org,people.unverified.email]);
+    assert.equal(await value(pool, `select expires_at between $2 and clock_timestamp() + interval '7 days'
+      from sideline.admin_transfers where organisation_id=$1 and revoked_at is null`, [org,earliestExpiry]), true);
+    await denied(coach('unverified',transfer,[unverified,'Synthetic incoming',null]), '42501');
+    const expired = await coach('third',request,[org,people.second.email]);
+    await pool.query("update sideline.admin_transfers set expires_at=clock_timestamp() where organisation_id=$1 and revoked_at is null",[org]);
+    await denied(coach('second',transfer,[expired,'Synthetic incoming',null]), '42501');
+    const replaced = await coach('third',request,[org,people.second.email]);
+    const cancelled = await coach('third',request,[org,people.second.email]);
+    await denied(coach('second',transfer,[replaced,'Synthetic incoming',null]), '42501');
+    await coach('third','select sideline.cancel_admin_transfer($1)',[org]);
+    await denied(coach('second',transfer,[cancelled,'Synthetic incoming',null]), '42501');
+    assert.deepEqual(await seat('third'), [{user_id:people.third.id,full_name:'Synthetic administrator'}]);
+  });
+
+  await t.test('transfer fences concurrent accepts and outgoing administrator writes', async () => {
+    const token = await coach('third',request,[org,people.second.email]);
+    const args = [token,'Synthetic successor',null];
+    const oldInvite = await invite('third',team,'coach');
+    await denied(coach('outsider',transfer,args),'42501');
+    const winner = await pool.connect();
+    const outgoing = await pool.connect();
+    const replay = await pool.connect();
+    let stale, duplicate;
+    try {
+      await acting(winner,'authenticated',people.second);
+      await acting(outgoing,'authenticated',people.third);
+      await acting(replay,'authenticated',people.second);
+      assert.equal(await value(winner,transfer,args),org);
+      const pid1 = await value(outgoing,'select pg_backend_pid()');
+      const pid2 = await value(replay,'select pg_backend_pid()');
+      stale = denied(outgoing.query('select sideline.invite_coach($1,$2)',[team,people.coach.email]),'42501');
+      duplicate = denied(replay.query(transfer,args),'42501');
+      await Promise.all([waitForLock(pid1),waitForLock(pid2)]);
+      await winner.query('commit');
+      // An aborted request releases its transaction locks when it fails.
+      await Promise.all([stale,duplicate]);
+    } finally {
+      await winner.query('rollback');
+      await Promise.allSettled([stale,duplicate]);
+      await outgoing.query('rollback');
+      await replay.query('rollback');
+      winner.release(); outgoing.release(); replay.release();
+    }
+    assert.deepEqual(await seat('second'), [{user_id:people.second.id,full_name:'Synthetic successor'}]);
+    assert.deepEqual(await seat('third'), []);
+    assert.deepEqual(await getContact('third'), []);
+    assert.deepEqual(await visible('second',team), []);
+    assert.deepEqual(await visible('third',team), [{id:player}]);
+    await denied(accept('coach',oldInvite),'42501');
+    assert.deepEqual(await queryAs('second',
+      "select previous_admin_id,admin_id from sideline.admin_audit where organisation_id=$1 and action='transfer_accepted'",[org]),
+      [{previous_admin_id:people.third.id,admin_id:people.second.id}]);
+    await coach('second','select sideline.revoke_coach($1,$2)',[team,people.third.id]);
+    assert.deepEqual(await visible('third',team), []);
+  });
+
+  await t.test('new accounts retain Irish expiry and restricted function and table privileges', async () => {
+    await accept('coach',await invite('second',team,'coach'));
+    await pool.query("update public.synthetic_clock set instant='2030-06-30T22:59:59.999Z'");
+    await coach('coach','select sideline.create_match($1,$2)',[team,randomUUID()]);
+    await pool.query("update public.synthetic_clock set instant='2030-06-30T23:00:00Z'");
+    await denied(coach('coach','select sideline.create_match($1,$2)',[team,randomUUID()]), '23514');
+    assert.deepEqual(await visible('coach',team), [{id:player}]);
+    assert.deepEqual(await visible('second',team), []);
+    assert.deepEqual(await rows(pool,`select proname from pg_proc where pronamespace in
+      ('sideline'::regnamespace,'sideline_private'::regnamespace) and prosecdef and
+      (has_function_privilege('anon',oid,'execute') or not coalesce(proconfig @> array['search_path=""'],false))`), []);
+    for (const role of ['anon','authenticated','service_role']) {
+      assert.deepEqual(await rows(pool,`select relname from pg_class where relnamespace='sideline'::regnamespace and relkind='r'
+        and (not relrowsecurity or has_any_column_privilege($1,oid,'insert,update') or has_table_privilege($1,oid,'delete,truncate'))`,[role]), []);
+    }
+    await denied(queryAs('second','select * from sideline.admin_transfers'),'42501');
+    await denied(as('service_role',null,db=>db.query('select * from sideline.players')),'42501');
+  });
+});
